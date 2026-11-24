@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 93b1aaa11f5ffb3b1a174fdb5473b907ebbe32da28256c8082c1682efda02818 # shrinks to a = [(Set(2, 2), 1)], b = [(Set(2, 0), 1)], c = [(Set(2, 2), 1)]
