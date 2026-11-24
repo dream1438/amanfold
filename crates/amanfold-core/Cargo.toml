@@ -1,0 +1,36 @@
+[package]
+name = "amanfold-core"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Amanfold security core: key derivation, vault encryption, item model and sync format"
+rust-version = "1.85"
+
+[dependencies]
+argon2 = { version = "0.5", features = ["zeroize"] }
+bip39 = { version = "2", features = ["zeroize"] }
+chacha20poly1305 = "0.10"
+ciborium = "0.2.2"
+data-encoding = "2.11.1"
+ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
+hkdf = "0.12"
+hmac = "0.12"
+rand_core = { version = "0.6", features = ["getrandom"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_bytes = "0.11.19"
+sha1 = "0.10"
+sha2 = "0.10"
+subtle = "2.6.1"
+thiserror = "2.0.21"
+unicode-normalization = "0.1.26"
+uuid = { version = "1.29.3", features = ["serde"] }
+x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
+zeroize = { version = "1.9.2", features = ["derive"] }
+
+[dev-dependencies]
+hex = "0.4.3"
+proptest = "1.12.0"
+
+# Browser extension and web vault: randomness comes from crypto.getRandomValues.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
