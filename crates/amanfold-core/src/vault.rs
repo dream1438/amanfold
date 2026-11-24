@@ -8,7 +8,7 @@
 //! fingerprint was verified), so a malicious server cannot slip in its own
 //! vault key or substitute a member's public key.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -18,6 +18,7 @@ use crate::{
     aead::{Context, KEY_LEN, SymmetricKey},
     item::Item,
     keys::{self, AccountKeys, PublicKeys, Sealed},
+    manifest,
     sync::{self, EncryptedRecord},
 };
 
@@ -152,6 +153,12 @@ pub fn accept(g: &VaultGrant, me: &AccountKeys, trusted_granter: &PublicKeys) ->
 pub struct Vault {
     key: VaultKey,
     items: BTreeMap<Uuid, (Item, SymmetricKey)>,
+    /// Digest of the newest record this device uploaded or accepted, per item.
+    digests: BTreeMap<Uuid, [u8; 32]>,
+    /// Items listed in a verified manifest: the server may never drop these.
+    confirmed: BTreeSet<Uuid>,
+    /// Highest manifest sequence number accepted (rollback protection).
+    last_seq: Option<u64>,
 }
 
 impl Vault {
@@ -160,6 +167,9 @@ impl Vault {
         Self {
             key,
             items: BTreeMap::new(),
+            digests: BTreeMap::new(),
+            confirmed: BTreeSet::new(),
+            last_seq: None,
         }
     }
 
@@ -194,6 +204,8 @@ impl Vault {
             None => (item, keys::new_symmetric_key()),
         };
         let rec = sync::encrypt_item(&self.key, &merged, &ik)?;
+        self.digests
+            .insert(merged.id(), manifest::record_digest(&rec));
         self.items.insert(merged.id(), (merged, ik));
         Ok(rec)
     }
@@ -202,6 +214,8 @@ impl Vault {
     /// if the local copy had changes the server did not.
     pub fn apply_remote(&mut self, rec: &EncryptedRecord) -> Result<Option<EncryptedRecord>> {
         let (remote, rik) = sync::decrypt_item(&self.key, rec)?;
+        self.digests
+            .insert(remote.id(), manifest::record_digest(rec));
         match self.items.remove(&remote.id()) {
             None => {
                 self.items.insert(remote.id(), (remote, rik));
@@ -210,7 +224,10 @@ impl Vault {
             Some((local, _)) => {
                 let merged = local.merge(&remote)?;
                 let upload = if merged != remote {
-                    Some(sync::encrypt_item(&self.key, &merged, &rik)?)
+                    let up = sync::encrypt_item(&self.key, &merged, &rik)?;
+                    self.digests
+                        .insert(merged.id(), manifest::record_digest(&up));
+                    Some(up)
                 } else {
                     None
                 };
@@ -229,10 +246,84 @@ impl Vault {
         let mut out = Vec::with_capacity(self.items.len());
         for (item, ik) in self.items.values_mut() {
             *ik = keys::new_symmetric_key();
-            out.push(sync::encrypt_item(&next, item, ik)?);
+            let rec = sync::encrypt_item(&next, item, ik)?;
+            self.digests
+                .insert(item.id(), manifest::record_digest(&rec));
+            out.push(rec);
         }
         self.key = next;
         Ok(out)
+    }
+
+    /// Sign a manifest of this device's view of the vault, to upload after
+    /// its records. The server must accept it only if `seq` is exactly one
+    /// more than the manifest it currently holds (compare-and-swap), so two
+    /// writers cannot both win; the loser syncs again and retries.
+    pub fn sign_manifest(&mut self, author: &AccountKeys) -> manifest::SignedManifest {
+        let seq = self.last_seq.map_or(1, |s| s + 1);
+        let m = manifest::SignedManifest::sign(&self.key, seq, self.digests.clone(), author);
+        self.last_seq = Some(seq);
+        self.confirmed.extend(self.digests.keys().copied());
+        m
+    }
+
+    /// Verified sync: apply records downloaded from the server against the
+    /// vault's signed manifest.
+    ///
+    /// * `manifest` must be signed by one of `trusted_writers` (the members
+    ///   with write access, whose keys came from verified grants).
+    /// * Its sequence number must not go backwards (rollback).
+    /// * Every downloaded record must be the exact version the manifest lists.
+    /// * Every item the manifest lists, and every item a previous manifest
+    ///   listed, must be present afterwards (omission).
+    ///
+    /// Returns records to upload (local changes the server lacked); upload
+    /// them, then [`Vault::sign_manifest`].
+    pub fn sync_verified(
+        &mut self,
+        manifest: &manifest::SignedManifest,
+        changed: &[EncryptedRecord],
+        trusted_writers: &[PublicKeys],
+    ) -> Result<Vec<EncryptedRecord>> {
+        let body = manifest.verify(trusted_writers)?;
+        if body.vault_id != self.key.id() {
+            return Err(Error::Malformed("manifest for another vault"));
+        }
+        if body.epoch < self.key.epoch() {
+            return Err(Error::Rollback("manifest uses an old vault key"));
+        }
+        if body.epoch > self.key.epoch() {
+            return Err(Error::Malformed(
+                "vault key rotated: fetch the new grant first",
+            ));
+        }
+        if self.last_seq.is_some_and(|s| body.seq < s) {
+            return Err(Error::Rollback("manifest older than one already seen"));
+        }
+        for rec in changed {
+            if body.entries.get(&rec.item_id).map(|d| d.0) != Some(manifest::record_digest(rec)) {
+                return Err(Error::Rollback("record does not match the manifest"));
+            }
+        }
+        if self
+            .confirmed
+            .iter()
+            .any(|id| !body.entries.contains_key(id))
+        {
+            return Err(Error::Rollback("server dropped an item"));
+        }
+        let mut uploads = Vec::new();
+        for rec in changed {
+            if let Some(up) = self.apply_remote(rec)? {
+                uploads.push(up);
+            }
+        }
+        if body.entries.keys().any(|id| !self.items.contains_key(id)) {
+            return Err(Error::Rollback("server withheld an item"));
+        }
+        self.last_seq = Some(body.seq);
+        self.confirmed.extend(body.entries.keys().copied());
+        Ok(uploads)
     }
 }
 

@@ -32,6 +32,7 @@
 
 pub mod account;
 pub mod aead;
+pub mod auth;
 pub mod card;
 pub mod error;
 pub mod generator;
@@ -39,6 +40,7 @@ pub mod hlc;
 pub mod item;
 pub mod kdf;
 pub mod keys;
+pub mod manifest;
 pub mod secret;
 pub mod sync;
 pub mod totp;

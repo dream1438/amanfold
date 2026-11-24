@@ -143,3 +143,66 @@ proptest! {
         }
     }
 }
+
+/// Sign-up registers with OPAQUE; a new device logs in, then unlocks with the
+/// key from the same Argon2id run. Password change re-registers.
+#[test]
+fn opaque_signup_login_unlock_and_password_change() {
+    use amanfold_core::auth;
+    let server = auth::ServerKeys::generate();
+    let pinned = server.public_key();
+
+    // Sign-up.
+    let acct = account::create_account(PW).unwrap();
+    let id = acct.bundle.account_id;
+    let (st, req) = auth::client_registration_start(&acct.auth_key).unwrap();
+    let resp = auth::server_registration_start(&server, &req, &id).unwrap();
+    let upload = auth::client_registration_finish(st, &acct.auth_key, &resp, &id).unwrap();
+    let mut record = auth::server_registration_finish(&upload).unwrap();
+    let bundle = acct.bundle.clone();
+    let sk = SecretKey::parse(acct.secret_key.to_display().expose()).unwrap();
+
+    let login = |record: &[u8], pre: &account::PreLogin, pw: &str| {
+        let secrets = pre.derive(pw, &sk)?;
+        let (cst, req) = auth::client_login_start(&secrets.auth_key)?;
+        let (sst, resp) = auth::server_login_start(&server, Some(record), &req, &pre.account_id)?;
+        let out = auth::client_login_finish(
+            cst,
+            &secrets.auth_key,
+            &resp,
+            &pre.account_id,
+            Some(&pinned),
+        )?;
+        let skey = auth::server_login_finish(sst, &out.finalization, &pre.account_id)?;
+        assert_eq!(skey, out.session_key);
+        Ok::<_, amanfold_core::Error>(secrets)
+    };
+
+    // New device: pre-login, login, then unlock without a second Argon2 run.
+    let secrets = login(&record, &bundle.prelogin(), PW).unwrap();
+    let keys = account::unlock_with_key(&bundle, &secrets.unlock_key).unwrap();
+    assert_eq!(keys.public(), acct.keys.public());
+    assert!(login(&record, &bundle.prelogin(), "wrong password here").is_err());
+
+    // Password change: new bundle and new OPAQUE record, uploaded together.
+    let nb = account::rewrap_password(
+        &bundle,
+        &keys,
+        "new passphrase 2026",
+        &sk,
+        KdfParams::DEFAULT,
+    )
+    .unwrap();
+    let new_auth = nb
+        .prelogin()
+        .derive("new passphrase 2026", &sk)
+        .unwrap()
+        .auth_key;
+    let (st, req) = auth::client_registration_start(&new_auth).unwrap();
+    let resp = auth::server_registration_start(&server, &req, &id).unwrap();
+    let up = auth::client_registration_finish(st, &new_auth, &resp, &id).unwrap();
+    record = auth::server_registration_finish(&up).unwrap();
+    assert!(login(&record, &nb.prelogin(), PW).is_err());
+    let s2 = login(&record, &nb.prelogin(), "new passphrase 2026").unwrap();
+    assert!(account::unlock_with_key(&nb, &s2.unlock_key).is_ok());
+}

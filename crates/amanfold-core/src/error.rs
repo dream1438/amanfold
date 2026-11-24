@@ -28,6 +28,10 @@ pub enum Error {
     /// Two items cannot be merged (different ids or kinds).
     #[error("merge conflict: {0}")]
     Merge(&'static str),
+    /// The server served older data than this device has already seen, or
+    /// left data out. Do not use the response; report it.
+    #[error("possible rollback or withheld data: {0}")]
+    Rollback(&'static str),
     /// Invalid argument passed by the caller.
     #[error("invalid argument: {0}")]
     InvalidArgument(&'static str),

@@ -14,6 +14,8 @@ browser extension, desktop and web).
 | --- | --- |
 | `kdf` | Master password (NFKC) + 128-bit Secret Key → Argon2id + HKDF → Account Unlock Key; KDF floor/ceiling against server downgrades |
 | `account` | Sign-up, unlock, password change, silent KDF upgrade, 24-word recovery code |
+| `auth` | OPAQUE login (client and server halves), fake responses for unknown accounts, server key pinning |
+| `manifest` | Signed vault manifests: detect old, withheld or dropped data |
 | `keys` | X25519/Ed25519 account keys, public-key sealing, safety-number fingerprints |
 | `vault` | Vault keys, signed grants for family and team members, local replica, key rotation on member removal |
 | `item` | Logins, cards, notes, identities, passkeys; per-field conflict-free merge with history |
@@ -25,7 +27,7 @@ browser extension, desktop and web).
 ## Build and test
 
 ```sh
-cargo test                       # 69 tests incl. property tests
+cargo test                       # 87 tests incl. property tests
 cargo clippy --all-targets -- -D warnings
 cargo build -p amanfold-core --target wasm32-unknown-unknown --release
 ```
@@ -51,7 +53,7 @@ let rec = personal.save(Item::login("Email", "me@example.com", "pw", "https://ma
 ## Roadmap for the core
 
 1. ✅ Crypto, item model, sync format (this milestone)
-2. Server authentication with OPAQUE; signed vault manifests (rollback protection)
+2. ✅ Server authentication with OPAQUE; signed vault manifests (rollback protection)
 3. UniFFI bindings for Swift/Kotlin, wasm-bindgen for the extension
 4. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
 5. Trusted-contact recovery (Shamir), attachments
