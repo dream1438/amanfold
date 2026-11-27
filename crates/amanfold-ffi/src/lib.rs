@@ -481,8 +481,13 @@ impl Registration {
 pub struct LoginResult {
     /// Send to the server to complete the login.
     pub finalization: Vec<u8>,
-    /// Shared session key (64 bytes) for authenticating later requests.
+    /// Shared session key (64 bytes).
     pub session_key: Vec<u8>,
+    /// Bearer token for later API requests (32 bytes, derived from the
+    /// session key; the server derives the same one). Keep it in memory or
+    /// the device keychain, and send it as `Authorization: Bearer`
+    /// (base64url, no padding).
+    pub api_token: Vec<u8>,
     /// The server's OPAQUE public key. Store it and pass it as
     /// `pinned_server_key` on later logins.
     pub server_public_key: Vec<u8>,
@@ -560,6 +565,7 @@ impl LoginSession {
         )?;
         Ok(LoginResult {
             finalization: out.finalization,
+            api_token: auth::api_token(&out.session_key).expose().to_vec(),
             session_key: out.session_key.expose().to_vec(),
             server_public_key: out.server_public_key,
         })
@@ -807,6 +813,15 @@ impl Account {
         })
     }
 
+    /// Sign a challenge from the server, proving this device holds the
+    /// account's private keys. Account recovery uses it with purpose
+    /// `"recover"`: after [`recover_account`], the signature lets the server
+    /// accept a new password without the old one.
+    pub fn sign_challenge(&self, purpose: String, challenge: Vec<u8>) -> Result<Vec<u8>> {
+        let id = lock(&self.bundle).account_id;
+        Ok(auth::sign_challenge(&self.keys, &id, &purpose, &challenge)?.to_vec())
+    }
+
     /// Turn on quick unlock for this device. See [`QuickUnlock`].
     pub fn enable_quick_unlock(&self) -> Result<QuickUnlock> {
         let (dk, env) = account::wrap_for_device(&lock(&self.bundle), &self.keys)?;
@@ -953,9 +968,18 @@ impl LocalVault {
         Ok(up.iter().map(SavedItem::of).collect())
     }
 
-    /// Sign this device's view of the vault, to upload after its records.
+    /// Sign this device's view of the vault, to upload together with its
+    /// records. If the server refuses it (409: another device wrote first),
+    /// sync and sign again; nothing is lost.
     pub fn sign_manifest(&self, author: Arc<Account>) -> Vec<u8> {
         enc(&lock(&self.inner).sign_manifest(&author.keys))
+    }
+
+    /// The server accepted the last signed manifest. Call it after a
+    /// successful upload, so the next edit can be committed without a sync
+    /// in between.
+    pub fn commit_accepted(&self) -> Result<()> {
+        Ok(lock(&self.inner).commit_accepted()?)
     }
 
     /// After removing a member: new vault key, every item re-encrypted.

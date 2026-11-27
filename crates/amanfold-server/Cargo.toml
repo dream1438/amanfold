@@ -1,0 +1,36 @@
+[package]
+name = "amanfold-server"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Amanfold sync server: accounts, OPAQUE login, encrypted vault sync and sharing. Sees ciphertext only."
+rust-version = "1.85"
+publish = false
+
+[[bin]]
+name = "amanfold-server"
+path = "src/main.rs"
+
+[dependencies]
+amanfold-core = { path = "../amanfold-core" }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio", "tower-log", "tracing"] }
+data-encoding = "2.11.1"
+lettre = { version = "0.11.24", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots"] }
+rusqlite = { version = "0.43.0", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+subtle = "2.6.1"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "time"] }
+tower-http = { version = "0.7.1", features = ["limit", "trace", "set-header"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+unicode-normalization = "0.1.26"
+uuid = { version = "1.29.3", features = ["serde"] }
+zeroize = "1.9.2"
+
+[dev-dependencies]
+amanfold-ffi = { path = "../amanfold-ffi", default-features = false }
+http-body-util = "0.1.5"
+tower = { version = "0.5.3", features = ["util"] }

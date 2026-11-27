@@ -31,13 +31,15 @@ browser extension, desktop and web).
 | `crates/amanfold-ffi` | The one API every app calls; Swift and Kotlin bindings generated with UniFFI. Keys never leave Rust. |
 | `crates/amanfold-wasm` | The same API for the browser extension and web vault (WebAssembly) |
 | `crates/uniffi-bindgen` | Generates the Swift, Kotlin and Python bindings |
+| `crates/amanfold-server` | The sync server: accounts, OPAQUE login, encrypted vault sync, family and team sharing. Stores ciphertext only. |
 
-How the apps use it: [docs/BINDINGS.md](docs/BINDINGS.md).
+How the apps use it: [docs/BINDINGS.md](docs/BINDINGS.md). The server and
+its API: [docs/SERVER.md](docs/SERVER.md).
 
 ## Build and test
 
 ```sh
-cargo test --all-features        # 93 Rust tests incl. property tests
+cargo test --all-features        # core, bindings and server tests, incl. property tests
 cargo clippy --all-targets --all-features -- -D warnings
 cargo build -p amanfold-wasm --target wasm32-unknown-unknown --release
 ```
@@ -68,8 +70,9 @@ let rec = personal.save(Item::login("Email", "me@example.com", "pw", "https://ma
 1. ✅ Crypto, item model, sync format (this milestone)
 2. ✅ Server authentication with OPAQUE; signed vault manifests (rollback protection)
 3. ✅ App bindings: Swift/Kotlin (UniFFI), WebAssembly for the browser; quick unlock, encrypted local cache
-4. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
-5. Trusted-contact recovery (Shamir), attachments
+4. ✅ Sync server: sign-up with email codes, OPAQUE login, sessions, recovery, verified sync, sharing with roles, key rotation
+5. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
+6. Trusted-contact recovery (Shamir), attachments
 
 ## License
 

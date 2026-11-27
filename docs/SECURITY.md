@@ -1,7 +1,8 @@
 # Amanfold security core: design and internal review
 
 Status: **pre-release, not independently audited.** This document describes
-what `crates/amanfold-core` does today, what it protects against, what it does
+what `crates/amanfold-core` and the sync server (`crates/amanfold-server`, see
+[SERVER.md](SERVER.md)) do today, what they protect against, what they do
 not yet protect against, and the findings of the internal review. An
 independent audit is planned before the beta label is removed.
 
@@ -99,8 +100,14 @@ record. On sync, a device:
 * learns the current key epoch from the signed manifest, so an old grant or
   old epoch is detected.
 
+* refuses a manifest that lists a version of an item it already has but
+  does not come with that record (the server hiding someone else's newer
+  edit, which this device would otherwise overwrite).
+
 The server accepts a new manifest only if its sequence number is exactly one
-more than the stored one, which serialises concurrent writers.
+more than the stored one, which serialises concurrent writers. A device
+records its own manifest as confirmed only after the server accepted it
+(`commit_accepted`), so a refused commit leaves its rollback state untouched.
 
 ## App bindings (milestone 3)
 
@@ -151,6 +158,34 @@ wrapped for JavaScript in `crates/amanfold-wasm`. See [BINDINGS.md](BINDINGS.md)
 * `SignedManifest` per vault (latest only).
 * `EncryptedRecord` per item: vault id, item id, key epoch, wrapped item key,
   payload padded to a size bucket (512 B, 1 KiB, ... 64 KiB, then 64 KiB steps).
+* Email address, hashes of session tokens and of emailed codes, vault
+  memberships and roles, open invitations. Full table list in [SERVER.md](SERVER.md).
+
+What the server can still learn (metadata): which emails have accounts, how
+many items each vault has and their padded sizes, when devices sync, and who
+shares vaults with whom.
+
+## Sync server (milestone 4)
+
+`crates/amanfold-server` (Rust, axum, SQLite) is built on this core. Its
+checks are a second line of defence; clients never rely on them.
+
+* **Login.** OPAQUE server half with fake answers for unknown emails; rate
+  limits per email (10 per 15 minutes) and per address. The API token is
+  derived from the OPAQUE session key on both sides (`auth::api_token`) and
+  only its hash is stored.
+* **Proof of key possession.** Changing the password, replacing the recovery
+  code, deleting the account and forgotten-password recovery need a fresh
+  server challenge signed with the account's Ed25519 key
+  (`auth::sign_challenge`, bound to account id and purpose). A stolen session
+  token, or access to the email inbox, is not enough.
+* **Email codes** for sign-up and recovery: 8 digits, 15 minutes, 5 tries,
+  stored hashed. Sign-up and recovery give the same answer whether or not the
+  address has an account.
+* **Writes** are compare-and-swap on the manifest sequence number; manifests
+  must be signed by the uploader; uploads must match the manifest; nothing
+  may be dropped. Readers cannot write. Rotation must re-grant exactly the
+  remaining members.
 
 ## Threats and how they are handled
 
@@ -185,7 +220,37 @@ wrapped for JavaScript in `crates/amanfold-wasm`. See [BINDINGS.md](BINDINGS.md)
 | Old item keys reused after someone else rotates | `rekey` replaces every local item key | `vault::rekey_after_someone_else_rotates` |
 | App uses a protocol object out of order | `WrongStep` error, state kept | `amanfold-ffi` `tests/api.rs` |
 | Same checks on every platform | End-to-end tests through the generated Python, Kotlin and Swift bindings and the wasm build | `crates/amanfold-ffi/tests/bindings/*`, `crates/amanfold-wasm/tests/flow.cjs` |
+| Server hides a newer version of an item the device already has | Listed digest must match the last confirmed version or come with the record | `manifest::hidden_newer_version_of_a_known_item_is_detected` |
+| Device stuck after another device wrote first | Own manifest confirmed only after the server accepts it | `manifest::refused_commit_leaves_rollback_state_alone`, server `concurrent_writers_conflict_then_both_edits_survive` |
+| Stolen session token used to change the password or delete the account | Signed challenge with the account key required | server `password_change_needs_the_account_key_and_signs_out_other_devices` |
+| Email inbox taken over, password reset attempted | Recovery needs the emailed code and a signature from the key unlocked with the 24 words | server `forgotten_password_recovery_with_email_code_and_recovery_words` |
+| Online password guessing | 10 login attempts per email per 15 minutes, plus per-address limits | server `login_attempts_are_rate_limited_per_email` |
+| Guessing an emailed code | 5 tries, then the code is void | server `signup_needs_the_emailed_code_and_hides_existing_accounts` |
+| Member drops items, uploads records that do not match, or writes as a reader | Server checks against the signed manifest and roles; clients check again | server `server_rejects_inconsistent_or_unauthorised_uploads`, `family_sharing_roles_removal_and_rotation` |
+| Removed member keeps access | Access ends at the server at once; rotation must re-grant only remaining members | server `family_sharing_roles_removal_and_rotation` |
 | Accidental change to derivation | Known-answer test, cross-checked against an independent Python implementation (argon2-cffi + cryptography) | `kdf::derivation_known_answer` |
+
+## Internal review findings (milestone 4, sync server, 2026-11-27)
+
+Found by running the real apps' API against the real server:
+
+1. **Server could hide a newer edit (fixed in the core).** `sync_verified`
+   only checked that every listed item existed locally. A server could list
+   another device's newer version but not send it; the device kept its old
+   copy and its next upload silently replaced the other device's edit. Now
+   a listed digest must match the last confirmed version, the device's own
+   version, or a record sent with it. Regression test added.
+2. **Device stuck after a save conflict (fixed in the core).**
+   `sign_manifest` marked the device's own items as confirmed and advanced
+   the sequence number before the server accepted them. After a `409` (two
+   devices saving at once, which is normal), the honest server's manifest
+   looked like dropped data and the device refused every later sync. Signing
+   no longer changes rollback state; apps call `commit_accepted` after a
+   successful upload. New API: `LocalVault.commitAccepted()`.
+3. **Account takeover with a session token.** A password change through the
+   server needed only a session; it now also needs a signed challenge.
+4. **Recovery needed a way to prove the recovery kit** without the old
+   password: added `auth::sign_challenge` / `Account.signChallenge`.
 
 ## Internal review findings (milestone 3, 2026-11-27)
 
@@ -238,7 +303,7 @@ Open, to be addressed in later milestones:
 | --- | --- | --- | --- |
 | O1 | ~~Rollback and omission.~~ **Mostly fixed (milestone 2)** by signed manifests. Remaining: a "freeze" (server shows a device an old but consistent state and hides all newer manifests) and a brand-new device's first sync, which has no earlier sequence number to compare. | Low | Signed timestamps in manifests with a staleness warning; device-to-device checks. |
 | O2 | **Any vault member can write any item.** Fine for personal and family vaults; Teams read-only roles need record signatures. | Medium (Teams) | Sign each record with the author's Ed25519 key; server and clients enforce roles. |
-| O3 | ~~Server login not implemented.~~ **Fixed (milestone 2)**: OPAQUE with a login key separate from the unlock key. Server must still rate-limit login attempts per account and IP. | Low | Server milestone. |
+| O3 | ~~Server login not implemented.~~ **Fixed (milestone 2)**: OPAQUE with a login key separate from the unlock key. ~~Server must still rate-limit login attempts.~~ **Done (milestone 4).** | | |
 | O4 | **Memory hygiene is best effort.** Secrets are zeroized on drop inside Rust, but `String` reallocation, CBOR buffers inside `ciborium`, and anything handed to Swift, Kotlin or JavaScript (field values, generated passwords, the Secret Key and recovery words at sign-up, the session and device keys) can leave copies the core cannot wipe. | Low | Pre-size buffers; reveal fields one at a time in the UI; mlock where available. |
 | O5 | ~~Clock skew.~~ **Fixed (milestone 3)**: the app-facing `LocalVault` observes every remote timestamp after sync and on open. A device clock that is far behind can still order its own edits before older remote ones until it syncs. | Low | |
 | O6 | ~~Grant replay.~~ **Fixed (milestone 2)**: the signed manifest carries the current epoch; a device on an older epoch is told to fetch the new grant. | | |
@@ -248,9 +313,15 @@ Open, to be addressed in later milestones:
 | O10 | **Dependency advisory RUSTSEC-2026-0387** (crypto-bigint 0.5 timing). Pulled in only as a trait dependency of `elliptic-curve` 0.13 via `opaque-ke`. Our Ristretto255 suite uses curve25519-dalek arithmetic; the only `elliptic-curve` code on that path is SHA-512 message expansion. Not reachable; ignored in `.cargo/audit.toml` with this reason. Also flagged (warning only): RUSTSEC-2026-0374, `basic-toml` unmaintained, used by UniFFI's template engine at build time to read `uniffi.toml`; not in the code apps run. | Low | Upgrade when `opaque-ke` moves to `elliptic-curve` 0.14, and UniFFI off `basic-toml`. |
 | O11 | **Manifest writers.** Any member in `trusted_writers` can sign a manifest. Removing a member must also remove them from every device's trusted list, which needs the membership list itself to be signed. | Medium (families/Teams) | Signed membership log per vault (with O2). |
 | O12 | **Release builds abort on panic** (`panic = "abort"`), so a bug that panics inside the core closes the app instead of returning an error. Chosen so a panic can never leave half-updated secret state behind; property tests cover hostile input. | Low | Fuzzing (O9). |
-| O13 | **Cache across a rotation** opens only with the old grant; apps must open with the old grant and then call `accept_rotation`, or the rollback state for that vault restarts. | Low | Document in app integration guide; keep last grant locally. |
+| O13 | **Cache across a rotation** opens only with the old grant; apps must open with the old grant and then call `accept_rotation`, or the rollback state for that vault restarts. The server keeps every epoch's grant for current members, so the old one stays available. | Low | Document in app integration guide; keep last grant locally. |
+| O14 | **Server state in one process.** Rate limits, pending logins and challenges are in memory; a restart clears them, and several server instances would each count separately. | Low (beta) | Shared store (Redis) and Postgres before scaling out. |
+| O15 | **Metadata.** The server sees emails, item counts and padded sizes, sync times and the sharing graph. | Low | Document in the privacy policy; consider per-vault item-count padding. |
+| O16 | **Deleting an owner's account deletes shared vaults** it owns, including family vaults, because there is no ownership transfer yet. | Medium (families) | Ownership transfer to a manager before deletion. |
+| O17 | **Rotation by a manager.** After a manager rotates, other members receive a grant signed by the manager; apps must treat verified managers as trusted granters (part of O11's signed membership log). | Medium (Teams) | With O11. |
+| O18 | **Dependency review for the server** (axum, rusqlite with bundled SQLite, lettre with rustls) runs in CI's `cargo audit`; not yet reviewed by hand. | Low | Review before launch. |
 
-## Out of scope for the core
+## Out of scope
 
-The server itself (rate limiting, storage, compare-and-swap on manifests), transport (TLS), device biometrics, autofill domain
-matching (lives in the extension and mobile apps), and breach monitoring.
+Transport (TLS is terminated by a reverse proxy in front of the server),
+device biometrics, autofill domain matching (lives in the extension and
+mobile apps), billing, and breach monitoring.

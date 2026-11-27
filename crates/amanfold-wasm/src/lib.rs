@@ -168,6 +168,11 @@ impl LoginResult {
     pub fn session_key(&self) -> Vec<u8> {
         self.0.session_key.clone()
     }
+    /// Bearer token for API requests.
+    #[wasm_bindgen(getter, js_name = apiToken)]
+    pub fn api_token(&self) -> Vec<u8> {
+        self.0.api_token.clone()
+    }
     /// Server OPAQUE public key, to pin.
     #[wasm_bindgen(getter, js_name = serverPublicKey)]
     pub fn server_public_key(&self) -> Vec<u8> {
@@ -276,6 +281,11 @@ impl Account {
     #[wasm_bindgen(js_name = accountId)]
     pub fn account_id(&self) -> String {
         self.0.account_id()
+    }
+    /// Sign a server challenge (account recovery).
+    #[wasm_bindgen(js_name = signChallenge)]
+    pub fn sign_challenge(&self, purpose: String, challenge: Vec<u8>) -> JsResult<Vec<u8>> {
+        self.0.sign_challenge(purpose, challenge).map_err(err)
     }
     /// Current bundle.
     pub fn bundle(&self) -> Vec<u8> {
@@ -420,6 +430,11 @@ impl LocalVault {
     #[wasm_bindgen(js_name = signManifest)]
     pub fn sign_manifest(&self, author: &Account) -> Vec<u8> {
         self.0.sign_manifest(author.0.clone())
+    }
+    /// The server accepted the last signed manifest.
+    #[wasm_bindgen(js_name = commitAccepted)]
+    pub fn commit_accepted(&self) -> JsResult<()> {
+        self.0.commit_accepted().map_err(err)
     }
     /// Rotate the vault key (after removing a member).
     #[wasm_bindgen(js_name = rotateKey)]

@@ -35,6 +35,7 @@ Keep the Secret Key in the device keychain; never store the words.
 `LoginSession(prelogin, password, secretKey)`, `start()` → server →
 `finish(response, pinnedServerKey)` → send `finalization`. Store
 `serverPublicKey` the first time and pass it as `pinnedServerKey` after that.
+Send `apiToken` as `Authorization: Bearer` (base64url) on later requests.
 `unlock(bundle)` gives the `Account` without running Argon2id again.
 
 **Offline unlock.** `unlockAccount(bundle, password, secretKey)`.
@@ -52,8 +53,11 @@ shared vault it is the sharer's keys, after comparing safety numbers
 (`account.fingerprint()` on both phones).
 
 **Editing.** `createItem`, `updateItem`, `setTrashed` each return a
-`SavedItem` (id plus encrypted record) to upload. After uploading, upload
-`vault.signManifest(account)` too.
+`SavedItem` (id plus encrypted record) to upload. Upload the records together
+with `vault.signManifest(account)` in one commit. When the server accepts it,
+call `vault.commitAccepted()`. If it refuses because another device wrote
+first, sync and try again; nothing is lost. The server protocol is in
+[SERVER.md](SERVER.md).
 
 **Sync.** Download the vault's signed manifest and the changed records, then
 `vault.sync(manifest, records, trustedWriters)`. `trustedWriters` are the
@@ -72,7 +76,10 @@ key to the remaining members only.
 
 **Forgot password.** `recoverAccount(bundle, words)`, then
 `account.changePassword(newPassword, secretKey)`: upload the new bundle with
-the new registration, then `account.updateBundle(bundle)`.
+the new registration, then `account.updateBundle(bundle)`. The server asks
+for proof that the recovery worked: `account.signChallenge("recover",
+challenge)`. The same call, with purposes `change-password`,
+`rotate-recovery-code` and `delete-account`, protects those operations.
 
 **Tools.** `generatePassword(rules)`, `generatePassphrase(words, separator)`,
 `totpNow(secretOrUri)`, `cardInfo(number)` (Arabic-Indic and Persian digits
