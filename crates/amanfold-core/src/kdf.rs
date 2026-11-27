@@ -184,17 +184,31 @@ impl SecretKey {
 // Derivation
 // ---------------------------------------------------------------------------
 
-/// Derive the Account Unlock Key.
+/// Both secrets that come out of one master-password derivation.
+///
+/// They come from the same Argon2id run (so login plus unlock costs one
+/// stretch, not two) but from different HKDF labels, so neither reveals the
+/// other: the server sees an OPAQUE exchange built on `auth_key` and never
+/// learns anything that helps it compute `unlock_key`.
+#[derive(Debug)]
+pub struct AccountSecrets {
+    /// Unwraps the account private keys. Never leaves the device.
+    pub unlock_key: SymmetricKey,
+    /// Input to the OPAQUE login protocol. Never sent to the server.
+    pub auth_key: SecretBytes<32>,
+}
+
+/// Run Argon2id once and derive the unlock key and the login key.
 ///
 /// `account_id` is mixed in so two accounts with the same password, Secret Key
 /// and salt (which should never happen) still get different keys.
-pub fn derive_unlock_key(
+pub fn derive_account_secrets(
     password: &str,
     secret_key: &SecretKey,
     salt: &[u8; SALT_LEN],
     params: &KdfParams,
     account_id: &[u8],
-) -> Result<SymmetricKey> {
+) -> Result<AccountSecrets> {
     params.validate()?;
     let pw = normalize_password(password);
     if pw.is_empty() {
@@ -212,11 +226,27 @@ pub fn derive_unlock_key(
         .map_err(|_| Error::WeakKdfParams("rejected by argon2"))?;
 
     let hk = Hkdf::<Sha256>::new(Some(secret_key.expose()), &stretched[..]);
-    let mut out = [0u8; 32];
-    let info = [b"amanfold/v1/account-unlock-key".as_slice(), account_id].concat();
-    hk.expand(&info, &mut out)
-        .expect("32 bytes is a valid HKDF length");
-    Ok(SymmetricKey::from_array(out))
+    let expand = |label: &[u8]| {
+        let mut out = [0u8; 32];
+        hk.expand(&[label, account_id].concat(), &mut out)
+            .expect("32 bytes is a valid HKDF length");
+        out
+    };
+    Ok(AccountSecrets {
+        unlock_key: SymmetricKey::from_array(expand(b"amanfold/v1/account-unlock-key")),
+        auth_key: SecretBytes::from_array(expand(b"amanfold/v1/opaque-login-key")),
+    })
+}
+
+/// Derive only the Account Unlock Key. See [`derive_account_secrets`].
+pub fn derive_unlock_key(
+    password: &str,
+    secret_key: &SecretKey,
+    salt: &[u8; SALT_LEN],
+    params: &KdfParams,
+    account_id: &[u8],
+) -> Result<SymmetricKey> {
+    derive_account_secrets(password, secret_key, salt, params, account_id).map(|s| s.unlock_key)
 }
 
 /// Generate a fresh Argon2 salt.
@@ -343,6 +373,14 @@ mod tests {
         };
         assert!(derive_unlock_key("pw", &sk, &new_salt(), &weak, b"a").is_err());
         assert!(derive_unlock_key("", &sk, &new_salt(), &KdfParams::DEFAULT, b"a").is_err());
+    }
+
+    #[test]
+    fn login_key_is_independent_of_unlock_key() {
+        let sk = SecretKey::generate();
+        let s = derive_account_secrets("pw-pw-pw-pw", &sk, &[2u8; 16], &KdfParams::DEFAULT, b"a")
+            .unwrap();
+        assert_ne!(s.unlock_key.expose(), s.auth_key.expose());
     }
 
     /// Pinned output: if this changes, existing vaults would no longer unlock.

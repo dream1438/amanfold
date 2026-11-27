@@ -33,3 +33,5 @@ jobs:
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Reviewed exception, see .cargo/audit.toml and docs/SECURITY.md (O10).
+          ignore: RUSTSEC-2026-0387

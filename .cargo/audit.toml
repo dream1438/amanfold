@@ -1,0 +1,11 @@
+# Reviewed exceptions. Each entry must say why it is not reachable and when to
+# revisit it. See docs/SECURITY.md (O10).
+[advisories]
+ignore = [
+  # crypto-bigint 0.5 timing issues. Pulled in only as a trait dependency of
+  # elliptic-curve 0.13 via opaque-ke/voprf. Amanfold uses the Ristretto255
+  # suite (curve25519-dalek arithmetic); the only elliptic-curve code on that
+  # path is hash-to-curve message expansion (SHA-512), which does no bigint
+  # arithmetic. Revisit when opaque-ke moves to elliptic-curve 0.14.
+  "RUSTSEC-2026-0387",
+]

@@ -56,6 +56,48 @@ pub struct NewAccount {
     pub recovery_code: RecoveryCode,
     /// Unlocked keys for the current session.
     pub keys: AccountKeys,
+    /// OPAQUE login key: register it with [`crate::auth::client_registration_start`].
+    pub auth_key: SecretBytes<32>,
+}
+
+/// What the server hands out before login, so the client can run Argon2id.
+///
+/// Unauthenticated, so the client still enforces the KDF floor. For unknown
+/// usernames the server must answer with [`crate::auth::fake_prelogin`] so
+/// this request does not reveal which accounts exist.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreLogin {
+    /// Account id.
+    pub account_id: Uuid,
+    /// Argon2id parameters.
+    pub kdf: KdfParams,
+    /// Argon2id salt.
+    #[serde(with = "serde_bytes")]
+    pub salt: [u8; SALT_LEN],
+}
+
+impl PreLogin {
+    /// Run the master-password derivation (one Argon2id pass) for login and unlock.
+    pub fn derive(&self, password: &str, secret_key: &SecretKey) -> Result<kdf::AccountSecrets> {
+        kdf::derive_account_secrets(
+            password,
+            secret_key,
+            &self.salt,
+            &self.kdf,
+            self.account_id.as_bytes(),
+        )
+    }
+}
+
+impl AccountBundle {
+    /// The pre-login parameters for this account.
+    pub fn prelogin(&self) -> PreLogin {
+        PreLogin {
+            account_id: self.account_id,
+            kdf: self.kdf,
+            salt: self.salt,
+        }
+    }
 }
 
 fn password_ctx(id: &Uuid) -> Context {
@@ -85,7 +127,9 @@ pub fn create_account_with(password: &str, params: KdfParams) -> Result<NewAccou
     let recovery_code = RecoveryCode::generate();
     let keys = AccountKeys::generate();
     let salt = kdf::new_salt();
-    let auk = kdf::derive_unlock_key(password, &secret_key, &salt, &params, account_id.as_bytes())?;
+    let secrets =
+        kdf::derive_account_secrets(password, &secret_key, &salt, &params, account_id.as_bytes())?;
+    let auk = secrets.unlock_key;
     let rk = recovery_code.derive_key(&account_id);
     let bundle = AccountBundle {
         format: FORMAT_VERSION,
@@ -101,6 +145,7 @@ pub fn create_account_with(password: &str, params: KdfParams) -> Result<NewAccou
         secret_key,
         recovery_code,
         keys,
+        auth_key: secrets.auth_key,
     })
 }
 
@@ -143,9 +188,26 @@ pub fn unlock(
     Ok(keys)
 }
 
+/// Unlock with an unlock key already derived during login (see [`PreLogin::derive`]),
+/// so Argon2id runs once per sign-in, not twice.
+pub fn unlock_with_key(bundle: &AccountBundle, unlock_key: &SymmetricKey) -> Result<AccountKeys> {
+    check_bundle(bundle)?;
+    let keys = AccountKeys::unwrap(
+        unlock_key,
+        &password_ctx(&bundle.account_id),
+        &bundle.keys_by_password,
+    )?;
+    check_public(&keys, bundle)?;
+    Ok(keys)
+}
+
 /// Re-wrap the account keys under a new password and/or stronger KDF
 /// parameters. Also used for silent KDF upgrades: call it with the same
 /// password and [`KdfParams::DEFAULT`] when [`KdfParams::needs_upgrade`] says so.
+///
+/// The salt changes, so the OPAQUE login key changes too: derive it from the
+/// new bundle's [`AccountBundle::prelogin`] and re-register with the server in
+/// the same request that uploads the new bundle.
 pub fn rewrap_password(
     bundle: &AccountBundle,
     keys: &AccountKeys,
