@@ -157,6 +157,13 @@ pub struct Vault {
     digests: BTreeMap<Uuid, [u8; 32]>,
     /// Items listed in a verified manifest: the server may never drop these.
     confirmed: BTreeSet<Uuid>,
+    /// Record digest per item in the last manifest this device accepted from
+    /// the server. A later manifest that lists a different version must come
+    /// with that record, so the server cannot hide a newer version of an
+    /// item this device already has.
+    base: BTreeMap<Uuid, [u8; 32]>,
+    /// The last manifest this device signed, until the server accepts it.
+    pending: Option<(u64, BTreeMap<Uuid, [u8; 32]>)>,
     /// Highest manifest sequence number accepted (rollback protection).
     last_seq: Option<u64>,
 }
@@ -169,6 +176,8 @@ impl Vault {
             items: BTreeMap::new(),
             digests: BTreeMap::new(),
             confirmed: BTreeSet::new(),
+            base: BTreeMap::new(),
+            pending: None,
             last_seq: None,
         }
     }
@@ -255,16 +264,38 @@ impl Vault {
         Ok(out)
     }
 
-    /// Sign a manifest of this device's view of the vault, to upload after
+    /// Sign a manifest of this device's view of the vault, to upload with
     /// its records. The server must accept it only if `seq` is exactly one
     /// more than the manifest it currently holds (compare-and-swap), so two
     /// writers cannot both win; the loser syncs again and retries.
+    ///
+    /// Nothing is recorded as confirmed until [`Vault::commit_accepted`]: if
+    /// the server refuses (another device wrote first), the rollback state is
+    /// untouched and the next sync works normally.
     pub fn sign_manifest(&mut self, author: &AccountKeys) -> manifest::SignedManifest {
         let seq = self.last_seq.map_or(1, |s| s + 1);
         let m = manifest::SignedManifest::sign(&self.key, seq, self.digests.clone(), author);
-        self.last_seq = Some(seq);
-        self.confirmed.extend(self.digests.keys().copied());
+        self.pending = Some((seq, self.digests.clone()));
         m
+    }
+
+    /// The server accepted the manifest from the last [`Vault::sign_manifest`].
+    /// Records its sequence number and items as confirmed, so the next write
+    /// can follow without a sync in between.
+    pub fn commit_accepted(&mut self) -> Result<()> {
+        let (seq, entries) = self
+            .pending
+            .take()
+            .ok_or(Error::InvalidArgument("no signed manifest is waiting"))?;
+        if self.last_seq.is_some_and(|s| seq <= s) {
+            return Err(Error::InvalidArgument(
+                "a newer manifest was already accepted",
+            ));
+        }
+        self.last_seq = Some(seq);
+        self.confirmed.extend(entries.keys().copied());
+        self.base = entries;
+        Ok(())
     }
 
     /// Verified sync: apply records downloaded from the server against the
@@ -312,6 +343,21 @@ impl Vault {
         {
             return Err(Error::Rollback("server dropped an item"));
         }
+        // A listed version this device has not seen, and was not sent, means
+        // the server is hiding a newer edit (which this device would then
+        // overwrite on its next upload).
+        let sent: BTreeSet<Uuid> = changed.iter().map(|r| r.item_id).collect();
+        for (id, d) in &body.entries {
+            if sent.contains(id) || !self.items.contains_key(id) {
+                continue;
+            }
+            let known = self.base.get(id) == Some(&d.0) || self.digests.get(id) == Some(&d.0);
+            if !known {
+                return Err(Error::Rollback(
+                    "server withheld a newer version of an item",
+                ));
+            }
+        }
         let mut uploads = Vec::new();
         for rec in changed {
             if let Some(up) = self.apply_remote(rec)? {
@@ -323,6 +369,8 @@ impl Vault {
         }
         self.last_seq = Some(body.seq);
         self.confirmed.extend(body.entries.keys().copied());
+        self.base = body.entries.iter().map(|(k, d)| (*k, d.0)).collect();
+        self.pending = None;
         Ok(uploads)
     }
 }
@@ -337,6 +385,8 @@ struct CacheBody {
     digests: Vec<(Uuid, manifest::RecordDigest)>,
     confirmed: Vec<Uuid>,
     last_seq: Option<u64>,
+    #[serde(default)]
+    base: Vec<(Uuid, manifest::RecordDigest)>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -382,6 +432,11 @@ impl Vault {
                 .collect(),
             confirmed: self.confirmed.iter().copied().collect(),
             last_seq: self.last_seq,
+            base: self
+                .base
+                .iter()
+                .map(|(k, v)| (*k, manifest::RecordDigest(*v)))
+                .collect(),
         };
         aead::seal(
             self.key.key(),
@@ -407,6 +462,7 @@ impl Vault {
         v.digests = body.digests.iter().map(|(k, d)| (*k, d.0)).collect();
         v.confirmed = body.confirmed.iter().copied().collect();
         v.last_seq = body.last_seq;
+        v.base = body.base.iter().map(|(k, d)| (*k, d.0)).collect();
         Ok(v)
     }
 
@@ -556,14 +612,17 @@ mod tests {
         v.save(Item::note("a", "secret body", c.tick(1)).unwrap())
             .unwrap();
         let m = v.sign_manifest(&owner);
+        v.commit_accepted().unwrap();
         let cache = v.export_cache();
         let mut back = Vault::from_cache(v.key().clone(), &cache).unwrap();
         assert_eq!(back.items().count(), 1);
         assert_eq!(back.last_seq, Some(1));
         assert_eq!(back.confirmed, v.confirmed);
         assert_eq!(back.digests, v.digests);
+        assert_eq!(back.base, v.base);
         // The restored replica still rejects a replay of an older manifest.
         let _ = back.sign_manifest(&owner);
+        back.commit_accepted().unwrap();
         assert!(matches!(
             back.sync_verified(&m, &[], &[owner.public()]),
             Err(Error::Rollback(_))

@@ -155,6 +155,7 @@ mod tests {
             let rec = self.phone.save(item).unwrap();
             self.records.insert(id, rec);
             let m = self.phone.sign_manifest(&self.owner);
+            self.phone.commit_accepted().unwrap();
             self.manifest = Some(m);
             id
         }
@@ -305,5 +306,76 @@ mod tests {
             w.phone.get(&id).unwrap().get(fields::TITLE),
             Some("renamed")
         );
+    }
+
+    #[test]
+    fn hidden_newer_version_of_a_known_item_is_detected() {
+        let mut w = World::new();
+        let id = w.phone_writes("a");
+        let m = w.manifest.clone().unwrap();
+        w.laptop_syncs(w.all(), &m).unwrap();
+        // Phone edits the item; the server lists the new version in the
+        // manifest but does not send the record to the laptop.
+        let mut item = w.phone.get(&id).unwrap().clone();
+        item.set(fields::NOTES, "edited on phone", w.clock.tick(3000))
+            .unwrap();
+        w.records.insert(id, w.phone.save(item).unwrap());
+        let m2 = w.phone.sign_manifest(&w.owner);
+        assert!(matches!(
+            w.laptop_syncs(vec![], &m2),
+            Err(Error::Rollback(_))
+        ));
+        // Honest server: the record comes along and sync passes.
+        w.laptop_syncs(w.all(), &m2).unwrap();
+        // Nothing changed since: an empty sync against the same manifest passes.
+        w.laptop_syncs(vec![], &m2).unwrap();
+    }
+
+    #[test]
+    fn own_upload_then_empty_sync_passes() {
+        let mut w = World::new();
+        let id = w.phone_writes("a");
+        let m = w.manifest.clone().unwrap();
+        w.laptop_syncs(w.all(), &m).unwrap();
+        let mut item = w.laptop.get(&id).unwrap().clone();
+        item.set(fields::TITLE, "renamed", Clock::new(2).tick(5000))
+            .unwrap();
+        w.records.insert(id, w.laptop.save(item).unwrap());
+        let m2 = w.laptop.sign_manifest(&w.owner);
+        // The laptop's own manifest comes back with nothing it lacks.
+        w.laptop_syncs(vec![], &m2).unwrap();
+    }
+
+    #[test]
+    fn refused_commit_leaves_rollback_state_alone() {
+        let mut w = World::new();
+        w.phone_writes("a");
+        let m1 = w.manifest.clone().unwrap();
+        w.laptop_syncs(w.all(), &m1).unwrap();
+        // Both write; the phone's commit wins on the server.
+        let p = w.phone_writes("from phone");
+        let m2 = w.manifest.clone().unwrap();
+        let item = Item::note("from laptop", "x", Clock::new(9).tick(9000)).unwrap();
+        let lid = item.id();
+        let lrec = w.laptop.save(item).unwrap();
+        let refused = w.laptop.sign_manifest(&w.owner);
+        assert_eq!(refused.body.seq, m2.body.seq);
+        // The laptop syncs the winner's manifest: no false rollback alarm,
+        // and its own item is still there to upload.
+        w.laptop
+            .sync_verified(&m2, &[w.records[&p].clone()], &[w.owner.public()])
+            .unwrap();
+        assert!(w.laptop.commit_accepted().is_err());
+        assert!(w.laptop.get(&lid).is_some());
+        w.records.insert(lid, lrec);
+        let m3 = w.laptop.sign_manifest(&w.owner);
+        assert_eq!(m3.body.seq, m2.body.seq + 1);
+        assert!(m3.body.entries.contains_key(&lid));
+        w.laptop.commit_accepted().unwrap();
+        // A replay of the older manifest is now refused.
+        assert!(matches!(
+            w.laptop.sync_verified(&m2, &[], &[w.owner.public()]),
+            Err(Error::Rollback(_))
+        ));
     }
 }

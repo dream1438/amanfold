@@ -31,6 +31,7 @@
 //! session (for example to derive an API token). A wrong password, wrong
 //! Secret Key or impostor server makes `client_login_finish` fail.
 
+use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use opaque_ke::{
     CipherSuite, ClientLogin, ClientLoginFinishParameters, ClientRegistration,
@@ -47,7 +48,9 @@ use zeroize::Zeroizing;
 use crate::{
     Error, Result,
     account::PreLogin,
+    aead::Context,
     kdf::{KdfParams, SALT_LEN},
+    keys::{AccountKeys, PublicKeys},
     secret::SecretBytes,
 };
 
@@ -294,6 +297,60 @@ pub fn server_login_finish(
     Ok(session_key(&r.session_key))
 }
 
+/// Bearer token for API requests after a login, derived from the OPAQUE
+/// session key by both sides. The server stores only a hash of it, and it
+/// never travels in the login messages, so only a party that completed the
+/// OPAQUE exchange can hold it.
+pub fn api_token(session_key: &SessionKey) -> SecretBytes<32> {
+    let hk = Hkdf::<Sha256>::new(None, session_key.expose());
+    let mut out = [0u8; 32];
+    hk.expand(b"amanfold/v1/api-token", &mut out)
+        .expect("32 bytes is a valid HKDF length");
+    SecretBytes::from_array(out)
+}
+
+/// Length of a server challenge for [`sign_challenge`].
+pub const CHALLENGE_LEN: usize = 32;
+
+fn challenge_ctx(account_id: &Uuid, purpose: &str) -> Context {
+    Context::new("server-challenge")
+        .with(account_id.as_bytes())
+        .with(purpose.as_bytes())
+}
+
+/// Prove to the server that this device holds the account's private keys,
+/// by signing a fresh random challenge the server issued. Used for account
+/// recovery: unlocking with the recovery words gives the keys, and this
+/// signature lets the server accept a new login (OPAQUE re-registration)
+/// without the old password. `purpose` names the operation (for example
+/// `"recover"`) so a signature for one cannot be used for another.
+pub fn sign_challenge(
+    keys: &AccountKeys,
+    account_id: &Uuid,
+    purpose: &str,
+    challenge: &[u8],
+) -> Result<[u8; 64]> {
+    if challenge.len() != CHALLENGE_LEN {
+        return Err(Error::InvalidArgument("challenge length"));
+    }
+    Ok(keys.sign(&challenge_ctx(account_id, purpose), challenge))
+}
+
+/// Server side of [`sign_challenge`].
+pub fn verify_challenge(
+    public: &PublicKeys,
+    account_id: &Uuid,
+    purpose: &str,
+    challenge: &[u8],
+    signature: &[u8],
+) -> Result<()> {
+    let sig: [u8; 64] = signature.try_into().map_err(|_| Error::BadSignature)?;
+    if challenge.len() != CHALLENGE_LEN {
+        return Err(Error::BadSignature);
+    }
+    public.verify(&challenge_ctx(account_id, purpose), challenge, &sig)
+}
+
 /// Deterministic, plausible pre-login parameters for a username that has no
 /// account, so the pre-login endpoint cannot be used to test which emails are
 /// registered. `server_secret` is a long-term secret separate from the OPAQUE
@@ -440,5 +497,37 @@ mod tests {
         assert!(server_login_start(&keys, Some(b"bad"), &[1u8; 3], &id).is_err());
         let (st, _) = client_login_start(&SecretBytes::random()).unwrap();
         assert!(client_login_finish(st, &SecretBytes::random(), &[0u8; 5], &id, None).is_err());
+    }
+
+    #[test]
+    fn api_token_is_shared_and_distinct_from_session_key() {
+        let keys = ServerKeys::generate();
+        let id = crate::secret::random_uuid();
+        let auth = SecretBytes::<32>::random();
+        let rec = register(&keys, &auth, &id);
+        let (c, s) = login(&keys, Some(&rec), &auth, &id, None).unwrap();
+        assert_eq!(api_token(&c), api_token(&s));
+        assert_ne!(api_token(&c).expose()[..], c.expose()[..32]);
+        let (c2, _) = login(&keys, Some(&rec), &auth, &id, None).unwrap();
+        assert_ne!(api_token(&c), api_token(&c2));
+    }
+
+    #[test]
+    fn challenge_signature_binds_account_purpose_and_challenge() {
+        let k = AccountKeys::generate();
+        let id = crate::secret::random_uuid();
+        let ch = [7u8; CHALLENGE_LEN];
+        let sig = sign_challenge(&k, &id, "recover", &ch).unwrap();
+        assert!(verify_challenge(&k.public(), &id, "recover", &ch, &sig).is_ok());
+        assert!(verify_challenge(&k.public(), &id, "delete", &ch, &sig).is_err());
+        let other = crate::secret::random_uuid();
+        assert!(verify_challenge(&k.public(), &other, "recover", &ch, &sig).is_err());
+        assert!(
+            verify_challenge(&k.public(), &id, "recover", &[8u8; CHALLENGE_LEN], &sig).is_err()
+        );
+        let stranger = AccountKeys::generate();
+        assert!(verify_challenge(&stranger.public(), &id, "recover", &ch, &sig).is_err());
+        assert!(verify_challenge(&k.public(), &id, "recover", &ch, &sig[..10]).is_err());
+        assert!(sign_challenge(&k, &id, "recover", &[1u8; 5]).is_err());
     }
 }
