@@ -264,6 +264,40 @@ pub fn rotate_recovery_code(
     Ok((b, code))
 }
 
+fn device_ctx(id: &Uuid) -> Context {
+    Context::new("account-keys/device").with(id.as_bytes())
+}
+
+/// Wrap the unlocked account keys under a random per-device key, for quick
+/// unlock (Face ID, fingerprint, Windows Hello).
+///
+/// The app keeps the returned device key in the platform's hardware-backed
+/// store (iOS Keychain with a biometry access control, Android Keystore with
+/// user authentication) and the envelope in ordinary app storage. Deleting
+/// either one turns quick unlock off. The master password is never stored.
+pub fn wrap_for_device(
+    bundle: &AccountBundle,
+    keys: &AccountKeys,
+) -> Result<(SymmetricKey, Envelope)> {
+    check_bundle(bundle)?;
+    check_public(keys, bundle)?;
+    let dk = SymmetricKey::random();
+    let env = keys.wrap(&dk, &device_ctx(&bundle.account_id));
+    Ok((dk, env))
+}
+
+/// Quick unlock with a device key from [`wrap_for_device`].
+pub fn unlock_with_device_key(
+    bundle: &AccountBundle,
+    device_key: &SymmetricKey,
+    wrapped: &Envelope,
+) -> Result<AccountKeys> {
+    check_bundle(bundle)?;
+    let keys = AccountKeys::unwrap(device_key, &device_ctx(&bundle.account_id), wrapped)?;
+    check_public(&keys, bundle)?;
+    Ok(keys)
+}
+
 /// 24-word recovery code (256 bits of entropy, BIP-39 English word list).
 ///
 /// It is already full-strength random, so it is stretched with HKDF only, not
@@ -463,5 +497,20 @@ mod tests {
         let (nb, code) = rotate_recovery_code(&acct.bundle, &acct.keys).unwrap();
         assert!(recover(&nb, &acct.recovery_code).is_err());
         assert!(recover(&nb, &code).is_ok());
+    }
+
+    #[test]
+    fn device_quick_unlock() {
+        let acct = create_account_with("a long enough pw", KdfParams::FLOOR).unwrap();
+        let (dk, env) = wrap_for_device(&acct.bundle, &acct.keys).unwrap();
+        let k = unlock_with_device_key(&acct.bundle, &dk, &env).unwrap();
+        assert_eq!(k.public(), acct.keys.public());
+        // A different device key, or another account's bundle, fails.
+        assert_eq!(
+            unlock_with_device_key(&acct.bundle, &SymmetricKey::random(), &env).unwrap_err(),
+            Error::Decrypt
+        );
+        let other = create_account_with("another long pw", KdfParams::FLOOR).unwrap();
+        assert!(unlock_with_device_key(&other.bundle, &dk, &env).is_err());
     }
 }

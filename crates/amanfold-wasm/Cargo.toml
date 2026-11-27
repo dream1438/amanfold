@@ -1,0 +1,22 @@
+[package]
+name = "amanfold-wasm"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Browser (WebAssembly) bindings of the Amanfold security core, for the extension and web vault"
+rust-version = "1.85"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Server halves of the protocols, for the JavaScript binding test only.
+test-server = ["amanfold-ffi/test-server"]
+
+[dependencies]
+amanfold-ffi = { path = "../amanfold-ffi", default-features = false, features = ["serde"] }
+js-sys = "0.3.107"
+serde = "1.0.229"
+serde-wasm-bindgen = "0.6.5"
+wasm-bindgen = "=0.2.130"

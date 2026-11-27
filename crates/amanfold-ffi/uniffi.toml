@@ -1,0 +1,12 @@
+[bindings.kotlin]
+package_name = "com.amanfold.core"
+cdylib_name = "amanfold_ffi"
+
+[bindings.swift]
+module_name = "Amanfold"
+ffi_module_name = "AmanfoldFFI"
+ffi_module_filename = "AmanfoldFFI"
+generate_immutable_records = true
+
+[bindings.python]
+cdylib_name = "amanfold_ffi"

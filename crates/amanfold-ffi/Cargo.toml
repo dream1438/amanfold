@@ -1,0 +1,32 @@
+[package]
+name = "amanfold-ffi"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "App-facing API of the Amanfold security core, with Swift and Kotlin bindings (UniFFI)"
+rust-version = "1.85"
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+name = "amanfold_ffi"
+
+[features]
+default = ["uniffi"]
+# Swift/Kotlin/Python bindings. The browser crate turns this off.
+uniffi = ["dep:uniffi"]
+# Server halves of the protocols, for binding tests only. Never ship in apps.
+test-server = []
+# Serde on the view types, for the browser crate.
+serde = []
+
+[dependencies]
+amanfold-core = { path = "../amanfold-core" }
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.21"
+uniffi = { version = "=0.32.2", optional = true }
+uuid = "1.29.3"
+zeroize = "1.9.2"
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+js-sys = "0.3.107"

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/amanfold-core"]
+members = ["crates/amanfold-core", "crates/amanfold-ffi", "crates/amanfold-wasm", "crates/uniffi-bindgen"]
 
 # Argon2 and its BLAKE2 hash are always optimised, so tests run with the
 # real production KDF settings instead of weakened ones.

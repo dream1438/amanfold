@@ -102,6 +102,46 @@ record. On sync, a device:
 The server accepts a new manifest only if its sequence number is exactly one
 more than the stored one, which serialises concurrent writers.
 
+## App bindings (milestone 3)
+
+Apps never call the core's internals. They use one app-facing API
+(`crates/amanfold-ffi`), generated for Swift and Kotlin with UniFFI and
+wrapped for JavaScript in `crates/amanfold-wasm`. See [BINDINGS.md](BINDINGS.md).
+
+* **Keys stay in Rust.** Account private keys, vault keys, item keys, the
+  unlock key, the OPAQUE login key and protocol state live inside opaque
+  objects (`Account`, `LocalVault`, `LoginSession`, `Registration`). No call
+  returns them.
+* **What crosses the boundary** is server-bound bytes (bundle, grants,
+  records, manifests, OPAQUE messages), values for the person (Secret Key and
+  recovery words once at sign-up, field values when shown, generated
+  passwords), the OPAQUE session key, and the quick-unlock device key.
+* **Server data is verified in Rust.** Apps hand over raw bytes; parsing,
+  signature checks, rollback checks and merging all happen in the core.
+* **Quick unlock** (Face ID, fingerprint) wraps the account keys under a
+  random 32-byte device key. The app keeps the device key in the iOS Keychain
+  (biometry access control) or Android Keystore (user authentication), and
+  the wrapped keys in ordinary storage. The master password is never stored.
+  Bound to the account id; a key from another account or device fails.
+* **Local cache.** `LocalVault::export_cache` seals the replica (items, item
+  keys, record digests, confirmed items, last manifest sequence number) under
+  the vault key with its own context. Restoring it keeps rollback protection
+  across app restarts, which an unencrypted record cache would not.
+* **Key rotation by another member** (`Account::accept_rotation`) keeps the
+  local items and rollback state, and replaces every local item key, so an
+  edit made before the new records arrive is not readable with keys a
+  removed member kept.
+* **Clock.** The wrapper reads the device clock and feeds every remote item's
+  timestamp into the hybrid logical clock after each sync (closes O5).
+* **One-shot protocol objects** report `WrongStep` when used out of order and
+  stay usable for the correct next step.
+* **Test server** halves of the protocols are behind the `test-server`
+  feature, off by default; CI checks the shipping web build does not contain
+  them.
+* **Browser.** Randomness comes from `crypto.getRandomValues`, time from
+  `Date.now`. The extension must run the core in its service worker, never in
+  a content script.
+
 ## What the server stores
 
 * `AccountBundle`: account id, KDF parameters, salt, public keys, two wrapped
@@ -138,7 +178,33 @@ more than the stored one, which serialises concurrent writers.
 | Server withholds or drops items | Manifest lists all items; previously confirmed items must stay | `manifest::withheld_item_is_detected`, `manifest::server_cannot_drop_a_confirmed_item` |
 | Server replays an old manifest | Sequence number never goes back | `manifest::old_manifest_is_rejected_after_newer_one` |
 | Server forges or edits a manifest | Ed25519 signature from a trusted member | `manifest::untrusted_or_tampered_manifest_rejected` |
+| Device stolen, quick-unlock data copied | Device key in hardware-backed keychain; wrapped keys useless without it; bound to account | `account::device_quick_unlock` |
+| Local cache edited or rolled back on disk | Sealed under the vault key with a vault/epoch context | `vault::cache_round_trip_keeps_rollback_state` |
+| App restart forgets the last manifest seen | Sequence number and confirmed items kept in the sealed cache | `vault::cache_round_trip_keeps_rollback_state`, binding tests |
+| Hostile member reuses an item id with another kind | Merge refused; local item and digests untouched | `vault::failed_merge_keeps_the_local_item` |
+| Old item keys reused after someone else rotates | `rekey` replaces every local item key | `vault::rekey_after_someone_else_rotates` |
+| App uses a protocol object out of order | `WrongStep` error, state kept | `amanfold-ffi` `tests/api.rs` |
+| Same checks on every platform | End-to-end tests through the generated Python, Kotlin and Swift bindings and the wasm build | `crates/amanfold-ffi/tests/bindings/*`, `crates/amanfold-wasm/tests/flow.cjs` |
 | Accidental change to derivation | Known-answer test, cross-checked against an independent Python implementation (argon2-cffi + cryptography) | `kdf::derivation_known_answer` |
+
+## Internal review findings (milestone 3, 2026-11-27)
+
+1. **Data loss on a failed merge (fixed).** `Vault::save` and
+   `Vault::apply_remote` removed the local item from the map before merging.
+   A record that reused an item id with a different kind (only a vault member
+   can produce one) made the merge fail and dropped the local item from
+   memory and from the next cache export. Both now merge first and change
+   nothing on failure. Regression test added.
+2. **Login session bricked by an early `finish` (fixed during development).**
+   Calling `finish` before `start` consumed the session's state. It now
+   reports `WrongStep` and the session stays usable.
+3. **Rollback state was memory-only.** Without the sealed cache, every app
+   restart reset the "highest manifest seen" check, which would have let a
+   server replay old data after a restart. Added `export_cache`/`from_cache`.
+4. **Rotation by another member** previously had no client path that kept
+   rollback state; added `rekey` with fresh item keys.
+5. **Secrets as platform strings** (Swift `String`, Kotlin `String`, JS
+   strings) cannot be wiped. Kept to what the person must see (O4 updated).
 
 ## Internal review findings (milestone 2, 2026-11-24)
 
@@ -173,14 +239,16 @@ Open, to be addressed in later milestones:
 | O1 | ~~Rollback and omission.~~ **Mostly fixed (milestone 2)** by signed manifests. Remaining: a "freeze" (server shows a device an old but consistent state and hides all newer manifests) and a brand-new device's first sync, which has no earlier sequence number to compare. | Low | Signed timestamps in manifests with a staleness warning; device-to-device checks. |
 | O2 | **Any vault member can write any item.** Fine for personal and family vaults; Teams read-only roles need record signatures. | Medium (Teams) | Sign each record with the author's Ed25519 key; server and clients enforce roles. |
 | O3 | ~~Server login not implemented.~~ **Fixed (milestone 2)**: OPAQUE with a login key separate from the unlock key. Server must still rate-limit login attempts per account and IP. | Low | Server milestone. |
-| O4 | **Memory hygiene is best effort.** Secrets are zeroized on drop, but `String` reallocation, CBOR buffers inside `ciborium`, and the platform UI layer can leave copies. | Low | Pre-size buffers; platform keychain/Secure Enclave integration; mlock where available. |
-| O5 | **Clock skew.** A device whose clock is far behind can lose same-field conflicts. Clients must call `Clock::observe` with remote timestamps after sync. | Low | FFI wrapper will do this automatically. |
+| O4 | **Memory hygiene is best effort.** Secrets are zeroized on drop inside Rust, but `String` reallocation, CBOR buffers inside `ciborium`, and anything handed to Swift, Kotlin or JavaScript (field values, generated passwords, the Secret Key and recovery words at sign-up, the session and device keys) can leave copies the core cannot wipe. | Low | Pre-size buffers; reveal fields one at a time in the UI; mlock where available. |
+| O5 | ~~Clock skew.~~ **Fixed (milestone 3)**: the app-facing `LocalVault` observes every remote timestamp after sync and on open. A device clock that is far behind can still order its own edits before older remote ones until it syncs. | Low | |
 | O6 | ~~Grant replay.~~ **Fixed (milestone 2)**: the signed manifest carries the current epoch; a device on an older epoch is told to fetch the new grant. | | |
 | O7 | **Fingerprint UX.** Protection against key substitution in sharing depends on people comparing fingerprints. | Medium | QR-code verification in the apps; trust-on-first-use with change warnings. |
 | O8 | **Passkey private keys** are stored as an ordinary concealed field. | Low | Dedicated passkey type with CXF (FIDO Credential Exchange) import/export. |
 | O9 | **No fuzzing harness yet**, only property tests. | Low | `cargo-fuzz` targets for CBOR decode, TOTP URI parse, Secret Key parse, OPAQUE messages. |
-| O10 | **Dependency advisory RUSTSEC-2026-0387** (crypto-bigint 0.5 timing). Pulled in only as a trait dependency of `elliptic-curve` 0.13 via `opaque-ke`. Our Ristretto255 suite uses curve25519-dalek arithmetic; the only `elliptic-curve` code on that path is SHA-512 message expansion. Not reachable; ignored in `.cargo/audit.toml` with this reason. | Low | Upgrade when `opaque-ke` moves to `elliptic-curve` 0.14. |
+| O10 | **Dependency advisory RUSTSEC-2026-0387** (crypto-bigint 0.5 timing). Pulled in only as a trait dependency of `elliptic-curve` 0.13 via `opaque-ke`. Our Ristretto255 suite uses curve25519-dalek arithmetic; the only `elliptic-curve` code on that path is SHA-512 message expansion. Not reachable; ignored in `.cargo/audit.toml` with this reason. Also flagged (warning only): RUSTSEC-2026-0374, `basic-toml` unmaintained, used by UniFFI's template engine at build time to read `uniffi.toml`; not in the code apps run. | Low | Upgrade when `opaque-ke` moves to `elliptic-curve` 0.14, and UniFFI off `basic-toml`. |
 | O11 | **Manifest writers.** Any member in `trusted_writers` can sign a manifest. Removing a member must also remove them from every device's trusted list, which needs the membership list itself to be signed. | Medium (families/Teams) | Signed membership log per vault (with O2). |
+| O12 | **Release builds abort on panic** (`panic = "abort"`), so a bug that panics inside the core closes the app instead of returning an error. Chosen so a panic can never leave half-updated secret state behind; property tests cover hostile input. | Low | Fuzzing (O9). |
+| O13 | **Cache across a rotation** opens only with the old grant; apps must open with the old grant and then call `accept_rotation`, or the rollback state for that vault restarts. | Low | Document in app integration guide; keep last grant locally. |
 
 ## Out of scope for the core
 

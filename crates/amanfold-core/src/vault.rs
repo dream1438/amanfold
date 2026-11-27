@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::{
     Error, FORMAT_VERSION, Result,
-    aead::{Context, KEY_LEN, SymmetricKey},
+    aead::{self, Context, Envelope, KEY_LEN, SymmetricKey},
     item::Item,
     keys::{self, AccountKeys, PublicKeys, Sealed},
     manifest,
@@ -199,8 +199,9 @@ impl Vault {
     /// Save a local edit (merged with any existing copy). Returns the record
     /// to upload.
     pub fn save(&mut self, item: Item) -> Result<EncryptedRecord> {
-        let (merged, ik) = match self.items.remove(&item.id()) {
-            Some((old, ik)) => (old.merge(&item)?, ik),
+        // Merge before touching the map, so a failed merge loses nothing.
+        let (merged, ik) = match self.items.get(&item.id()) {
+            Some((old, ik)) => (old.merge(&item)?, ik.clone()),
             None => (item, keys::new_symmetric_key()),
         };
         let rec = sync::encrypt_item(&self.key, &merged, &ik)?;
@@ -214,27 +215,26 @@ impl Vault {
     /// if the local copy had changes the server did not.
     pub fn apply_remote(&mut self, rec: &EncryptedRecord) -> Result<Option<EncryptedRecord>> {
         let (remote, rik) = sync::decrypt_item(&self.key, rec)?;
-        self.digests
-            .insert(remote.id(), manifest::record_digest(rec));
-        match self.items.remove(&remote.id()) {
-            None => {
-                self.items.insert(remote.id(), (remote, rik));
-                Ok(None)
-            }
+        // Merge and encrypt first: if either fails, the replica is unchanged.
+        let (merged, upload) = match self.items.get(&remote.id()) {
+            None => (remote, None),
             Some((local, _)) => {
                 let merged = local.merge(&remote)?;
                 let upload = if merged != remote {
-                    let up = sync::encrypt_item(&self.key, &merged, &rik)?;
-                    self.digests
-                        .insert(merged.id(), manifest::record_digest(&up));
-                    Some(up)
+                    Some(sync::encrypt_item(&self.key, &merged, &rik)?)
                 } else {
                     None
                 };
-                self.items.insert(merged.id(), (merged, rik));
-                Ok(upload)
+                (merged, upload)
             }
-        }
+        };
+        let digest = match &upload {
+            Some(up) => manifest::record_digest(up),
+            None => manifest::record_digest(rec),
+        };
+        self.digests.insert(merged.id(), digest);
+        self.items.insert(merged.id(), (merged, rik));
+        Ok(upload)
     }
 
     /// Rotate to a new vault key (after removing a member). Every item gets a
@@ -324,6 +324,109 @@ impl Vault {
         self.last_seq = Some(body.seq);
         self.confirmed.extend(body.entries.keys().copied());
         Ok(uploads)
+    }
+}
+
+/// Plaintext of the local cache, sealed by [`Vault::export_cache`].
+#[derive(Serialize, Deserialize)]
+struct CacheBody {
+    format: u16,
+    vault_id: Uuid,
+    epoch: u32,
+    items: Vec<CachedItem>,
+    digests: Vec<(Uuid, manifest::RecordDigest)>,
+    confirmed: Vec<Uuid>,
+    last_seq: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CachedItem {
+    item: Item,
+    #[serde(with = "serde_bytes")]
+    key: [u8; KEY_LEN],
+}
+
+impl Drop for CachedItem {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.key);
+    }
+}
+
+fn cache_ctx(id: &Uuid, epoch: u32) -> Context {
+    Context::new("vault-cache")
+        .with(id.as_bytes())
+        .with(&epoch.to_be_bytes())
+}
+
+impl Vault {
+    /// Encrypt this replica for the device's own storage, so the vault opens
+    /// offline and keeps its rollback state (manifest sequence number and
+    /// confirmed items) across app restarts.
+    pub fn export_cache(&self) -> Envelope {
+        let body = CacheBody {
+            format: FORMAT_VERSION,
+            vault_id: self.key.id(),
+            epoch: self.key.epoch(),
+            items: self
+                .items
+                .values()
+                .map(|(item, ik)| CachedItem {
+                    item: item.clone(),
+                    key: *ik.expose(),
+                })
+                .collect(),
+            digests: self
+                .digests
+                .iter()
+                .map(|(k, v)| (*k, manifest::RecordDigest(*v)))
+                .collect(),
+            confirmed: self.confirmed.iter().copied().collect(),
+            last_seq: self.last_seq,
+        };
+        aead::seal(
+            self.key.key(),
+            &cache_ctx(&self.key.id(), self.key.epoch()),
+            &sync::to_cbor(&body),
+        )
+    }
+
+    /// Reopen a replica saved with [`Vault::export_cache`] under the same key.
+    pub fn from_cache(key: VaultKey, cache: &Envelope) -> Result<Self> {
+        let raw = aead::open(key.key(), &cache_ctx(&key.id(), key.epoch()), cache)?;
+        let body: CacheBody = sync::from_cbor(&raw)?;
+        if body.format != FORMAT_VERSION || body.vault_id != key.id() || body.epoch != key.epoch() {
+            return Err(Error::Malformed("vault cache"));
+        }
+        let mut v = Vault::new(key);
+        for c in &body.items {
+            v.items.insert(
+                c.item.id(),
+                (c.item.clone(), SymmetricKey::from_array(c.key)),
+            );
+        }
+        v.digests = body.digests.iter().map(|(k, d)| (*k, d.0)).collect();
+        v.confirmed = body.confirmed.iter().copied().collect();
+        v.last_seq = body.last_seq;
+        Ok(v)
+    }
+
+    /// Switch to a newer key generation that another member created with
+    /// [`Vault::rotate`] (delivered as a new grant). Keeps local items and the
+    /// rollback state. Every local item key is replaced, so edits made before
+    /// the new records arrive are not readable with the old keys a removed
+    /// member may have kept.
+    pub fn rekey(&mut self, next: VaultKey) -> Result<()> {
+        if next.id() != self.key.id() {
+            return Err(Error::InvalidArgument("key for another vault"));
+        }
+        if next.epoch() <= self.key.epoch() {
+            return Err(Error::Rollback("vault key is not newer"));
+        }
+        for (_, ik) in self.items.values_mut() {
+            *ik = keys::new_symmetric_key();
+        }
+        self.key = next;
+        Ok(())
     }
 }
 
@@ -443,5 +546,76 @@ mod tests {
         let g = grant(v.key(), &owner, &owner.public()).unwrap();
         assert_eq!(accept(&g, &owner, &owner.public()).unwrap().epoch(), 1);
         let _ = removed;
+    }
+
+    #[test]
+    fn cache_round_trip_keeps_rollback_state() {
+        let owner = AccountKeys::generate();
+        let mut v = Vault::new(VaultKey::generate());
+        let mut c = Clock::new(1);
+        v.save(Item::note("a", "secret body", c.tick(1)).unwrap())
+            .unwrap();
+        let m = v.sign_manifest(&owner);
+        let cache = v.export_cache();
+        let mut back = Vault::from_cache(v.key().clone(), &cache).unwrap();
+        assert_eq!(back.items().count(), 1);
+        assert_eq!(back.last_seq, Some(1));
+        assert_eq!(back.confirmed, v.confirmed);
+        assert_eq!(back.digests, v.digests);
+        // The restored replica still rejects a replay of an older manifest.
+        let _ = back.sign_manifest(&owner);
+        assert!(matches!(
+            back.sync_verified(&m, &[], &[owner.public()]),
+            Err(Error::Rollback(_))
+        ));
+        // Wrong key or tampering fails.
+        assert!(Vault::from_cache(VaultKey::generate(), &cache).is_err());
+        assert!(Vault::from_cache(v.key().next(), &cache).is_err());
+        let mut raw = cache.as_bytes().to_vec();
+        let last = raw.len() - 1;
+        raw[last] ^= 1;
+        let bad = Envelope::from_bytes(raw).unwrap();
+        assert!(Vault::from_cache(v.key().clone(), &bad).is_err());
+    }
+
+    #[test]
+    fn rekey_after_someone_else_rotates() {
+        let mut a = Vault::new(VaultKey::generate());
+        let mut b = Vault::new(a.key().clone());
+        let mut c = Clock::new(1);
+        let rec = a.save(Item::note("a", "x", c.tick(1)).unwrap()).unwrap();
+        b.apply_remote(&rec).unwrap();
+        let old_ik = b.items.values().next().unwrap().1.clone();
+        let recs = a.rotate().unwrap();
+        assert!(b.rekey(a.key().clone()).is_ok());
+        assert_ne!(b.items.values().next().unwrap().1, old_ik);
+        assert!(b.apply_remote(&recs[0]).unwrap().is_none());
+        assert_eq!(b.items().count(), 1);
+        // Older or foreign keys are refused.
+        let older = b.key().clone();
+        assert!(b.rekey(older).is_err());
+        assert!(b.rekey(VaultKey::generate().next()).is_err());
+    }
+
+    #[test]
+    fn failed_merge_keeps_the_local_item() {
+        // A member with write access sends a record that reuses an existing
+        // item id with a different kind. The merge is refused and the local
+        // item must survive untouched.
+        let vk = VaultKey::generate();
+        let mut v = Vault::new(vk.clone());
+        let mut c = Clock::new(1);
+        let note = Item::note("mine", "keep me", c.tick(1)).unwrap();
+        let id = note.id();
+        v.save(note).unwrap();
+        let before = v.export_cache();
+        let hostile = Item::with_id(id, crate::item::ItemKind::Login, c.tick(2));
+        let rec = sync::encrypt_item(&vk, &hostile, &keys::new_symmetric_key()).unwrap();
+        assert!(matches!(v.apply_remote(&rec), Err(Error::Merge(_))));
+        assert!(matches!(v.save(hostile), Err(Error::Merge(_))));
+        assert_eq!(v.get(&id).unwrap().get(fields::NOTES), Some("keep me"));
+        let after = Vault::from_cache(vk.clone(), &v.export_cache()).unwrap();
+        let orig = Vault::from_cache(vk, &before).unwrap();
+        assert_eq!(after.digests, orig.digests);
     }
 }
