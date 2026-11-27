@@ -24,13 +24,26 @@ browser extension, desktop and web).
 | `totp` | RFC 6238 one-time codes from secrets or `otpauth://` URIs |
 | `generator` | Unbiased random passwords and passphrases |
 
+## The other crates
+
+| Crate | Does |
+| --- | --- |
+| `crates/amanfold-ffi` | The one API every app calls; Swift and Kotlin bindings generated with UniFFI. Keys never leave Rust. |
+| `crates/amanfold-wasm` | The same API for the browser extension and web vault (WebAssembly) |
+| `crates/uniffi-bindgen` | Generates the Swift, Kotlin and Python bindings |
+
+How the apps use it: [docs/BINDINGS.md](docs/BINDINGS.md).
+
 ## Build and test
 
 ```sh
-cargo test                       # 87 tests incl. property tests
-cargo clippy --all-targets -- -D warnings
-cargo build -p amanfold-core --target wasm32-unknown-unknown --release
+cargo test --all-features        # 93 Rust tests incl. property tests
+cargo clippy --all-targets --all-features -- -D warnings
+cargo build -p amanfold-wasm --target wasm32-unknown-unknown --release
 ```
+
+CI also runs the same end-to-end flow through the generated Python, Kotlin
+and Swift bindings and the WebAssembly build.
 
 Argon2 is compiled with optimisations even in debug builds, so the tests run
 with the real production KDF settings.
@@ -54,7 +67,7 @@ let rec = personal.save(Item::login("Email", "me@example.com", "pw", "https://ma
 
 1. ✅ Crypto, item model, sync format (this milestone)
 2. ✅ Server authentication with OPAQUE; signed vault manifests (rollback protection)
-3. UniFFI bindings for Swift/Kotlin, wasm-bindgen for the extension
+3. ✅ App bindings: Swift/Kotlin (UniFFI), WebAssembly for the browser; quick unlock, encrypted local cache
 4. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
 5. Trusted-contact recovery (Shamir), attachments
 

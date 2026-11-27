@@ -21,10 +21,90 @@ jobs:
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
       - run: cargo fmt --all --check
-      - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
-      - run: PROPTEST_CASES=2000 cargo test --release
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy -p amanfold-wasm --all-features --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo test --all-features
+      - run: PROPTEST_CASES=2000 cargo test -p amanfold-core --release
       - run: cargo build -p amanfold-core --target wasm32-unknown-unknown --release
+
+  # Generated Python and Kotlin bindings, driven end to end against the
+  # test server (the Android app uses the Kotlin bindings).
+  bindings-linux:
+    runs-on: ubuntu-latest
+    env:
+      KOTLIN_VERSION: "2.2.21"
+      KOTLIN_SHA256: a623871f1cd9c938946948b70ef9170879f0758043885bbd30c32f024e511714
+      JNA_VERSION: "5.17.0"
+      JNA_SHA256: b3a9408e7c51e08ef0e3bfcc08f443f6ec0f6191ba8cd7c18d53d2b22e5bdbc0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p amanfold-ffi --features test-server
+      - name: Generate bindings
+        run: |
+          for lang in python kotlin; do
+            cargo run -q -p uniffi-bindgen -- generate --no-format \
+              --library target/debug/libamanfold_ffi.so --language $lang --out-dir out/$lang
+          done
+      - name: Python
+        run: |
+          cp target/debug/libamanfold_ffi.so out/python/
+          PYTHONPATH=out/python python3 crates/amanfold-ffi/tests/bindings/test_flow.py
+      - name: Kotlin
+        run: |
+          curl -sSfL -o kotlin.zip "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
+          curl -sSfL -o jna.jar "https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/${JNA_VERSION}/jna-${JNA_VERSION}.jar"
+          echo "${KOTLIN_SHA256}  kotlin.zip" | sha256sum -c -
+          echo "${JNA_SHA256}  jna.jar" | sha256sum -c -
+          unzip -q kotlin.zip -d kotlin
+          kotlin/kotlinc/bin/kotlinc out/kotlin/com/amanfold/core/amanfold.kt \
+            crates/amanfold-ffi/tests/bindings/FlowTest.kt -cp jna.jar -d flow.jar
+          java -Djna.library.path=target/debug \
+            -cp flow.jar:jna.jar:kotlin/kotlinc/lib/kotlin-stdlib.jar FlowTestKt
+
+  # Generated Swift bindings (iOS and macOS apps), compiled and run on macOS.
+  bindings-swift:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p amanfold-ffi --features test-server
+      - name: Generate and run
+        run: |
+          cargo run -q -p uniffi-bindgen -- generate --no-format \
+            --library target/debug/libamanfold_ffi.dylib --language swift --out-dir out/swift
+          cp crates/amanfold-ffi/tests/bindings/FlowTest.swift out/swift/main.swift
+          cd out/swift
+          swiftc -module-name AmanfoldTest -emit-executable -o flow \
+            -Xcc -fmodule-map-file=AmanfoldFFI.modulemap -I . \
+            -L ../../target/debug -lamanfold_ffi \
+            Amanfold.swift main.swift
+          DYLD_LIBRARY_PATH=../../target/debug ./flow
+
+  # WebAssembly bindings (browser extension, web vault), run under Node.
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install wasm-bindgen (same version as the crate pins)
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Shipping build (no test server)
+        run: |
+          cargo build -p amanfold-wasm --target wasm32-unknown-unknown --release
+          wasm-bindgen --target web --out-dir pkg-web target/wasm32-unknown-unknown/release/amanfold_wasm.wasm
+          ls -l pkg-web
+          ! grep -q TestServer pkg-web/amanfold_wasm.d.ts
+      - name: End-to-end test
+        run: |
+          cargo build -p amanfold-wasm --features test-server --target wasm32-unknown-unknown --release
+          wasm-bindgen --target nodejs --out-dir pkg target/wasm32-unknown-unknown/release/amanfold_wasm.wasm
+          node crates/amanfold-wasm/tests/flow.cjs pkg
 
   audit:
     runs-on: ubuntu-latest
