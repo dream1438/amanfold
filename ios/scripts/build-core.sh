@@ -17,7 +17,7 @@ if [[ "${1:-}" == "--test-server" ]]; then features=(--features test-server); fi
 profile=release
 targets=(aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios aarch64-apple-darwin x86_64-apple-darwin)
 for t in "${targets[@]}"; do
-  cargo build -p amanfold-ffi --release --target "$t" "${features[@]}"
+  cargo build -p amanfold-ffi --release --target "$t" ${features[@]+"${features[@]}"}
 done
 
 out="$root/target/apple"
