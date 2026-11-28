@@ -34,6 +34,7 @@ use amanfold_core::{
     kdf::{AccountSecrets, SecretKey},
     keys::{AccountKeys, PublicKeys},
     manifest::SignedManifest,
+    site,
     sync::{self, EncryptedRecord},
     totp::Totp,
     vault::{self, Vault, VaultGrant},
@@ -894,6 +895,71 @@ impl LocalVault {
         out
     }
 
+    /// Logins saved for the site of `page_url`, best match first (then most
+    /// recently changed). Trashed items are left out. This is the only list
+    /// autofill may offer on that page.
+    pub fn logins_for_url(&self, page_url: String) -> Vec<LoginMatch> {
+        let Some(page) = site::page_site(&page_url) else {
+            return Vec::new();
+        };
+        let v = lock(&self.inner);
+        let mut out: Vec<LoginMatch> = v
+            .all_items()
+            .filter(|i| !i.is_deleted() && i.kind() == item::ItemKind::Login)
+            .filter_map(|i| {
+                let best = item_urls(i)
+                    .filter_map(site::saved_site)
+                    .map(|s| site::match_sites(&s, &page))
+                    .max()
+                    .unwrap_or(site::SiteMatch::None);
+                (best != site::SiteMatch::None).then(|| LoginMatch {
+                    item: ItemView::of(i),
+                    strength: best.into(),
+                })
+            })
+            .collect();
+        out.sort_by(|a, b| {
+            b.strength
+                .cmp(&a.strength)
+                .then(b.item.modified_ms.cmp(&a.item.modified_ms))
+                .then(a.item.id.cmp(&b.item.id))
+        });
+        out
+    }
+
+    /// Saved sites (registrable domains) that `page_url` imitates without
+    /// being them, for a phishing warning. Empty when the page is one of the
+    /// saved sites or resembles none.
+    pub fn lookalike_sites(&self, page_url: String) -> Vec<String> {
+        let Some(page) = site::page_site(&page_url) else {
+            return Vec::new();
+        };
+        let v = lock(&self.inner);
+        let saved: Vec<site::SiteInfo> = v
+            .all_items()
+            .filter(|i| !i.is_deleted() && i.kind() == item::ItemKind::Login)
+            .flat_map(|i| {
+                item_urls(i)
+                    .filter_map(site::saved_site)
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        if saved
+            .iter()
+            .any(|s| site::match_sites(s, &page) != site::SiteMatch::None)
+        {
+            return Vec::new();
+        }
+        let mut out: Vec<String> = saved
+            .iter()
+            .filter(|s| site::is_lookalike(s, &page))
+            .map(|s| s.site.clone())
+            .collect();
+        out.sort();
+        out.dedup();
+        out
+    }
+
     /// One item.
     pub fn item(&self, id: String) -> Result<Option<ItemView>> {
         let id = parse_id(&id)?;
@@ -1098,6 +1164,97 @@ pub fn check_recovery_words(words: String) -> Result<()> {
 #[cfg_attr(feature = "uniffi", uniffi::export)]
 pub fn fingerprint(public_keys_bytes: Vec<u8>) -> Result<String> {
     Ok(public_keys(&public_keys_bytes)?.fingerprint())
+}
+
+// ---------------------------------------------------------------------------
+// Sites (autofill matching)
+// ---------------------------------------------------------------------------
+
+/// How a saved URL matches a page, from no match to best. Autofill offers a
+/// login only for `Site` or better. See `amanfold_core::site` for the rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SiteMatch {
+    /// Different site: never fill.
+    None,
+    /// Same registrable domain.
+    Site,
+    /// Same host, other scheme or port.
+    Host,
+    /// Same scheme, host and port.
+    Origin,
+}
+
+impl From<site::SiteMatch> for SiteMatch {
+    fn from(m: site::SiteMatch) -> Self {
+        match m {
+            site::SiteMatch::None => Self::None,
+            site::SiteMatch::Site => Self::Site,
+            site::SiteMatch::Host => Self::Host,
+            site::SiteMatch::Origin => Self::Origin,
+        }
+    }
+}
+
+/// A page address as the apps should show it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct SiteView {
+    /// `https`.
+    pub secure: bool,
+    /// Host in ASCII (punycode) form.
+    pub host: String,
+    /// Host in Unicode. When it differs from `host`, show both.
+    pub display_host: String,
+    /// Registrable domain (or the host when there is none).
+    pub site: String,
+}
+
+impl From<site::SiteInfo> for SiteView {
+    fn from(s: site::SiteInfo) -> Self {
+        Self {
+            secure: s.secure,
+            host: s.host,
+            display_host: s.display_host,
+            site: s.site,
+        }
+    }
+}
+
+/// A login that matches a page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LoginMatch {
+    /// The login.
+    pub item: ItemView,
+    /// How well its best URL matches.
+    pub strength: SiteMatch,
+}
+
+/// How a login saved for `saved_url` matches the page at `page_url`.
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+pub fn site_match(saved_url: String, page_url: String) -> SiteMatch {
+    site::match_url(&saved_url, &page_url).into()
+}
+
+/// Parse a page address (`http` or `https` only).
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+pub fn page_site(page_url: String) -> Option<SiteView> {
+    site::page_site(&page_url).map(Into::into)
+}
+
+fn item_urls(i: &Item) -> impl Iterator<Item = &str> {
+    i.fields().iter().filter_map(|(name, f)| {
+        let is_url = name == item::fields::URL
+            || name
+                .strip_prefix("url.")
+                .is_some_and(|n| n.parse::<u32>().is_ok());
+        if is_url { f.value.as_str() } else { None }
+    })
 }
 
 /// Version of the security core.

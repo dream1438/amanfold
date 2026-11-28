@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Detection cases</title></head><body>
+<!-- Each field says what it should be detected as (data-expect), or "none". -->
+<form id="classic">
+  <input name="login" type="text" data-expect="username">
+  <input name="pwd" type="password" data-expect="password">
+</form>
+<form id="signup">
+  <input name="email" type="email" autocomplete="email" data-expect="username">
+  <input name="new" type="password" autocomplete="new-password" data-expect="newPassword">
+  <input name="confirm_password" type="password" data-expect="newPassword">
+</form>
+<form id="arabic" dir="rtl">
+  <label>اسم المستخدم <input id="ar-user" type="text" data-expect="username"></label>
+  <label>كلمة المرور <input id="ar-pass" type="password" data-expect="password"></label>
+</form>
+<form id="ar-card" dir="rtl">
+  <label>رقم البطاقة <input id="ar-num" data-expect="ccNumber"></label>
+  <label>الاسم على البطاقة <input id="ar-name" data-expect="ccName"></label>
+  <label>رمز الأمان <input id="ar-cvv" data-expect="ccCsc"></label>
+</form>
+<form id="twofa">
+  <label>Enter the 6-digit security code <input id="code" maxlength="6" data-expect="otp"></label>
+</form>
+<form id="search"><input type="search" name="q" data-expect="none"><input type="text" name="newsletter" data-expect="none"></form>
+<div id="host"></div>
+<script>
+  const root = document.getElementById("host").attachShadow({ mode: "open" });
+  root.innerHTML = '<input id="sh-user" autocomplete="username" data-expect="username"><input id="sh-pass" type="password" data-expect="password">';
+</script>
+</body></html>

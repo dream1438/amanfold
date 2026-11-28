@@ -235,6 +235,56 @@ pub fn recover_account(bundle: Vec<u8>, recovery_words: String) -> JsResult<Acco
         .map_err(err)
 }
 
+/// Unlock with a device key from [`Account::enable_quick_unlock`], without
+/// the password. The extension keeps the device key in memory-only session
+/// storage so the vault survives the service worker being stopped.
+#[wasm_bindgen(js_name = quickUnlock)]
+pub fn quick_unlock(
+    bundle: Vec<u8>,
+    device_key: Vec<u8>,
+    wrapped_keys: Vec<u8>,
+) -> JsResult<Account> {
+    ffi::quick_unlock(bundle, device_key, wrapped_keys)
+        .map(Account)
+        .map_err(err)
+}
+
+/// Result of [`Account::enable_quick_unlock`].
+#[wasm_bindgen]
+pub struct QuickUnlock(ffi::QuickUnlock);
+
+#[wasm_bindgen]
+impl QuickUnlock {
+    /// Device key. Keep it only in memory-only storage.
+    #[wasm_bindgen(getter, js_name = deviceKey)]
+    pub fn device_key(&self) -> Vec<u8> {
+        self.0.device_key.clone()
+    }
+    /// Account keys wrapped under the device key.
+    #[wasm_bindgen(getter, js_name = wrappedKeys)]
+    pub fn wrapped_keys(&self) -> Vec<u8> {
+        self.0.wrapped_keys.clone()
+    }
+}
+
+/// Result of [`Account::rotate_recovery_code`].
+#[wasm_bindgen]
+pub struct RecoveryRotation(ffi::RecoveryRotation);
+
+#[wasm_bindgen]
+impl RecoveryRotation {
+    /// New bundle to upload.
+    #[wasm_bindgen(getter)]
+    pub fn bundle(&self) -> Vec<u8> {
+        self.0.bundle.clone()
+    }
+    /// The new 24 words.
+    #[wasm_bindgen(getter, js_name = recoveryWords)]
+    pub fn recovery_words(&self) -> String {
+        self.0.recovery_words.clone()
+    }
+}
+
 /// Result of [`Account::create_vault`].
 #[wasm_bindgen]
 pub struct NewVault(ffi::NewVault);
@@ -346,6 +396,19 @@ impl Account {
             .accept_rotation(vault.0.clone(), grant, granter_public_keys)
             .map_err(err)
     }
+    /// Turn on quick unlock for this browser session.
+    #[wasm_bindgen(js_name = enableQuickUnlock)]
+    pub fn enable_quick_unlock(&self) -> JsResult<QuickUnlock> {
+        self.0.enable_quick_unlock().map(QuickUnlock).map_err(err)
+    }
+    /// New recovery code (fresh recovery kit).
+    #[wasm_bindgen(js_name = rotateRecoveryCode)]
+    pub fn rotate_recovery_code(&self) -> JsResult<RecoveryRotation> {
+        self.0
+            .rotate_recovery_code()
+            .map(RecoveryRotation)
+            .map_err(err)
+    }
     /// Set a new master password.
     #[wasm_bindgen(js_name = changePassword)]
     pub fn change_password(
@@ -384,6 +447,18 @@ impl LocalVault {
             Some(v) => to_js(&v),
             None => Ok(JsValue::UNDEFINED),
         }
+    }
+    /// Logins for the site of `pageUrl`, best match first:
+    /// `[{item, strength}]` with strength `"Origin"`, `"Host"` or `"Site"`.
+    /// Autofill may offer only these.
+    #[wasm_bindgen(js_name = loginsForUrl)]
+    pub fn logins_for_url(&self, page_url: String) -> JsResult<JsValue> {
+        to_js(&self.0.logins_for_url(page_url))
+    }
+    /// Saved sites that `pageUrl` imitates (phishing warning).
+    #[wasm_bindgen(js_name = lookalikeSites)]
+    pub fn lookalike_sites(&self, page_url: String) -> Vec<String> {
+        self.0.lookalike_sites(page_url)
     }
     /// Create an item. `kind` is `"Login"`, `"Card"`, `"SecureNote"`,
     /// `"Identity"` or `"Passkey"`; `fields` is `[{name, value}]`.
@@ -507,6 +582,22 @@ pub fn check_recovery_words(words: String) -> JsResult<()> {
 #[wasm_bindgen]
 pub fn fingerprint(public_keys: Vec<u8>) -> JsResult<String> {
     ffi::fingerprint(public_keys).map_err(err)
+}
+
+/// How a saved URL matches a page: `"None"`, `"Site"`, `"Host"` or `"Origin"`.
+#[wasm_bindgen(js_name = siteMatch)]
+pub fn site_match(saved_url: String, page_url: String) -> JsResult<JsValue> {
+    to_js(&ffi::site_match(saved_url, page_url))
+}
+
+/// A page address as shown to people: `{secure, host, displayHost, site}`,
+/// or `undefined` for anything but `http`/`https`.
+#[wasm_bindgen(js_name = pageSite)]
+pub fn page_site(page_url: String) -> JsResult<JsValue> {
+    match ffi::page_site(page_url) {
+        Some(s) => to_js(&s),
+        None => Ok(JsValue::UNDEFINED),
+    }
 }
 
 /// Core version.

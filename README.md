@@ -20,6 +20,7 @@ browser extension, desktop and web).
 | `vault` | Vault keys, signed grants for family and team members, local replica, key rotation on member removal |
 | `item` | Logins, cards, notes, identities, passkeys; per-field conflict-free merge with history |
 | `sync` | Encrypted, size-padded record format the server stores |
+| `site` | Which saved logins belong to which page: Public Suffix List matching, no HTTPS downgrade, look-alike domain detection |
 | `card` | Luhn check, brand detection, expiry parsing; accepts Arabic-Indic and Persian digits |
 | `totp` | RFC 6238 one-time codes from secrets or `otpauth://` URIs |
 | `generator` | Unbiased random passwords and passphrases |
@@ -32,6 +33,8 @@ browser extension, desktop and web).
 | `crates/amanfold-wasm` | The same API for the browser extension and web vault (WebAssembly) |
 | `crates/uniffi-bindgen` | Generates the Swift, Kotlin and Python bindings |
 | `crates/amanfold-server` | The sync server: accounts, OPAQUE login, encrypted vault sync, family and team sharing. Stores ciphertext only. |
+
+The browser extension (Chrome, Edge, Firefox) is in [`extension/`](extension/README.md).
 
 How the apps use it: [docs/BINDINGS.md](docs/BINDINGS.md). The server and
 its API: [docs/SERVER.md](docs/SERVER.md).
@@ -71,8 +74,9 @@ let rec = personal.save(Item::login("Email", "me@example.com", "pw", "https://ma
 2. ✅ Server authentication with OPAQUE; signed vault manifests (rollback protection)
 3. ✅ App bindings: Swift/Kotlin (UniFFI), WebAssembly for the browser; quick unlock, encrypted local cache
 4. ✅ Sync server: sign-up with email codes, OPAQUE login, sessions, recovery, verified sync, sharing with roles, key rotation
-5. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
-6. Trusted-contact recovery (Shamir), attachments
+5. ✅ Browser extension (beta): safe autofill, cards, one-time codes, English and Arabic
+6. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
+7. Trusted-contact recovery (Shamir), attachments
 
 ## License
 

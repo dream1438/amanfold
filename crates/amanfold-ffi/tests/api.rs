@@ -108,3 +108,64 @@ fn errors_cross_the_boundary_as_kinds() {
         Err(AmanfoldError::Malformed { .. }) | Err(AmanfoldError::InvalidArgument { .. })
     ));
 }
+
+#[test]
+fn logins_for_url_and_lookalikes() {
+    let new = create_account("correct horse battery".into()).unwrap();
+    let v = new.account.create_vault().unwrap().vault;
+    let bank = v
+        .create_item(
+            ItemKind::Login,
+            vec![f("title", "Bank"), f("url", "https://www.bank.com/login")],
+        )
+        .unwrap();
+    let other = v
+        .create_item(
+            ItemKind::Login,
+            vec![
+                f("title", "Bank (old)"),
+                f("url", "https://legacy.example"),
+                f("url.2", "https://bank.com"),
+            ],
+        )
+        .unwrap();
+    let trashed = v
+        .create_item(ItemKind::Login, vec![f("url", "https://bank.com")])
+        .unwrap();
+    v.set_trashed(trashed.id.clone(), true).unwrap();
+    // A note that mentions the URL is not a login.
+    v.create_item(ItemKind::SecureNote, vec![f("url", "https://bank.com")])
+        .unwrap();
+
+    let m = v.logins_for_url("https://bank.com/signin".into());
+    let ids: Vec<_> = m.iter().map(|x| x.item.id.clone()).collect();
+    assert_eq!(ids, vec![other.id.clone(), bank.id.clone()]);
+    assert_eq!(m[0].strength, SiteMatch::Origin);
+    assert_eq!(m[1].strength, SiteMatch::Site);
+
+    assert!(
+        v.logins_for_url("https://bank.com.evil.io".into())
+            .is_empty()
+    );
+    assert!(v.logins_for_url("http://bank.com".into()).is_empty());
+    assert!(v.logins_for_url("file:///bank.com".into()).is_empty());
+
+    assert_eq!(
+        v.lookalike_sites("https://bank-secure.com".into()),
+        vec!["bank.com"]
+    );
+    assert_eq!(
+        v.lookalike_sites("https://bаnk.com".into()),
+        vec!["bank.com"]
+    );
+    assert!(v.lookalike_sites("https://bank.com".into()).is_empty());
+    assert!(v.lookalike_sites("https://unrelated.org".into()).is_empty());
+
+    assert_eq!(
+        site_match("bank.com".into(), "https://www.bank.com".into()),
+        SiteMatch::Site
+    );
+    let p = page_site("https://www.bаnk.com/x".into()).unwrap();
+    assert_ne!(p.host, p.display_host);
+    assert!(page_site("javascript:alert(1)".into()).is_none());
+}

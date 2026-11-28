@@ -1,0 +1,5 @@
+{
+  "extName": { "message": "Amanfold (Beta)" },
+  "extDescription": { "message": "Password and card manager with end-to-end encryption and safe autofill." },
+  "cmdFill": { "message": "Fill the login for this page" }
+}
