@@ -258,7 +258,7 @@ checks are a second line of defence; clients never rely on them.
 | --- | --- | --- |
 | Server breach, offline guessing | Secret Key adds 128 bits the server never sees | `kdf::derivation_depends_on_every_input` |
 | Server sends weak KDF params (downgrade) | Floor enforced client-side before derivation | `account::server_downgrade_of_kdf_params_is_refused` |
-| Server sends huge KDF params (DoS on phones) | Ceiling: 1 GiB, 32 passes, 16 lanes | `kdf::param_floor_and_ceiling` |
+| Server sends huge KDF params (DoS on phones) | Ceiling: 256 MiB, 12 passes, 8 lanes (was 1 GiB, see R15) | `kdf::param_floor_and_ceiling` |
 | Server swaps a user's public key | Unlock checks keys match the bundle; sharing needs a verified fingerprint and a signed grant | `account::swapped_public_key_detected`, `vault::forged_grant_rejected` |
 | Server injects its own vault key | Grants are signed by a granter key the client already trusts | `vault::forged_grant_rejected` |
 | Server moves ciphertext between items, vaults, slots | Context binding (above) | `sync::server_cannot_move_or_swap_records`, `account::bundles_cannot_be_mixed` |
@@ -318,6 +318,7 @@ Fixed in this change:
 | R7 | **Challenge map exhaustion**: one account could fill the shared challenge map and block password change, recovery and deletion for everyone. | Medium-Low | At most 5 outstanding challenges per account. |
 | R8 | **A manager could overwrite the owner's grant** for the current epoch. | Low | Existing grants are never replaced (an identical resend is accepted). |
 | R9 | **Email display-name smuggling**: `"victim@corp.com"<me@evil.com>` was stored as one address and delivered to another. | Low-Medium | Plain addr-spec only. |
+| R15 | **KDF ceiling (1 GiB, 32 passes, 16 lanes) too high for phones and the browser**; an unauthenticated pre-login answer could force it and abort the app on allocation. | Low | Ceiling lowered to 256 MiB, 12 passes, 8 lanes. |
 | R10 | **Manifest sequence and epoch overflow** from a hostile server plus member: panic in debug, permanently stuck in release. | Low | Last values refused. |
 
 Open, need design work (tracked with O2/O11/O17):
@@ -328,7 +329,6 @@ Open, need design work (tracked with O2/O11/O17):
 | R12 | **Future timestamps pin fields**: merge trusts remote HLC timestamps, so a member (or a badly wrong clock) can make a field or the trash flag win forever, even after removal. | Medium (shared vaults) | Reject or clamp remote timestamps beyond the drift limit when merging; local edits always order after the stored version. |
 | R13 | **One bad record blocks sync** for every member (for example an item id reused with another kind). | Medium (availability) | Validate all records before applying; quarantine unmergeable records instead of failing the sync. |
 | R14 | **Manifests do not prove the signer holds the current vault key.** | Low | MAC the manifest body with a key derived from the vault key. |
-| R15 | **KDF ceiling (1 GiB, 32 passes) is too high for phones and the browser**; an unauthenticated pre-login answer can force it. | Low | Per-platform ceilings. |
 | R16 | **Phishing check misses brand-in-subdomain** (`paypal.com.evil.io`) before "fill anyway". | Low | Check every label and full-host skeletons; stronger confirmation. |
 | R17 | **Server load**: one database lock held while parsing large commits; `sync` from zero builds the whole vault in memory; no per-account storage quota. Targeted login lock-out through the per-email limit at login start. | Low | Parse before locking, page `sync`, quotas; count only failed logins per email. |
 | R18 | **Copied secrets are rarely cleared** (only if the popup stays open 30 s). Card frame confirmation is bound only to the frame id. | Low | Clear from the background (offscreen document); bind confirmation to the document. |
