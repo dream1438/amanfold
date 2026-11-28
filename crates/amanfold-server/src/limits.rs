@@ -38,6 +38,8 @@ pub struct Limits {
     pub verify_ip: Rule,
     /// Invitations sent per account.
     pub invites_account: Rule,
+    /// Waitlist confirmation emails per day across all addresses.
+    pub waitlist_global: Rule,
 }
 
 impl Default for Limits {
@@ -50,6 +52,7 @@ impl Default for Limits {
             mail_ip: Rule::new(20, 3600),
             verify_ip: Rule::new(30, 300),
             invites_account: Rule::new(50, 86_400),
+            waitlist_global: Rule::new(1000, 86_400),
         }
     }
 }

@@ -9,7 +9,13 @@
 //! Stored per entry: the address, the chosen language and plan, whether it
 //! is confirmed, the token hash and the day it was created. No IP address,
 //! no browser details, no tracking. Unconfirmed entries are deleted after
-//! seven days.
+//! seven days (hourly purge).
+//!
+//! Abuse limits: per-client and per-address rate limits, a global daily
+//! budget separate from account mail, at most [`MAX_SENDS`] confirmation
+//! emails per address per year, and none at all to an address that left.
+//! For that, `waitlist_mail` keeps a SHA-256 of the address (not the
+//! address) for a year.
 //!
 //! Every request gets the same answer whether or not the address is already
 //! on the list, so the endpoint cannot be used to find out who signed up.
@@ -64,9 +70,52 @@ pub struct JoinReq {
     plan: Option<String>,
 }
 
+/// Confirmation emails one address can ever be sent (per [`MAIL_MEMORY`]).
+pub const MAX_SENDS: i64 = 3;
+
+/// How long the server remembers that it mailed an address, or that the
+/// address left the list (seconds). Only a hash of the address is kept.
+pub const MAIL_MEMORY: u64 = 365 * 86_400;
+
+fn email_hash(email: &str) -> Vec<u8> {
+    Sha256::new()
+        .chain_update(b"amanfold/v1/waitlist-email")
+        .chain_update(email.as_bytes())
+        .finalize()
+        .to_vec()
+}
+
+/// Delete expired unconfirmed entries and old mail records. Runs hourly
+/// (see [`spawn_purge`]) and before every join.
+pub fn purge(c: &rusqlite::Connection) -> rusqlite::Result<()> {
+    let now = now_secs() as i64;
+    c.execute(
+        "DELETE FROM waitlist WHERE confirmed = 0 AND created_at < ?1",
+        params![now - PENDING_TTL as i64],
+    )?;
+    c.execute(
+        "DELETE FROM waitlist_mail WHERE first_at < ?1",
+        params![now - MAIL_MEMORY as i64],
+    )?;
+    Ok(())
+}
+
+/// Run [`purge`] every hour for as long as the server runs.
+pub fn spawn_purge(st: Arc<AppState>) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(3600));
+        loop {
+            tick.tick().await;
+            if let Err(e) = st.db(|c| Ok(purge(c)?)).await {
+                tracing::error!(error = %e, "waitlist purge failed");
+            }
+        }
+    });
+}
+
 /// `POST /v1/waitlist {email, lang?, plan?}` → `202 {}` always (after a
 /// valid address). Mails a confirmation link unless the address is already
-/// confirmed.
+/// confirmed, left the list, or has had [`MAX_SENDS`] links already.
 pub async fn join(
     st: St,
     ip: ClientIp,
@@ -79,17 +128,18 @@ pub async fn join(
         .hit(&format!("mail-ip:{}", ip.0), st.cfg.limits.mail_ip)?;
     st.limiter
         .hit(&format!("waitlist-email:{email}"), st.cfg.limits.mail_email)?;
+    // A separate daily budget, so the waitlist can never use up the mail
+    // quota that sign-up and recovery codes depend on.
+    st.limiter
+        .hit("waitlist-global", st.cfg.limits.waitlist_global)?;
 
     let token = random32();
     let hash = token_hash(&token);
     let to = email.clone();
     let send = st
         .db(move |c| {
+            purge(c)?;
             let now = now_secs() as i64;
-            c.execute(
-                "DELETE FROM waitlist WHERE confirmed = 0 AND created_at < ?1",
-                params![now - PENDING_TTL as i64],
-            )?;
             let confirmed: Option<i64> = c
                 .query_row(
                     "SELECT confirmed FROM waitlist WHERE email = ?1",
@@ -97,26 +147,43 @@ pub async fn join(
                     |r| r.get(0),
                 )
                 .optional()?;
-            match confirmed {
-                // Already on the list: say nothing new, change nothing.
-                Some(1) => Ok(false),
-                Some(_) => {
-                    c.execute(
-                        "UPDATE waitlist SET lang = ?2, plan = ?3, token_hash = ?4, created_at = ?5
-                         WHERE email = ?1",
-                        params![email, lang, plan, hash, now],
-                    )?;
-                    Ok(true)
-                }
-                None => {
-                    c.execute(
-                        "INSERT INTO waitlist (email, lang, plan, confirmed, token_hash, created_at)
-                         VALUES (?1, ?2, ?3, 0, ?4, ?5)",
-                        params![email, lang, plan, hash, now],
-                    )?;
-                    Ok(true)
-                }
+            if confirmed == Some(1) {
+                return Ok(false); // already on the list: change nothing
             }
+            let eh = email_hash(&email);
+            let (sends, left): (i64, i64) = c
+                .query_row(
+                    "SELECT sends, left_list FROM waitlist_mail WHERE email_hash = ?1",
+                    params![eh],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?
+                .unwrap_or((0, 0));
+            if left != 0 || sends >= MAX_SENDS {
+                return Ok(false); // left the list, or mailed enough already
+            }
+            let tx = c.transaction()?;
+            if confirmed.is_some() {
+                // Unconfirmed: new link, same start date (it still expires
+                // 7 days after the first request).
+                tx.execute(
+                    "UPDATE waitlist SET lang = ?2, plan = ?3, token_hash = ?4 WHERE email = ?1",
+                    params![email, lang, plan, hash],
+                )?;
+            } else {
+                tx.execute(
+                    "INSERT INTO waitlist (email, lang, plan, confirmed, token_hash, created_at)
+                     VALUES (?1, ?2, ?3, 0, ?4, ?5)",
+                    params![email, lang, plan, hash, now],
+                )?;
+            }
+            tx.execute(
+                "INSERT INTO waitlist_mail (email_hash, sends, left_list, first_at) VALUES (?1, 1, 0, ?2)
+                 ON CONFLICT (email_hash) DO UPDATE SET sends = sends + 1",
+                params![eh, now],
+            )?;
+            tx.commit()?;
+            Ok(true)
         })
         .await?;
     if send {
@@ -179,7 +246,25 @@ pub async fn confirm(st: St, ip: ClientIp, Json(req): Json<TokenReq>) -> ApiResu
 pub async fn leave(st: St, ip: ClientIp, Json(req): Json<TokenReq>) -> ApiResult<Json<Value>> {
     let hash = parse_token(&st, &ip, &req.token)?;
     st.db(move |c| {
-        c.execute("DELETE FROM waitlist WHERE token_hash = ?1", params![hash])?;
+        let tx = c.transaction()?;
+        let email: Option<String> = tx
+            .query_row(
+                "SELECT email FROM waitlist WHERE token_hash = ?1",
+                params![hash],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(email) = email {
+            tx.execute("DELETE FROM waitlist WHERE email = ?1", params![email])?;
+            // Remember (as a hash) that this address left, so the form
+            // cannot be used to email it again.
+            tx.execute(
+                "INSERT INTO waitlist_mail (email_hash, sends, left_list, first_at) VALUES (?1, 0, 1, ?2)
+                 ON CONFLICT (email_hash) DO UPDATE SET left_list = 1, first_at = ?2",
+                params![email_hash(&email), now_secs() as i64],
+            )?;
+        }
+        tx.commit()?;
         Ok(())
     })
     .await?;

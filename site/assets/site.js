@@ -112,10 +112,15 @@
     if (!token) {
       setState("missing");
     } else if (action === "confirm") {
-      post("/v1/waitlist/confirm", { token: token }).then(function (r) {
-        if (r.status === 200) setState("ok");
-        else if (r.status === 401 || r.status === 400) setState("bad");
-        else setState("error");
+      // Needs a press: link scanners in mail systems open links (and some
+      // run scripts), and must not confirm sign-ups on their own.
+      box.querySelector("[data-confirm]").addEventListener("click", function () {
+        setState("working");
+        post("/v1/waitlist/confirm", { token: token }).then(function (r) {
+          if (r.status === 200) setState("ok");
+          else if (r.status === 401 || r.status === 400) setState("bad");
+          else setState("error");
+        });
       });
     } else if (action === "leave") {
       var leaveBtn = box.querySelector("[data-leave]");

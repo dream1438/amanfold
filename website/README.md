@@ -19,7 +19,7 @@ CI rebuilds the site and fails if `site/` is out of date.
 - No cookies, no analytics, no third-party requests of any kind (fonts included).
 - No inline scripts or styles, so the site runs under the strict CSP in `deploy/Caddyfile`:
   `default-src 'self'; connect-src 'self' https://api.amanfold.com`.
-- The waitlist is double opt-in through the Amanfold server (`POST /v1/waitlist`, see `docs/SERVER.md`). The confirm and leave links carry their token after `#`, so it never reaches a web server log, and the page removes it from the address bar once read. Confirming needs a click-free script POST, so mail scanners that open links do not confirm sign-ups by themselves.
+- The waitlist is double opt-in through the Amanfold server (`POST /v1/waitlist`, see `docs/SERVER.md`). The confirm and leave links carry their token after `#`, so it never reaches a web server log, and the page removes it from the address bar once read. Confirming needs a button press (a POST from script), so mail scanners that open links, even ones that run scripts, do not confirm sign-ups by themselves.
 - The API address is the `af-api` meta tag (`API` in `build.py`).
 
 ## Pages

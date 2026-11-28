@@ -85,6 +85,12 @@ CREATE TABLE IF NOT EXISTS waitlist (
     token_hash BLOB NOT NULL UNIQUE,     -- SHA-256 of the link token
     created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS waitlist_mail (
+    email_hash BLOB PRIMARY KEY,         -- SHA-256 of the normalised address
+    sends      INTEGER NOT NULL,         -- confirmation emails sent
+    left_list  INTEGER NOT NULL,         -- 1: the address left; never mail it again
+    first_at   INTEGER NOT NULL          -- forgotten one year after this
+);
 "#;
 
 /// Open (or create) the database at `path` (`:memory:` for tests).

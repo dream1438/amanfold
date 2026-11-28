@@ -490,7 +490,8 @@ def confirm(t, frm):
     sec = f'<a class="btn" href="{href(t, "security", frm)}">{t["read_security"]}</a>'
     inner = "".join(
         [
-            state("working", None, t["conf_working"], "", "", frm, hidden=False),
+            state("ask", "done", t["conf_ask_h"], t["conf_ask_p"], f'<button class="btn" type="button" data-confirm>{t["conf_btn"]}</button>', frm, hidden=False),
+            state("working", None, t["conf_working"], "", "", frm),
             state("ok", "done", t["conf_ok_h"], t["conf_ok_p"], sec + home_l, frm),
             state("bad", "warning", t["conf_bad_h"], t["conf_bad_p"], again, frm),
             state("missing", "warning", t["conf_missing_h"], t["conf_missing_p"], home_l, frm),

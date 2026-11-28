@@ -124,12 +124,10 @@ async fn double_opt_in_then_leave() {
     let (s, _) = post(&app, "/v1/waitlist/leave", json!({"token": token(leave)})).await;
     assert_eq!(s, StatusCode::OK);
 
-    // After leaving, joining again mails a fresh link.
-    post(&app, "/v1/waitlist", json!({"email": "dana@example.com"})).await;
-    let l = links(&mail, "dana@example.com");
-    assert_eq!(l.len(), 2);
-    assert!(!l[1].2, "defaults to English");
-    assert!(l[1].0.starts_with("https://amanfold.com/beta/confirm/#t="));
+    // After leaving, the form cannot be used to mail this address again.
+    let (s, _) = post(&app, "/v1/waitlist", json!({"email": "dana@example.com"})).await;
+    assert_eq!(s, StatusCode::ACCEPTED, "same answer as always");
+    assert_eq!(links(&mail, "dana@example.com").len(), 1);
 }
 
 #[tokio::test]
@@ -179,7 +177,28 @@ async fn one_address_cannot_be_mail_bombed() {
         limited |= s == StatusCode::TOO_MANY_REQUESTS;
     }
     assert!(limited);
-    assert!(links(&mail, "b@example.com").len() <= 5);
+    assert_eq!(
+        links(&mail, "b@example.com").len() as i64,
+        amanfold_server::waitlist::MAX_SENDS
+    );
+}
+
+#[tokio::test]
+async fn global_daily_budget_is_separate_from_account_mail() {
+    let mut cfg = Config::default();
+    cfg.limits.waitlist_global = amanfold_server::limits::Rule::new(2, 86_400);
+    cfg.limits.mail_ip = amanfold_server::limits::Rule::new(100, 3600);
+    let (app, mail) = srv(cfg);
+    for e in ["1@example.com", "2@example.com"] {
+        let (s, _) = post(&app, "/v1/waitlist", json!({"email": e})).await;
+        assert_eq!(s, StatusCode::ACCEPTED);
+    }
+    let (s, _) = post(&app, "/v1/waitlist", json!({"email": "3@example.com"})).await;
+    assert_eq!(s, StatusCode::TOO_MANY_REQUESTS);
+    assert!(links(&mail, "3@example.com").is_empty());
+    // Account sign-up mail is unaffected.
+    let (s, _) = post(&app, "/v1/signup/email", json!({"email": "3@example.com"})).await;
+    assert_eq!(s, StatusCode::ACCEPTED);
 }
 
 #[tokio::test]
@@ -229,12 +248,18 @@ fn export_lists_only_confirmed() {
     let c = store::open(":memory:").unwrap();
     c.execute_batch(
         "INSERT INTO waitlist VALUES ('a@x.com','en','free',1,x'01',5);
-         INSERT INTO waitlist VALUES ('b@x.com','ar','family',0,x'02',6);",
+         INSERT INTO waitlist VALUES ('b@x.com','ar','family',0,x'02',6);
+         INSERT INTO waitlist VALUES ('c@x.com','en','free',1,x'03',7);",
     )
     .unwrap();
+    // Export lists confirmed entries only.
     let rows = amanfold_server::waitlist::export(&c).unwrap();
-    assert_eq!(
-        rows,
-        vec![("a@x.com".into(), "en".into(), "free".into(), 5)]
-    );
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0], ("a@x.com".into(), "en".into(), "free".into(), 5));
+    // The purge drops the expired unconfirmed entry and keeps confirmed ones.
+    amanfold_server::waitlist::purge(&c).unwrap();
+    let n: i64 = c
+        .query_row("SELECT count(*) FROM waitlist", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(n, 2);
 }

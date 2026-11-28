@@ -124,6 +124,7 @@ fn serve() {
     let state = AppState::new(cfg, secrets, db, mailer);
     let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| fail(e));
     rt.block_on(async move {
+        amanfold_server::waitlist::spawn_purge(state.clone());
         let listener = tokio::net::TcpListener::bind(addr)
             .await
             .unwrap_or_else(|e| fail(format!("listen {addr}: {e}")));
