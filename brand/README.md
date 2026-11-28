@@ -14,7 +14,7 @@ It ships as three drawings: full colour (Aman Green with a Mint fold, 32 px and 
 
 | Folder | Contents |
 | --- | --- |
-| `logo/` | Symbol (full colour, one colour, small) and logos (Latin, Arabic, stacked) in colour, reversed, black and white; SVG plus PNG in `logo/png/` |
+| `logo/` | Symbol (full colour, one colour, small) and logos (English, stacked, and an Arabic one kept in reserve) in colour, reversed, black and white; SVG plus PNG in `logo/png/` |
 | `app-icon/` | Store icon (full-bleed 1024), rounded preview, Android adaptive + themed layers, `favicon.svg`, `favicon.ico`, PNGs 16–1024 |
 | `icons/` | 24 UI icons (24 grid, 1.75 stroke, round caps) and `sprite.svg` |
 | `tokens/` | `tokens.css` (CSS variables, light and dark) and `tokens.json` |
@@ -25,7 +25,7 @@ It ships as three drawings: full colour (Aman Green with a Mint fold, 32 px and 
 
 - **Colour:** Aman Green `#0B6E4F` is the brand colour, Mint `#9BE4C4` is the fold, Ink `#0C1F1A` is text and Paper `#F4F6F3` is the background. Amber `#F5B544` appears at most once per screen and never as text on light backgrounds (use Amber 700 `#8F590D`). Danger red `#B3261E` is for weak or leaked passwords and destructive actions only. On dark backgrounds the logo is white and buttons use Green 400 `#2CB183`.
 - **Type:** Readex Pro (display, Latin and Arabic), IBM Plex Sans + IBM Plex Sans Arabic (interface), IBM Plex Mono (passwords and codes). All SIL Open Font License, all on Google Fonts.
-- **Logo:** always use the logo files; the name is custom-drawn (one-storey letters a, hand-adjusted spacing) and cannot be typed in a font. Clear space equals the symbol's stem width, a quarter of its height. Symbol minimum 16 px (small drawing), logo minimum 96 px wide. Don't mirror (not even in Arabic), recolour, stretch, or add padlocks and shields.
+- **Logo:** the English logo is used everywhere for now, in every language; the Arabic logo (أمان فولد, two words) is kept ready but not in use yet. Always use the logo files; the name is custom-drawn (one-storey letters a, hand-adjusted spacing) and cannot be typed in a font. Clear space equals the symbol's stem width, a quarter of its height. Symbol minimum 16 px (small drawing), logo minimum 96 px wide. Don't mirror (not even in Arabic), recolour, stretch, or add padlocks and shields.
 - **Voice:** calm, plain, honest about limits, equal in every language. Tagline: *Everything you keep, safely folded.* / *كل ما تحفظه، مطويٌّ بأمان.*
 
 ## Rebuilding
@@ -44,5 +44,5 @@ Change colours in `tools/palette.py` and the symbol's geometry in `tools/mark.py
 ## Still open
 
 - A trademark similarity search and registration of the name and symbol (classes 9 and 42). A keyhole inside a letter is not a new idea, so this needs checking before launch.
-- The Arabic name should be reviewed by a native Arabic type designer.
+- Before the Arabic logo is put into use, it should be reviewed by a native Arabic type designer.
 - The logo has not been tested with real users.

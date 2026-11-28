@@ -97,12 +97,12 @@ def page():
 </div>''')
 
     logo = section("logo", "02", "Logo",
-        "Use the full logo wherever there is room, and the symbol alone where the name is already present, such as an app icon or a browser toolbar.",
+        "Use the full logo wherever there is room, and the symbol alone where the name is already present, such as an app icon or a browser toolbar. For now the logo is always the English one, in every language.",
         f'''<div class="logo-grid">
   <figure class="tile light">{lockup()}<figcaption>Main logo · <code>amanfold-logo.svg</code></figcaption></figure>
-  <figure class="tile light">{lockup(rtl=True)}<figcaption>Arabic logo, symbol on the right, never mirrored · <code>amanfold-logo-arabic.svg</code></figcaption></figure>
   <figure class="tile dark">{lockup(cls="rev")}<figcaption>Reversed, on Ink · <code>amanfold-logo-reversed.svg</code></figcaption></figure>
   <figure class="tile light">{inline(build.stacked(X, classes=True), "stacked", "Amanfold")}<figcaption>Stacked, for splash screens and stickers · <code>amanfold-logo-stacked.svg</code></figcaption></figure>
+  <figure class="tile light">{lockup(rtl=True)}<figcaption>Arabic logo, in reserve and not in use yet · <code>amanfold-logo-arabic.svg</code></figcaption></figure>
 </div>
 <h3 class="sub">Three drawings for three jobs</h3>
 <div class="three-d">
@@ -121,6 +121,7 @@ def page():
   </figure>
 </div>
 <p class="note"><b>How the name is drawn.</b> The name is set in Readex Pro at weight 600 and then redrawn: both letters a are replaced by a round one-storey a that matches the symbol, spacing is 1.2% tighter, and the pairs n f, f o and l d are adjusted by hand. The symbol is as tall as the letters f, l and d, and the gap between symbol and name is one stem width. Always use the logo files, never type the name in a font.</p>
+<p class="note"><b>Arabic.</b> The English logo is used everywhere for now, including on Arabic screens and pages. An Arabic logo is drawn and kept ready (the name is two words, أمان فولد, with the symbol on the right and never mirrored), but do not use it until it is approved. In Arabic running text the name is still written أمان فولد.</p>
 <h3 class="sub">Please don't</h3>
 <ul class="donts onlight">
   <li><div class="dz">{mk("x-flip")}</div><span>Mirror it, including in Arabic and other right-to-left layouts.</span></li>
@@ -336,7 +337,7 @@ def page():
     files = section("files", "10", "Files",
         "Everything on this page is generated from code in the repository, so the logo, icons and colours can never drift apart.",
         '''<table class="tok files"><tbody>
-<tr><th><code>brand/logo/</code></th><td>Symbol (full colour, one colour, small) and logos (Latin, Arabic, stacked) in colour, reversed, black and white, as SVG and PNG.</td></tr>
+<tr><th><code>brand/logo/</code></th><td>Symbol (full colour, one colour, small) and logos (English, stacked, and an Arabic one kept in reserve) in colour, reversed, black and white, as SVG and PNG.</td></tr>
 <tr><th><code>brand/app-icon/</code></th><td>Store icon, rounded preview, Android adaptive and themed layers, favicon (SVG and ICO), PNG sizes 16 to 1024.</td></tr>
 <tr><th><code>brand/icons/</code></th><td>24 interface icons and a sprite sheet.</td></tr>
 <tr><th><code>brand/tokens/</code></th><td>Colours, type, spacing, radius and motion as CSS variables and JSON, for light and dark themes.</td></tr>

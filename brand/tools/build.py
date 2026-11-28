@@ -106,24 +106,20 @@ def wordmark_only(arabic, color, classes=False):
 
 
 def stacked(colors, classes=False):
-    """Symbol centred above the Latin and Arabic names: for splash screens and stickers."""
-    lat, ara = words()
+    """Symbol centred above the name: for splash screens and stickers."""
+    lat, _ = words()
     k = 3                                      # symbol scale
     s = STEM_H / lat["ascender"] * 1.15
-    sa = s * ARABIC_SCALE
     lx0, lt, lx1, lb = (v * s for v in lat["bbox"])
-    ax0, at, ax1, ab = (v * sa for v in ara["bbox"])
     x0, y0, x1, y1 = BOX
     mw, mh = (x1 - x0) * k, (y1 - y0) * k
-    lw, aw = lx1 - lx0, ax1 - ax0
-    W = max(mw, lw, aw)
+    lw = lx1 - lx0
+    W = max(mw, lw)
     yl = mh + 22 - lt
-    ya = yl + lb + 16 - at
     t = paint(colors["text"], "mt" if classes else None)
     body = (f'<g transform="translate({fmt((W - mw) / 2 - x0 * k)} {fmt(-y0 * k)}) scale({k})">{symbol_group(colors["body"], colors["flap"], None, classes)}</g>'
-            f'<path {t} transform="translate({fmt((W - lw) / 2 - lx0)} {fmt(yl)}) scale({s:.5f})" d="{lat["d"]}"/>'
-            f'<path {t} transform="translate({fmt((W - aw) / 2 - ax0)} {fmt(ya)}) scale({sa:.5f})" d="{ara["d"]}"/>')
-    return W, ya + ab, body
+            f'<path {t} transform="translate({fmt((W - lw) / 2 - lx0)} {fmt(yl)}) scale({s:.5f})" d="{lat["d"]}"/>')
+    return W, yl + lb, body
 
 
 # ---------------------------------------------------------------- app icons
@@ -253,8 +249,9 @@ def main():
     for suffix, colors in variants.items():
         write(f"brand/logo/amanfold-mark{suffix}.svg", svg(*mark(colors), "Amanfold"))
         write(f"brand/logo/amanfold-logo{suffix}.svg", svg(*lockup(colors), "Amanfold"))
+        # Arabic logo: kept ready, not in use yet. The English logo is used everywhere for now.
         write(f"brand/logo/amanfold-logo-arabic{suffix}.svg", svg(*lockup(colors, arabic=True), "أمان فولد"))
-        write(f"brand/logo/amanfold-logo-stacked{suffix}.svg", svg(*stacked(colors), "Amanfold أمان فولد"))
+        write(f"brand/logo/amanfold-logo-stacked{suffix}.svg", svg(*stacked(colors), "Amanfold"))
     # small drawing, for 24 px and below
     write("brand/logo/amanfold-mark-small.svg", svg(*mark(dict(body=AMAN_GREEN, flap=None), "small"), "Amanfold"))
     write("brand/logo/amanfold-mark-small-white.svg", svg(*mark(dict(body="#FFFFFF", flap=None), "small"), "Amanfold"))
