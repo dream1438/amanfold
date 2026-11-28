@@ -14,8 +14,26 @@ export const ext = path.resolve(here, "../..");
 export const repo = path.resolve(ext, "..");
 
 let step = 0;
-export const log = (s) => console.log(`  ${++step}. ${s}`);
+let stuck;
 export const currentStep = () => step + 1;
+
+/**
+ * Fail instead of hanging when one step takes over `minutes` (a browser can
+ * stop answering, for example behind a dialog it never reported).
+ */
+function watch(minutes = 4) {
+  clearTimeout(stuck);
+  stuck = setTimeout(() => {
+    console.error(`e2e FAILED: step ${currentStep()} still running after ${minutes} minutes`);
+    process.exit(1);
+  }, minutes * 60_000);
+  stuck.unref();
+}
+watch(10); // the build and the first launch take longer
+export const log = (s) => {
+  console.log(`  ${++step}. ${s}`);
+  watch();
+};
 
 function sh(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { cwd: repo, stdio: ["ignore", "pipe", "inherit"], ...opts });

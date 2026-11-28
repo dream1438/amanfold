@@ -77,7 +77,15 @@ async function connect() {
   return (method, params = {}, sessionId) =>
     new Promise((resolve, reject) => {
       const id = next++;
-      waiting.set(id, { resolve, reject, method });
+      const timer = setTimeout(() => {
+        waiting.delete(id);
+        reject(new Error(`${method}: no answer in ${T / 1000} s`));
+      }, T);
+      waiting.set(id, {
+        resolve: (v) => (clearTimeout(timer), resolve(v)),
+        reject: (e) => (clearTimeout(timer), reject(e)),
+        method,
+      });
       sock.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
 }
