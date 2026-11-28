@@ -48,8 +48,14 @@
 	file_server
 	handle_errors {
 		import security_headers
-		rewrite * /404.html
-		file_server
+		@page file /404.html
+		handle @page {
+			rewrite * /404.html
+			file_server
+		}
+		handle {
+			respond "{err.status_code}" {err.status_code}
+		}
 	}
 }
 

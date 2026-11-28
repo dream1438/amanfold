@@ -48,9 +48,12 @@ jobs:
           # IPv6 clients reach Caddy directly (host networking).
           curl -sfk -6 --resolve 'api.localhost:443:[::1]' https://api.localhost/v1/server | jq -e .version
           # The server port is bound to loopback only.
-          ss -ltnH | awk '{print $4}' | grep ':8080$' | grep -v '^127\.0\.0\.1:' && exit 1 || true
+          ss -ltnH 'sport = :8080'
+          ss -ltnH 'sport = :8080' | awk '{print $4}' | grep -v '^127\.0\.0\.1:' && exit 1 || true
           # Errors carry the security headers too.
-          curl -sk --resolve localhost:443:127.0.0.1 -D - -o /dev/null https://localhost/missing | grep -i x-content-type-options
+          curl -sk --resolve localhost:443:127.0.0.1 -D - -o /dev/null https://localhost/missing | tee /dev/stderr | grep -i x-content-type-options
+          curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null https://api.localhost/nope | grep -i x-content-type-options
+          curl -sk --resolve www.localhost:443:127.0.0.1 -D - -o /dev/null https://www.localhost/ | grep -i x-content-type-options
       - name: Backup and list snapshots
         working-directory: deploy
         run: |
