@@ -45,7 +45,7 @@ and snapshot listing), then publishes the server image from `main`.
 
 | | Choice | Cost |
 | --- | --- | --- |
-| Server | Hetzner Cloud CX23 (2 vCPU, 4 GB, 40 GB, 20 TB traffic) | about €4–5 |
+| Server | Hostinger VPS KVM 1 (1 vCPU, 4 GB, 50 GB) or Hetzner Cloud CX23 (2 vCPU, 4 GB, 40 GB) | about $5–7 at first (Hostinger, higher on renewal) or €4–5 (Hetzner) |
 | Email | Resend free tier (3,000 emails/month, 100/day) | €0, then $20 for 50,000 |
 | Backups | Backblaze B2 (a few GB) or Hetzner Storage Box BX11 (1 TB) | under €0.10, or about €3.20 |
 | Certificates | Let's Encrypt via Caddy | €0 |
@@ -89,16 +89,49 @@ only, applied to the server.
 **DigitalOcean**: the same, with a Basic $6 Droplet, Ubuntu 24.04, your SSH
 key, and `cloud-init.yaml` under *Advanced options → Add initialization scripts*.
 
-**Hostinger VPS**: hPanel → VPS → choose **Ubuntu 24.04 (plain OS)**, add your
-SSH key under *Settings → SSH keys*. Then log in (step 4) and run:
+**Hostinger VPS** (same account as the domain):
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/dream1438/amanfold/main/deploy/scripts/prepare-host.sh | sh
-```
+1. hostinger.com → **VPS** → choose **KVM 1** (1 vCPU, 4 GB RAM, 50 GB
+   disk), which is plenty for the beta. KVM 2 only if you expect thousands
+   of active users. A 12- or 24-month term keeps the price low; check the
+   renewal price on the checkout page.
+2. During setup:
+   * **Location**: a European data center (Netherlands, Germany, France,
+     Lithuania or the UK, whichever is offered). Europe is a good middle
+     point for users in the Middle East, Africa and Europe, and EU privacy
+     law suits a password manager.
+   * **Operating system**: *Plain OS* → **Ubuntu 24.04**. Not a control
+     panel, not "Docker" or "Coolify" templates, and no "application".
+   * **Root password**: let your password manager generate a long one and
+     save it there. You will rarely need it.
+   * **SSH key**: paste the public key from step 1 (or later under
+     *VPS → Settings → SSH keys*).
+   * Malware scanner (Monarx): fine to leave on.
+3. hPanel → **VPS → Security → Firewall** → create a firewall named
+   `amanfold` with *accept* rules for TCP 22, TCP 80, TCP 443 and UDP 443
+   (everything else is dropped), and **activate** it for this VPS.
+4. Note the VPS's **IPv4** and **IPv6** addresses on the VPS overview page.
+5. Log in: on your computer, `ssh root@<IPv4>`. Or, without any setup,
+   use **VPS → Browser terminal** in hPanel. Then run:
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/dream1438/amanfold/main/deploy/scripts/prepare-host.sh | sh
+   ```
+
+   It turns on the server's own firewall, automatic security updates and
+   fail2ban, installs Docker, and fetches the setup files to
+   `/opt/amanfold`. If your SSH key is installed it also turns off password
+   logins.
+6. Optional: *VPS → Snapshots & backups* lets you take a snapshot before a
+   big change. Our own hourly backups (step 6) are what protect the data.
+
+Then continue with step 3. Your domain is already at Hostinger, so the DNS
+records go in the same hPanel.
 
 ### 3. Point the domain at the server (you, at Hostinger)
 
-hPanel → **Domains** → amanfold.com → **DNS / Nameservers** → DNS records.
+hPanel → **Domains** → amanfold.com → **DNS / Nameservers** → *DNS records*
+(the domain must be using Hostinger's nameservers, which is the default).
 Delete the existing `A`, `AAAA` and `CNAME` records for `@`, `www` and `api`
 (Hostinger's parking page), then add:
 
