@@ -27,6 +27,20 @@ jobs:
       - run: PROPTEST_CASES=2000 cargo test -p amanfold-core --release
       - run: cargo build -p amanfold-core --target wasm32-unknown-unknown --release
 
+  # The committed site/ must match what website/build.py produces.
+  website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 website/build.py
+      - name: Check site/ is up to date
+        run: |
+          if [ -n "$(git status --porcelain -- site)" ]; then
+            git status --short -- site
+            echo "site/ is out of date. Run python3 website/build.py and commit the result."
+            exit 1
+          fi
+
   # Generated Python and Kotlin bindings, driven end to end against the
   # test server (the Android app uses the Kotlin bindings).
   bindings-linux:

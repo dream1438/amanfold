@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How Amanfold keeps your vault private · Amanfold</title>
+<meta name="description" content="A plain-language explanation of Amanfold&#x27;s zero-knowledge design: the Secret Key, OPAQUE sign-in, signed vaults, safe autofill, sharing, recovery and the audit status.">
+<meta name="robots" content="index,follow">
+<meta name="af-api" content="https://api.amanfold.com">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F4F6F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#081410" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<link rel="canonical" href="https://amanfold.com/security/">
+<link rel="alternate" hreflang="en" href="https://amanfold.com/security/">
+<link rel="alternate" hreflang="ar" href="https://amanfold.com/ar/security/">
+<link rel="alternate" hreflang="x-default" href="https://amanfold.com/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Amanfold">
+<meta property="og:title" content="How Amanfold keeps your vault private · Amanfold">
+<meta property="og:description" content="A plain-language explanation of Amanfold&#x27;s zero-knowledge design: the Secret Key, OPAQUE sign-in, signed vaults, safe autofill, sharing, recovery and the audit status.">
+<meta property="og:url" content="https://amanfold.com/security/">
+<meta property="og:image" content="https://amanfold.com/assets/og.png">
+<meta property="og:locale" content="en_US">
+<link rel="icon" href="../assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="preload" href="../assets/fonts/readex-pro-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../" aria-label="Amanfold">
+      <img class="logo logo-light" src="../assets/logo.svg" alt="Amanfold" width="146" height="20">
+      <img class="logo logo-dark" src="../assets/logo-white.svg" alt="" width="146" height="20">
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+    <nav id="site-nav" class="nav" aria-label="Menu">
+      <ul><li><a href="../#why">Why Amanfold</a></li><li><a href="../security/" aria-current="page">Security</a></li><li><a href="../#pricing">Pricing</a></li><li><a href="../#faq">Questions</a></li></ul>
+      <a class="lang" href="../ar/security/" hreflang="ar" lang="ar">العربية</a>
+      <a class="btn btn-sm" href="../#join">Join the beta</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+
+<section class="page-head">
+  <div class="wrap narrow">
+    <p class="badge"><span class="dot" aria-hidden="true"></span>Public beta</p>
+    <h1>How Amanfold keeps your vault private</h1>
+    <p class="lead">This page explains, without jargon, what protects your vault and what does not yet. The full technical review, with every known open issue, is published next to the code.</p>
+  </div>
+</section>
+<div class="wrap doc-grid">
+  <nav class="toc" aria-labelledby="toc-h">
+    <h2 id="toc-h" class="toc-h">On this page</h2>
+    <ol><li><a href="#s1">Everything is locked on your device</a></li><li><a href="#s2">Your master password and your Secret Key</a></li><li><a href="#s3">Signing in without sending your password</a></li><li><a href="#s4">A server that cannot cheat</a></li><li><a href="#s5">Autofill that does not fall for fakes</a></li><li><a href="#s6">Sharing with safety numbers</a></li><li><a href="#s7">Getting back in</a></li><li><a href="#s8">Why open source does not make it easier to hack</a></li><li><a href="#s9">What has and has not been checked</a></li><li><a href="#s10">Found a problem?</a></li></ol>
+  </nav>
+  <article class="doc">
+    <section id="s1"><h2>Everything is locked on your device</h2><p>When you save a password or a card, Amanfold encrypts it on your phone or computer before anything is sent. Each item has its own key, and those keys are locked by a key for the vault, which is locked by your account key. Only your devices can unlock that chain. Our server stores and passes along the locked result.</p><p>Even the names of your items and the websites they belong to are encrypted, and every item is padded to a standard size so its length does not give hints.</p></section>
+    <aside class="stores stores-inline folded" aria-labelledby="stores-h">
+      <h3 id="stores-h">What our server stores about you</h3>
+      <div class="stores-cols">
+        <div><p class="stores-k"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="../assets/icons.svg#af-show"></use></svg><span>Can read</span></p><ul><li>Your email address</li><li>Which vaults you share, and with whom</li><li>How much encrypted data you store</li><li>When your devices last synced</li></ul></div>
+        <div><p class="stores-k stores-no"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="../assets/icons.svg#af-hide"></use></svg><span>Cannot read</span></p><ul class="no"><li>Your master password or Secret Key</li><li>Passwords, usernames and website addresses</li><li>Card numbers, expiry dates and security codes</li><li>Item names, notes and sign-in codes</li></ul></div>
+      </div>
+    </aside>
+    <section id="s2"><h2>Your master password and your Secret Key</h2><p>Most password managers protect your vault with your master password alone. If their servers are breached, attackers can try billions of guesses against a copy of your vault. Amanfold adds a second secret: a random 128-bit Secret Key, created on your device when you sign up and printed in your recovery kit.</p><p>Your vault can only be unlocked with both. The Secret Key is never sent to us, so a stolen copy of our database cannot be cracked by guessing passwords, however weak yours is. Your master password is also stretched with Argon2id, which makes every single guess slow and memory-hungry.</p></section><section id="s3"><h2>Signing in without sending your password</h2><p>Amanfold signs you in with OPAQUE, an internet standard (RFC 9807). Your device and our server do a mathematical exchange that proves you know the password, without the password, or anything that would let us or an attacker test guesses, ever reaching us. A fake server cannot learn it either.</p></section><section id="s4"><h2>A server that cannot cheat</h2><p>We design as if our own server could be hostile. Every change to a vault is listed in a manifest signed by the account key of whoever made it. Your devices check those signatures and refuse anything that was swapped, removed, rolled back to an older version or moved from another vault.</p></section><section id="s5"><h2>Autofill that does not fall for fakes</h2><p>Fake sites that copy a real one are the most common way passwords are stolen. Amanfold fills a password only on the exact site it was saved for, never fills on an insecure (http) page what was saved on a secure one, and warns you when a site looks like a copy of one you use, such as a 1 in place of an l.</p></section><section id="s6"><h2>Sharing with safety numbers</h2><p>When you share a vault, its key is locked to the other person's public key and signed by you. Before a shared vault opens, you both see a short safety number. Compare it in person or on a call. If it matches, nobody, including us, has slipped their own key in between.</p><p>When someone leaves a shared vault, the vault gets a new key and every item is locked again, so they cannot read anything added after they left.</p></section><section id="s7"><h2>Getting back in</h2><p>Because we never hold your keys, we cannot reset your password. Instead, you get a recovery kit when you sign up: your Secret Key and 24 recovery words. With the kit and a code sent to your email, you can set a new master password. Keep it somewhere safe, like with your passport. Trusted contacts for families and teams are planned.</p></section><section id="s8"><h2>Why open source does not make it easier to hack</h2><p>Amanfold uses standard, publicly studied encryption: XChaCha20-Poly1305, X25519, Ed25519, Argon2id and OPAQUE. Its safety rests on secrets only you hold, not on keeping the design hidden. This is how the encryption in banking and messaging apps works too.</p><p>Publishing the code means anyone can check that we do what we say, and independent researchers can find mistakes so they are fixed in public. Release builds are made from the published code, and the apps pin our server's key so a look-alike server is refused.</p></section><section id="s9" class="callout"><h2>What has and has not been checked</h2><p>Amanfold is in public beta. Its design and code have been through our own internal review, which is published in full with every open issue. <strong>No independent firm has audited it yet.</strong> We will pay for an outside audit from our first revenue, publish the report, and remove the beta label only once every finding is fixed.</p><p>Known limits today include: the server, not the encryption, stops read-only members of a shared vault from writing; and a device that is already infected with malware can see what you unlock on it, as with any password manager.</p><p><a class="btn btn-ghost" href="https://github.com/dream1438/amanfold/blob/main/docs/SECURITY.md" rel="noopener">Read the technical review</a></p></section><section id="s10"><h2>Found a problem?</h2><p>Please report security issues privately through GitHub's security advisories for our repository, not in public issues. We will reply, fix it and credit you if you want.</p><p><a class="btn btn-ghost" href="https://github.com/dream1438/amanfold/security/advisories/new" rel="noopener">Report privately on GitHub</a></p></section>
+  </article>
+</div>
+
+</main>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <img class="logo logo-light" src="../assets/logo.svg" alt="Amanfold" width="146" height="20">
+      <img class="logo logo-dark" src="../assets/logo-white.svg" alt="" width="146" height="20">
+      <p>Everything you keep, safely folded.</p>
+      <p class="muted small">Beta. Not yet independently audited.</p>
+    </div>
+    <div>
+      <h2 class="foot-h">Product</h2>
+      <ul>
+        <li><a href="../">Home</a></li>
+        <li><a href="../#pricing">Pricing</a></li>
+        <li><a href="../#join">Join the beta</a></li>
+        <li><a href="../ar/security/" hreflang="ar" lang="ar">العربية</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="foot-h">Trust</h2>
+      <ul>
+        <li><a href="../security/">How security works</a></li>
+        <li><a href="../privacy/">Privacy</a></li>
+        <li><a href="https://github.com/dream1438/amanfold" rel="noopener">Source code</a></li>
+        <li><a href="https://github.com/dream1438/amanfold/security/advisories/new" rel="noopener">Report a security issue</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap"><p class="muted small copy">© 2026 Amanfold. Code under the Apache License 2.0.</p></div>
+</footer>
+</body>
+</html>

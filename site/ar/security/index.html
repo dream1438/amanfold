@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>كيف يحافظ أمان فولد على خصوصية خزنتك · Amanfold</title>
+<meta name="description" content="شرح مبسّط لتصميم أمان فولد الذي لا يطّلع على بياناتك: المفتاح السري، وتسجيل الدخول عبر OPAQUE، والخزائن الموقّعة، والملء التلقائي الآمن، والمشاركة، والاسترداد، وحالة التدقيق.">
+<meta name="robots" content="index,follow">
+<meta name="af-api" content="https://api.amanfold.com">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F4F6F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#081410" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<link rel="canonical" href="https://amanfold.com/ar/security/">
+<link rel="alternate" hreflang="en" href="https://amanfold.com/security/">
+<link rel="alternate" hreflang="ar" href="https://amanfold.com/ar/security/">
+<link rel="alternate" hreflang="x-default" href="https://amanfold.com/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Amanfold">
+<meta property="og:title" content="كيف يحافظ أمان فولد على خصوصية خزنتك · Amanfold">
+<meta property="og:description" content="شرح مبسّط لتصميم أمان فولد الذي لا يطّلع على بياناتك: المفتاح السري، وتسجيل الدخول عبر OPAQUE، والخزائن الموقّعة، والملء التلقائي الآمن، والمشاركة، والاسترداد، وحالة التدقيق.">
+<meta property="og:url" content="https://amanfold.com/ar/security/">
+<meta property="og:image" content="https://amanfold.com/assets/og.png">
+<meta property="og:locale" content="ar_AR">
+<link rel="icon" href="../../assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png">
+<link rel="preload" href="../../assets/fonts/readex-pro-arabic-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js" defer></script>
+</head>
+<body class="">
+<a class="skip" href="#main">انتقل إلى المحتوى</a>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="../../ar/" aria-label="Amanfold">
+      <img class="logo logo-light" src="../../assets/logo.svg" alt="Amanfold" width="146" height="20">
+      <img class="logo logo-dark" src="../../assets/logo-white.svg" alt="" width="146" height="20">
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>القائمة</span></button>
+    <nav id="site-nav" class="nav" aria-label="القائمة">
+      <ul><li><a href="../../ar/#why">لماذا أمان فولد</a></li><li><a href="../../ar/security/" aria-current="page">الأمان</a></li><li><a href="../../ar/#pricing">الأسعار</a></li><li><a href="../../ar/#faq">الأسئلة</a></li></ul>
+      <a class="lang" href="../../security/" hreflang="en" lang="en">English</a>
+      <a class="btn btn-sm" href="../../ar/#join">انضم إلى النسخة التجريبية</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+
+<section class="page-head">
+  <div class="wrap narrow">
+    <p class="badge"><span class="dot" aria-hidden="true"></span>نسخة تجريبية عامة</p>
+    <h1>كيف يحافظ أمان فولد على خصوصية خزنتك</h1>
+    <p class="lead">تشرح هذه الصفحة، بلا مصطلحات معقّدة، ما الذي يحمي خزنتك وما الذي لم يكتمل بعد. والمراجعة التقنية الكاملة، بكل المسائل المفتوحة المعروفة، منشورة بجانب الشيفرة.</p>
+  </div>
+</section>
+<div class="wrap doc-grid">
+  <nav class="toc" aria-labelledby="toc-h">
+    <h2 id="toc-h" class="toc-h">في هذه الصفحة</h2>
+    <ol><li><a href="#s1">كل شيء يُقفل على جهازك</a></li><li><a href="#s2">كلمة مرورك الرئيسية ومفتاحك السري</a></li><li><a href="#s3">تسجيل الدخول دون إرسال كلمة مرورك</a></li><li><a href="#s4">خادم لا يستطيع الغش</a></li><li><a href="#s5">ملء تلقائي لا ينخدع بالمواقع المزيّفة</a></li><li><a href="#s6">المشاركة بأرقام الأمان</a></li><li><a href="#s7">العودة إلى حسابك</a></li><li><a href="#s8">لماذا لا يسهّل المصدر المفتوح الاختراق</a></li><li><a href="#s9">ما الذي فُحص وما الذي لم يُفحص</a></li><li><a href="#s10">وجدت مشكلة؟</a></li></ol>
+  </nav>
+  <article class="doc">
+    <section id="s1"><h2>كل شيء يُقفل على جهازك</h2><p>حين تحفظ كلمة مرور أو بطاقة، يشفّرها أمان فولد على هاتفك أو حاسوبك قبل إرسال أي شيء. لكل عنصر مفتاحه الخاص، وهذه المفاتيح مقفلة بمفتاح الخزنة، المقفل بدوره بمفتاح حسابك. لا تستطيع فتح هذه السلسلة إلا أجهزتك. أما خادمنا فيحفظ النتيجة المقفلة وينقلها فقط.</p><p>حتى أسماء العناصر والمواقع التي تخصها مشفّرة، وكل عنصر يُكمَّل إلى حجم موحّد حتى لا يكشف طوله شيئًا.</p></section>
+    <aside class="stores stores-inline folded" aria-labelledby="stores-h">
+      <h3 id="stores-h">ما يحفظه خادمنا عنك</h3>
+      <div class="stores-cols">
+        <div><p class="stores-k"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="../../assets/icons.svg#af-show"></use></svg><span>يستطيع قراءته</span></p><ul><li>عنوان بريدك الإلكتروني</li><li>الخزائن التي تشاركها ومع مَن</li><li>حجم البيانات المشفّرة التي تحفظها</li><li>آخر مزامنة لأجهزتك</li></ul></div>
+        <div><p class="stores-k stores-no"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="../../assets/icons.svg#af-hide"></use></svg><span>لا يستطيع قراءته</span></p><ul class="no"><li>كلمة مرورك الرئيسية أو مفتاحك السري</li><li>كلمات المرور وأسماء المستخدمين وعناوين المواقع</li><li>أرقام البطاقات وتواريخ انتهائها ورموز الأمان</li><li>أسماء العناصر والملاحظات ورموز الدخول</li></ul></div>
+      </div>
+    </aside>
+    <section id="s2"><h2>كلمة مرورك الرئيسية ومفتاحك السري</h2><p>معظم مديري كلمات المرور يحمون خزنتك بكلمة المرور الرئيسية وحدها. وإذا اختُرقت خوادمهم، يستطيع المهاجمون تجربة مليارات التخمينات على نسخة من خزنتك. يضيف أمان فولد سرًّا ثانيًا: مفتاحًا سريًا عشوائيًا بطول 128 بت، يُنشأ على جهازك عند التسجيل ويُطبع في مجموعة الاسترداد.</p><p>لا تُفتح خزنتك إلا بالاثنين معًا. المفتاح السري لا يُرسل إلينا أبدًا، لذلك لا يمكن كسر نسخة مسروقة من قاعدة بياناتنا بتخمين كلمات المرور، مهما كانت كلمتك ضعيفة. كما تُعالَج كلمة مرورك الرئيسية بخوارزمية Argon2id التي تجعل كل تخمين واحد بطيئًا ومستهلكًا للذاكرة.</p></section><section id="s3"><h2>تسجيل الدخول دون إرسال كلمة مرورك</h2><p>يسجّل أمان فولد دخولك عبر OPAQUE، وهو معيار إنترنت (RFC 9807). يجري جهازك وخادمنا تبادلًا رياضيًا يثبت أنك تعرف كلمة المرور، دون أن تصلنا هي أو أي شيء يسمح لنا أو لمهاجم بتجربة التخمينات. ولا يستطيع خادم مزيّف أن يعرفها أيضًا.</p></section><section id="s4"><h2>خادم لا يستطيع الغش</h2><p>نصمّم وكأن خادمنا نفسه قد يكون معاديًا. كل تغيير في الخزنة مدرج في سجلّ موقّع بمفتاح حساب من أجراه. تتحقق أجهزتك من هذه التواقيع وترفض أي شيء جرى تبديله أو حذفه أو إرجاعه إلى نسخة أقدم أو نقله من خزنة أخرى.</p></section><section id="s5"><h2>ملء تلقائي لا ينخدع بالمواقع المزيّفة</h2><p>المواقع المزيّفة التي تقلّد مواقع حقيقية هي أكثر طرق سرقة كلمات المرور شيوعًا. لا يملأ أمان فولد كلمة المرور إلا في الموقع نفسه الذي حُفظت له، ولا يملأ في صفحة غير آمنة (http) ما حُفظ في صفحة آمنة، وينبّهك حين يبدو موقع ما نسخة مقلّدة من موقع تستخدمه، كأن يوضع الرقم 1 مكان الحرف l.</p></section><section id="s6"><h2>المشاركة بأرقام الأمان</h2><p>حين تشارك خزنة، يُقفل مفتاحها بالمفتاح العام للشخص الآخر ويُوقَّع منك. وقبل أن تُفتح الخزنة المشتركة، يرى كلاكما رقم أمان قصيرًا. قارناه وجهًا لوجه أو في مكالمة. إن تطابق، فلا أحد، ولا نحن، دسّ مفتاحه بينكما.</p><p>حين يغادر أحد خزنة مشتركة، تحصل الخزنة على مفتاح جديد ويُقفل كل عنصر من جديد، فلا يستطيع قراءة ما أُضيف بعد مغادرته.</p></section><section id="s7"><h2>العودة إلى حسابك</h2><p>لأننا لا نملك مفاتيحك أبدًا، لا نستطيع إعادة تعيين كلمة مرورك. بدلًا من ذلك تحصل عند التسجيل على مجموعة استرداد: مفتاحك السري و24 كلمة استرداد. بالمجموعة ورمز يُرسل إلى بريدك، يمكنك تعيين كلمة مرور رئيسية جديدة. احفظها في مكان آمن، مثل مكان جواز سفرك. والأشخاص الموثوقون للعائلات والفرق مخطط لهم.</p></section><section id="s8"><h2>لماذا لا يسهّل المصدر المفتوح الاختراق</h2><p>يستخدم أمان فولد تشفيرًا قياسيًا مدروسًا علنًا: XChaCha20-Poly1305 وX25519 وEd25519 وArgon2id وOPAQUE. أمانه قائم على أسرار لا يملكها غيرك، لا على إخفاء التصميم. وهكذا يعمل التشفير في تطبيقات البنوك والمراسلة أيضًا.</p><p>نشر الشيفرة يعني أن أي أحد يستطيع التحقق من أننا نفعل ما نقول، وأن الباحثين المستقلين يستطيعون اكتشاف الأخطاء لتُصلح علنًا. تُبنى الإصدارات من الشيفرة المنشورة، وتثبّت التطبيقات مفتاح خادمنا فترفض أي خادم مقلّد.</p></section><section id="s9" class="callout"><h2>ما الذي فُحص وما الذي لم يُفحص</h2><p>أمان فولد في نسخة تجريبية عامة. خضع تصميمه وشيفرته لمراجعتنا الداخلية، وهي منشورة كاملة بكل المسائل المفتوحة. <strong>لم تدقّقه أي جهة مستقلة بعد.</strong> سندفع تكلفة تدقيق خارجي من أول إيراداتنا، وننشر تقريره، ولن نزيل صفة «تجريبي» إلا بعد إصلاح كل ما يكشفه.</p><p>من الحدود المعروفة اليوم: أن الخادم، لا التشفير، هو ما يمنع أعضاء القراءة فقط في الخزنة المشتركة من الكتابة؛ وأن الجهاز المصاب ببرمجية خبيثة يستطيع رؤية ما تفتحه عليه، كما هو الحال مع أي مدير لكلمات المرور.</p><p><a class="btn btn-ghost" href="https://github.com/dream1438/amanfold/blob/main/docs/SECURITY.md" rel="noopener">اقرأ المراجعة التقنية</a></p></section><section id="s10"><h2>وجدت مشكلة؟</h2><p>أبلغ عن المشكلات الأمنية بشكل خاص عبر التنبيهات الأمنية في GitHub لمستودعنا، لا في البلاغات العامة. سنرد عليك ونصلحها وننسب الفضل إليك إن رغبت.</p><p><a class="btn btn-ghost" href="https://github.com/dream1438/amanfold/security/advisories/new" rel="noopener">أبلغ بشكل خاص على GitHub</a></p></section>
+  </article>
+</div>
+
+</main>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <img class="logo logo-light" src="../../assets/logo.svg" alt="Amanfold" width="146" height="20">
+      <img class="logo logo-dark" src="../../assets/logo-white.svg" alt="" width="146" height="20">
+      <p>كل ما تحفظه، مطويٌّ بأمان.</p>
+      <p class="muted small">نسخة تجريبية. لم تخضع بعد لتدقيق أمني مستقل.</p>
+    </div>
+    <div>
+      <h2 class="foot-h">المنتج</h2>
+      <ul>
+        <li><a href="../../ar/">الرئيسية</a></li>
+        <li><a href="../../ar/#pricing">الأسعار</a></li>
+        <li><a href="../../ar/#join">انضم إلى النسخة التجريبية</a></li>
+        <li><a href="../../security/" hreflang="en" lang="en">English</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="foot-h">الثقة</h2>
+      <ul>
+        <li><a href="../../ar/security/">كيف يعمل الأمان</a></li>
+        <li><a href="../../ar/privacy/">الخصوصية</a></li>
+        <li><a href="https://github.com/dream1438/amanfold" rel="noopener">الشيفرة المصدرية</a></li>
+        <li><a href="https://github.com/dream1438/amanfold/security/advisories/new" rel="noopener">الإبلاغ عن ثغرة أمنية</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap"><p class="muted small copy">© 2026 أمان فولد. الشيفرة مرخّصة بموجب رخصة أباتشي 2.0.</p></div>
+</footer>
+</body>
+</html>

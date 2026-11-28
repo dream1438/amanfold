@@ -3,6 +3,7 @@
 //! ```text
 //! amanfold-server keygen > secrets.json      # once per deployment
 //! amanfold-server serve                       # reads settings from the environment
+//! amanfold-server waitlist > waitlist.csv     # confirmed beta sign-ups (reads AMANFOLD_DB)
 //! ```
 //!
 //! Environment for `serve` (see docs/SERVER.md):
@@ -17,6 +18,8 @@
 //! | `AMANFOLD_TRUST_PROXY` | `0` | `1` behind a reverse proxy that sets `X-Forwarded-For`. |
 //! | `AMANFOLD_DEV` | `0` | `1` prints email codes to the log instead of sending. |
 //! | `AMANFOLD_NO_EMAIL_VERIFICATION` | `0` | `1` for a private self-hosted server. |
+//! | `AMANFOLD_SITE_URL` | `https://amanfold.com` | Website, for links in waitlist emails. |
+//! | `AMANFOLD_ALLOWED_ORIGINS` | | Comma-separated origins allowed to call the waitlist from a browser. |
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -50,10 +53,24 @@ fn main() {
             );
         }
         Some("serve") => serve(),
+        Some("waitlist") => export_waitlist(),
         _ => {
-            eprintln!("usage: amanfold-server keygen | serve");
+            eprintln!("usage: amanfold-server keygen | serve | waitlist");
             std::process::exit(2);
         }
+    }
+}
+
+/// Print confirmed waitlist sign-ups as CSV.
+fn export_waitlist() {
+    let db_path = env("AMANFOLD_DB").unwrap_or_else(|| "amanfold.db".into());
+    let db = store::open(&db_path).unwrap_or_else(|e| fail(format!("database {db_path}: {e}")));
+    let rows = amanfold_server::waitlist::export(&db).unwrap_or_else(|e| fail(e));
+    println!("email,lang,plan,joined_unix");
+    for (email, lang, plan, at) in rows {
+        // Emails are normalised and cannot contain commas or quotes that
+        // matter here, but quote anyway.
+        println!("\"{}\",{lang},{plan},{at}", email.replace('"', "\"\""));
     }
 }
 
@@ -75,6 +92,15 @@ fn serve() {
     let cfg = Config {
         require_email_verification: !flag("AMANFOLD_NO_EMAIL_VERIFICATION"),
         trust_proxy: flag("AMANFOLD_TRUST_PROXY"),
+        site_url: env("AMANFOLD_SITE_URL").unwrap_or_else(|| Config::default().site_url),
+        allowed_origins: env("AMANFOLD_ALLOWED_ORIGINS")
+            .map(|v| {
+                v.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default(),
         ..Config::default()
     };
 
@@ -98,6 +124,7 @@ fn serve() {
     let state = AppState::new(cfg, secrets, db, mailer);
     let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| fail(e));
     rt.block_on(async move {
+        amanfold_server::waitlist::spawn_purge(state.clone());
         let listener = tokio::net::TcpListener::bind(addr)
             .await
             .unwrap_or_else(|e| fail(format!("listen {addr}: {e}")));

@@ -77,6 +77,20 @@ CREATE TABLE IF NOT EXISTS invites (
     UNIQUE (vault_id, email)
 );
 CREATE INDEX IF NOT EXISTS invites_email ON invites(email);
+CREATE TABLE IF NOT EXISTS waitlist (
+    email      TEXT PRIMARY KEY,         -- normalised
+    lang       TEXT NOT NULL,            -- en | ar
+    plan       TEXT NOT NULL,            -- free | premium | family | teams
+    confirmed  INTEGER NOT NULL,         -- 1 once the emailed link was opened
+    token_hash BLOB NOT NULL UNIQUE,     -- SHA-256 of the link token
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS waitlist_mail (
+    email_hash BLOB PRIMARY KEY,         -- SHA-256 of the normalised address
+    sends      INTEGER NOT NULL,         -- confirmation emails sent
+    left_list  INTEGER NOT NULL,         -- 1: the address left; never mail it again
+    first_at   INTEGER NOT NULL          -- forgotten one year after this
+);
 "#;
 
 /// Open (or create) the database at `path` (`:memory:` for tests).

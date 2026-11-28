@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Amanfold: passwords and cards, safely folded</title>
+<meta name="description" content="Amanfold is an open-source, zero-knowledge manager for passwords, payment cards and one-time codes, for individuals, families and teams. Free on unlimited devices. Join the beta.">
+<meta name="robots" content="index,follow">
+<meta name="af-api" content="https://api.amanfold.com">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F4F6F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#081410" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<link rel="canonical" href="https://amanfold.com/">
+<link rel="alternate" hreflang="en" href="https://amanfold.com/">
+<link rel="alternate" hreflang="ar" href="https://amanfold.com/ar/">
+<link rel="alternate" hreflang="x-default" href="https://amanfold.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Amanfold">
+<meta property="og:title" content="Amanfold: passwords and cards, safely folded">
+<meta property="og:description" content="Amanfold is an open-source, zero-knowledge manager for passwords, payment cards and one-time codes, for individuals, families and teams. Free on unlimited devices. Join the beta.">
+<meta property="og:url" content="https://amanfold.com/">
+<meta property="og:image" content="https://amanfold.com/assets/og.png">
+<meta property="og:locale" content="en_US">
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/readex-pro-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body class="home">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="./" aria-label="Amanfold">
+      <img class="logo logo-light" src="assets/logo.svg" alt="Amanfold" width="146" height="20">
+      <img class="logo logo-dark" src="assets/logo-white.svg" alt="" width="146" height="20">
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+    <nav id="site-nav" class="nav" aria-label="Menu">
+      <ul><li><a href="./#why">Why Amanfold</a></li><li><a href="security/">Security</a></li><li><a href="./#pricing">Pricing</a></li><li><a href="./#faq">Questions</a></li></ul>
+      <a class="lang" href="ar/" hreflang="ar" lang="ar">العربية</a>
+      <a class="btn btn-sm" href="./#join">Join the beta</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+
+<section class="hero">
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <p class="badge"><span class="dot" aria-hidden="true"></span>Public beta</p>
+      <h1>Everything you keep, safely folded.</h1>
+      <p class="lead">Amanfold keeps your passwords, payment cards and sign-in codes encrypted on your own devices. Our servers only ever hold locked copies they cannot open. It is free on every device you own, and the code is open for anyone to check.</p>
+      <div class="cta-row">
+        <a class="btn" href="#join">Join the beta</a>
+        <a class="btn btn-ghost" href="security/">See how it stays private</a>
+      </div>
+      <p class="muted small">Free forever on unlimited devices. No card needed to join.</p>
+    </div>
+    <figure class="demo" aria-label="Example vault">
+      <div class="vault folded">
+        <p class="vault-h"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-locked"></use></svg><span>Personal</span><span class="muted small">Example vault</span></p>
+        <ul class="vault-list">
+          <li class="row">
+            <span class="row-ic"><svg class="i" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-login"></use></svg></span>
+            <span class="row-t"><strong>Bank of Example</strong><span class="muted small" dir="ltr">dana@example.com</span></span>
+            <span class="mono dots" aria-hidden="true">••••••••••••</span>
+          </li>
+          <li class="row">
+            <span class="row-ic"><svg class="i" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-card"></use></svg></span>
+            <span class="row-t"><strong>Travel card</strong><span class="muted small">Visa · expires 08/29</span></span>
+            <span class="mono" dir="ltr">•••• 4821</span>
+          </li>
+          <li class="row">
+            <span class="row-ic"><svg class="i" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-one-time-code"></use></svg></span>
+            <span class="row-t"><strong>Email sign-in code</strong><span class="muted small">Refreshes every 30 seconds</span></span>
+            <span class="mono code" dir="ltr">482 913</span>
+          </li>
+        </ul>
+        <p class="warn"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-lookalike"></use></svg><span>Not saved for <strong>examp1e-bank.com</strong>. It looks like a copy of <strong>example-bank.com</strong>, so Amanfold will not fill it.</span></p>
+      </div>
+      <figcaption class="wire">
+        <p class="wire-h"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-sync"></use></svg><span>What our server receives</span></p>
+        <p class="mono cipher" dir="ltr">0IUnAT1iX2eSYROadMRe7CpREwNpeB_E47A3r3VvK8eeuLAEMC4HaOUTBpJW_4OWEzWvMoAAbN1AGTvRPoEYcYMN<br>jBj5-32DOjmw3DTDuHKCaLuVGYeukUSabPYkhdopLrxpEqP0rO4zWXWHT9-ZZr45PwSrRsO_dTg-Bw-Iv5-0or0i</p>
+        <p class="muted small">Encrypted on your device before it leaves. Without your master password and Secret Key, this is all anyone sees.</p>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="beta-note" aria-labelledby="beta-h">
+  <div class="wrap beta-in">
+    <svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-warning"></use></svg>
+    <div>
+      <h2 id="beta-h">This is a beta. Please read this first.</h2>
+      <p>Amanfold works and its security design is public, but <strong>it has not had an independent security audit yet</strong>. Our own review is published in full. We will pay for an outside audit from our first revenue, and the beta label comes off only after every finding it reports is fixed.</p>
+      <p>While you test it, keep another copy of passwords you cannot afford to lose. <a href="https://github.com/dream1438/amanfold/blob/main/docs/SECURITY.md" rel="noopener">Read the security review</a></p>
+    </div>
+  </div>
+</section>
+
+<section id="why" class="sec">
+  <div class="wrap">
+    <p class="eyebrow">Why Amanfold</p>
+    <h2 class="h2">The problems people have with password managers, and what we do instead</h2>
+    <p class="sec-lead">We looked at what goes wrong for people who use password managers today. Each of these shaped how Amanfold is built.</p>
+    <ul class="probs"><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>A company's servers get breached and encrypted vaults are stolen.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>Your vault is locked with your master password <em>and</em> a random Secret Key that only your devices hold. A stolen copy of our database cannot be guessed offline, even if your password is weak.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>Free plans stop working once you add a second device.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>Free means every phone, computer and browser you own, with sync. No device limit, ever.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>Autofill can be tricked into giving a password to a fake site.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>Amanfold fills only on the exact site you saved, never from a secure page onto an insecure one, and warns you when a site looks like a copy of one you use.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>Forget the master password and everything is gone.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>You get a printed recovery kit when you sign up. Families and teams can also name trusted people to help you back in.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>You cannot see what the app really does with your data.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>The apps, the encryption and the server are open source. Anyone can read the code and check our claims.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>Arabic and right-to-left languages feel like an afterthought.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>Amanfold is written in English and Arabic from day one, with proper right-to-left layouts, and more languages are planned for launch.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>Cards are stored like passwords, with numbers shown in full.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>Cards are their own item type. Numbers stay hidden until you choose to see them, and the security code is never filled without asking.</p>
+</li><li class="prob">
+  <p class="prob-q"><span class="tag tag-muted">The problem</span>Sharing with family or a team is fiddly or costs extra.</p>
+  <p class="prob-a"><span class="tag"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>What Amanfold does</span>Shared vaults with clear roles. Before a vault opens, you compare a short safety number with the person, so nobody can slip their own key in.</p>
+</li></ul>
+  </div>
+</section>
+
+<section class="sec sec-alt">
+  <div class="wrap">
+    <p class="eyebrow">What it keeps</p>
+    <h2 class="h2">One place for the things that unlock your life</h2>
+    <ul class="feats"><li class="feat"><svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-login"></use></svg><h3>Passwords</h3><p>Saved as you sign in, filled on the right site, and a strong one generated whenever you need it.</p></li><li class="feat"><svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-card"></use></svg><h3>Payment cards</h3><p>Card numbers, expiry dates and security codes, hidden until you ask and filled only when you tap.</p></li><li class="feat"><svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-one-time-code"></use></svg><h3>Sign-in codes</h3><p>The six-digit codes for two-step sign-in, built in, so you do not need a second app.</p></li><li class="feat"><svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-family"></use></svg><h3>Family and team vaults</h3><p>Share the Wi-Fi password with your family or the office logins with your team. Owners, managers, editors and read-only members.</p></li><li class="feat"><svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-recovery-kit"></use></svg><h3>Recovery kit</h3><p>A printable page with your Secret Key and 24 recovery words, so a lost password is not a lost vault.</p></li><li class="feat"><svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-sync"></use></svg><h3>On your devices</h3><p>Browser extension for Chrome, Edge and Firefox in the beta. iPhone and Android apps are being built now.</p></li></ul>
+  </div>
+</section>
+
+<section id="security" class="sec">
+  <div class="wrap sec-grid">
+    <div>
+      <p class="eyebrow">Zero-knowledge</p>
+      <h2 class="h2">We built Amanfold so we cannot read your vault</h2>
+      <p class="sec-lead">Zero-knowledge means everything is locked on your device before it is sent, and the key never leaves you. If our servers were breached tomorrow, the attacker would get locked boxes.</p>
+      <ul class="pillars"><li><h3>Two secrets, not one</h3><p>Your vault is unlocked by your master password combined with a 128-bit Secret Key created on your device. Guessing the password alone gets an attacker nowhere.</p></li><li><h3>Your password is never sent</h3><p>You sign in with OPAQUE, a modern protocol that proves you know your password without the password, or anything that could be used to guess it, reaching us.</p></li><li><h3>Tamper-evident vaults</h3><p>Every change is signed by your own key. Your devices check each signature, so even a dishonest server could not swap, roll back or slip in items.</p></li><li><h3>Open to inspection</h3><p>The design and the code are public. Our strength comes from your secrets and from well-studied encryption, not from hiding how it works.</p></li></ul>
+      <p><a class="btn btn-ghost" href="security/">Read the full explainer</a></p>
+    </div>
+    <aside class="stores folded" aria-labelledby="stores-h">
+      <h3 id="stores-h">What our server stores about you</h3>
+      <p class="stores-k"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-show"></use></svg><span>Can read</span></p>
+      <ul><li>Your email address</li><li>Which vaults you share, and with whom</li><li>How much encrypted data you store</li><li>When your devices last synced</li></ul>
+      <p class="stores-k stores-no"><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-hide"></use></svg><span>Cannot read</span></p>
+      <ul class="no"><li>Your master password or Secret Key</li><li>Passwords, usernames and website addresses</li><li>Card numbers, expiry dates and security codes</li><li>Item names, notes and sign-in codes</li></ul>
+    </aside>
+  </div>
+</section>
+
+<section id="pricing" class="sec sec-alt">
+  <div class="wrap">
+    <p class="eyebrow">Pricing</p>
+    <h2 class="h2">Free on every device. Pay only for extras.</h2>
+    <p class="sec-lead">During the beta everything is free. These are the prices we plan to charge after launch.</p>
+    <ul class="plans"><li class="plan">
+  <div class="plan-head"><h3>Free</h3></div>
+  <p class="price"><span class="amount">$0</span> <span class="per">forever</span></p>
+  <ul class="ticks"><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Unlimited passwords and cards</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Unlimited devices, synced</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Lookalike-site warnings</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Password generator</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Printed recovery kit</span></li></ul>
+  <a class="btn btn-ghost" href="#join" data-plan="free">Join the beta</a>
+</li><li class="plan">
+  <div class="plan-head"><h3>Premium</h3></div>
+  <p class="price"><span class="amount">$2.99</span> <span class="per">per month</span></p>
+  <ul class="ticks"><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Everything in Free</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Built-in sign-in codes</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Alerts for leaked and reused passwords</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Encrypted file attachments</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Priority help</span></li></ul>
+  <a class="btn btn-ghost" href="#join" data-plan="premium">Join the beta</a>
+</li><li class="plan plan-pop">
+  <div class="plan-head"><h3>Family</h3><span class="plan-badge">Most chosen</span></div>
+  <p class="price"><span class="amount">$4.99</span> <span class="per">per month, for the household</span></p>
+  <ul class="ticks"><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Premium for up to 6 people</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Shared family vaults</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Trusted contacts for recovery</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Help a family member get back in</span></li></ul>
+  <a class="btn btn-ghost" href="#join" data-plan="family">Join the beta</a>
+</li><li class="plan">
+  <div class="plan-head"><h3>Teams</h3></div>
+  <p class="price"><span class="amount">Per person</span> <span class="per">price set before launch</span></p>
+  <ul class="ticks"><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Shared team vaults with roles</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Add and remove people safely</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Admin controls</span></li><li><svg class="i i-sm" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg><span>Everything in Premium for each person</span></li></ul>
+  <a class="btn btn-ghost" href="#join" data-plan="teams">Join the beta</a>
+</li></ul>
+    <p class="muted small">Prices in US dollars. Taxes may apply where you live.</p>
+  </div>
+</section>
+
+<section id="faq" class="sec">
+  <div class="wrap narrow">
+    <p class="eyebrow">Questions</p>
+    <h2 class="h2">Questions people ask</h2>
+    <div class="faq"><details class="qa"><summary>What happens if I forget my master password?</summary><p>Use your recovery kit: the Secret Key and 24 recovery words you print or save when you sign up, plus a code we email you. We cannot reset your password for you, because we never have it. That is the point.</p></details><details class="qa"><summary>If the code is public, does that make it easier to hack?</summary><p>No. Banks and messaging apps use the same published encryption methods. What keeps your vault safe is your master password and Secret Key, which are never in the code and never sent to us. Publishing the code lets independent experts find mistakes, so they get fixed instead of hidden.</p></details><details class="qa"><summary>Is it safe to use during the beta?</summary><p>The encryption is built from standard, well-reviewed parts, and our internal review is public. But no outside firm has audited it yet. Use it, tell us what breaks, and keep another copy of anything you cannot afford to lose until the beta label comes off.</p></details><details class="qa"><summary>Can I move my passwords in and out?</summary><p>Import from other password managers and browsers, and export of everything you have saved, are on the beta roadmap. Your data will always be yours to take with you, in an open format.</p></details><details class="qa"><summary>Which devices does it work on?</summary><p>Right now: the browser extension for Chrome, Edge and Firefox. iPhone, iPad and Android apps are in development and will join the beta as they are ready.</p></details><details class="qa"><summary>Who is behind Amanfold?</summary><p>Amanfold is a small, independent project. <em>Aman</em> (أمان) is Arabic for safety. We are building it in the open, and the source code is on GitHub for anyone to read.</p></details></div>
+  </div>
+</section>
+
+<section id="join" class="sec join">
+  <div class="wrap join-in">
+    <div>
+      <p class="eyebrow">Beta waitlist</p>
+      <h2 class="h2">Be one of the first to try Amanfold</h2>
+      <p class="sec-lead">Leave your email and we will send you an invitation when your place in the beta is ready. One email to confirm, then only beta news. No ads, no sharing your address with anyone.</p>
+    </div>
+    <div class="join-card folded">
+      <form id="join-form" class="join-form" novalidate data-lang="en" data-msg-err-email="Enter an email address like name@example.com." data-msg-err-rate="Too many tries from here. Please wait an hour and try again." data-msg-err-net="We could not reach the Amanfold server. Check your connection and try again in a moment." data-msg-err-other="Something went wrong on our side. Please try again in a moment." data-msg-sending="Sending…" data-msg-submit="Join the waitlist">
+        <label for="join-email" class="lbl">Email address</label>
+        <input id="join-email" name="email" type="email" inputmode="email" autocomplete="email" dir="ltr" required maxlength="254" placeholder="you@example.com" aria-describedby="join-error">
+        <fieldset class="plans-pick">
+          <legend class="lbl">Which plan interests you most?</legend>
+          <p class="muted small">Optional. It helps us decide what to build first.</p>
+          <div class="chips"><label class="chip"><input type="radio" name="plan" value="free" checked><span>Free</span></label><label class="chip"><input type="radio" name="plan" value="premium"><span>Premium</span></label><label class="chip"><input type="radio" name="plan" value="family"><span>Family</span></label><label class="chip"><input type="radio" name="plan" value="teams"><span>Teams</span></label></div>
+        </fieldset>
+        <p id="join-error" class="err" role="alert" hidden></p>
+        <button class="btn btn-wide" type="submit">Join the waitlist</button>
+        <p class="muted small">We store your email, language and this choice, nothing else. You can leave at any time. <a href="privacy/">Privacy notice</a>.</p>
+      </form>
+      <div id="join-done" class="join-done" hidden tabindex="-1">
+        <svg class="i i-lg" aria-hidden="true" focusable="false"><use href="assets/icons.svg#af-done"></use></svg>
+        <h3>Check your inbox</h3>
+        <p>We sent a confirmation link to <strong data-email></strong>. Open it to take your place. If it does not arrive in a few minutes, look in your spam folder.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <img class="logo logo-light" src="assets/logo.svg" alt="Amanfold" width="146" height="20">
+      <img class="logo logo-dark" src="assets/logo-white.svg" alt="" width="146" height="20">
+      <p>Everything you keep, safely folded.</p>
+      <p class="muted small">Beta. Not yet independently audited.</p>
+    </div>
+    <div>
+      <h2 class="foot-h">Product</h2>
+      <ul>
+        <li><a href="./">Home</a></li>
+        <li><a href="./#pricing">Pricing</a></li>
+        <li><a href="./#join">Join the beta</a></li>
+        <li><a href="ar/" hreflang="ar" lang="ar">العربية</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="foot-h">Trust</h2>
+      <ul>
+        <li><a href="security/">How security works</a></li>
+        <li><a href="privacy/">Privacy</a></li>
+        <li><a href="https://github.com/dream1438/amanfold" rel="noopener">Source code</a></li>
+        <li><a href="https://github.com/dream1438/amanfold/security/advisories/new" rel="noopener">Report a security issue</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap"><p class="muted small copy">© 2026 Amanfold. Code under the Apache License 2.0.</p></div>
+</footer>
+</body>
+</html>
