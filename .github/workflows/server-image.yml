@@ -1,0 +1,88 @@
+name: Server image
+
+on:
+  push:
+    branches: [main]
+    paths: ["crates/**", "Cargo.*", "deploy/**", ".github/workflows/server-image.yml"]
+  pull_request:
+    paths: ["crates/**", "Cargo.*", "deploy/**", ".github/workflows/server-image.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Builds the production images and runs the whole stack (server, Caddy,
+  # backup, restore listing) on localhost.
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images
+        run: |
+          docker build -f deploy/server.Dockerfile -t amanfold-server:ci .
+          docker save amanfold-server:ci -o /tmp/server.tar
+      - name: Start stack
+        working-directory: deploy
+        run: |
+          cat > .env <<'ENV'
+          API_DOMAIN=api.localhost
+          SITE_DOMAIN=localhost
+          ACME_EMAIL=ci@example.org
+          AMANFOLD_SMTP_URL=smtps://user:pass@smtp.invalid:465
+          AMANFOLD_MAIL_FROM=Amanfold <no-reply@amanfold.com>
+          RESTIC_REPOSITORY=/tmp/restic-repo
+          AMANFOLD_IMAGE=amanfold-server:ci
+          ENV
+          mkdir -p ../site && echo '<h1>ok</h1>' > ../site/index.html
+          sudo sh scripts/install.sh
+      - name: Check API and site through Caddy
+        run: |
+          for i in $(seq 1 30); do
+            curl -sfk --resolve api.localhost:443:127.0.0.1 https://api.localhost/v1/server && break
+            sleep 2
+          done
+          curl -sfk --resolve api.localhost:443:127.0.0.1 https://api.localhost/v1/server | jq -e '.opaque_public_key | length > 20'
+          curl -sfk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null https://api.localhost/v1/server | grep -i strict-transport-security
+          curl -sfk --resolve localhost:443:127.0.0.1 https://localhost/ | grep ok
+          curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ && exit 1 || true
+      - name: Backup and list snapshots
+        working-directory: deploy
+        run: |
+          sudo docker compose exec -T backup /usr/local/bin/backup.sh
+          sudo docker compose exec -T backup restic snapshots | grep amanfold
+      - name: Logs
+        if: always()
+        working-directory: deploy
+        run: sudo docker compose logs --no-color | tail -100
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: server-image
+          path: /tmp/server.tar
+          retention-days: 1
+
+  publish:
+    needs: smoke
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: server-image
+          path: /tmp
+      - name: Push to GitHub Container Registry
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker load -i /tmp/server.tar
+          repo=ghcr.io/${{ github.repository_owner }}/amanfold-server
+          short=$(echo "${{ github.sha }}" | cut -c1-7)
+          for tag in latest "sha-$short"; do
+            docker tag amanfold-server:ci "$repo:$tag"
+            docker push "$repo:$tag"
+          done

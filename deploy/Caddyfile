@@ -1,0 +1,47 @@
+# Caddy gets and renews Let's Encrypt certificates on its own.
+# No access log is written: we keep no record of who connects.
+{
+	email {$ACME_EMAIL}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+		-Via
+	}
+}
+
+# Sync API. The server itself caps request sizes (2 MiB, 64 MiB for commits).
+{$API_DOMAIN} {
+	import security_headers
+	header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+	request_body {
+		max_size 65MB
+	}
+	# Caddy replaces any client-sent X-Forwarded-For with the real address.
+	reverse_proxy server:8080
+}
+
+# Static website from the repository's site/ folder.
+{$SITE_DOMAIN} {
+	import security_headers
+	header Content-Security-Policy "default-src 'self'; connect-src 'self' https://{$API_DOMAIN}; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+	root * /srv/site
+	encode zstd gzip
+	try_files {path} {path}.html {path}/index.html
+	file_server
+	handle_errors {
+		rewrite * /404.html
+		file_server
+	}
+}
+
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
