@@ -186,6 +186,33 @@ jobs:
             android/client/build/reports/
             android/app/build/reports/
 
+  # iOS app: AmanfoldKit's tests on macOS against a real amanfold-server,
+  # then the app and its AutoFill extension for the simulator (unsigned).
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build the core for Apple platforms
+        run: ios/scripts/build-core.sh
+      - name: Build the test server
+        run: cargo build -p amanfold-server
+      - name: AmanfoldKit tests (real server)
+        env:
+          AMANFOLD_SERVER_BIN: ${{ github.workspace }}/target/debug/amanfold-server
+        run: swift test --package-path ios/AmanfoldKit
+      - name: Generate the Xcode project
+        run: brew install xcodegen && cd ios && xcodegen
+      - name: Build for the simulator
+        run: |
+          cd ios
+          xcodebuild -project Amanfold.xcodeproj -scheme Amanfold -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -n 200
+          test "${PIPESTATUS[0]}" -eq 0
+
   audit:
     runs-on: ubuntu-latest
     steps:
