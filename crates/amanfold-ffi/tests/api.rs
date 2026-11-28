@@ -169,3 +169,30 @@ fn logins_for_url_and_lookalikes() {
     assert_ne!(p.host, p.display_host);
     assert!(page_site("javascript:alert(1)".into()).is_none());
 }
+
+#[test]
+fn grant_names_its_granter() {
+    let owner = create_account("owner password one".into()).unwrap();
+    let member = create_account("member password two".into()).unwrap();
+    let nv = owner.account.create_vault().unwrap();
+    let theirs = member.account.public_keys();
+    let grant = owner.account.grant_vault(nv.vault.clone(), theirs).unwrap();
+    let granter = grant_granter(grant.clone()).unwrap();
+    assert_eq!(granter, owner.account.public_keys());
+    assert_eq!(
+        fingerprint(granter.clone()).unwrap(),
+        owner.account.fingerprint()
+    );
+    member
+        .account
+        .open_vault(grant.clone(), granter, None)
+        .unwrap();
+    // Someone else's keys do not open it.
+    assert!(
+        member
+            .account
+            .open_vault(grant, member.account.public_keys(), None)
+            .is_err()
+    );
+    assert!(grant_granter(vec![1, 2, 3]).is_err());
+}

@@ -2,7 +2,7 @@
   "name": "amanfold-extension",
   "version": "0.1.0",
   "private": true,
-  "description": "Amanfold browser extension (Chrome, Edge, Firefox)",
+  "description": "Amanfold browser extension (Chromium browsers, Firefox, Safari)",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -10,13 +10,16 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-transform-types --no-warnings --test \"test/unit/*.test.ts\"",
-    "e2e": "node test/e2e/run.mjs"
+    "e2e": "node test/e2e/run.mjs",
+    "e2e:firefox": "node test/e2e/firefox.mjs",
+    "e2e:smoke": "node test/e2e/smoke-cdp.mjs"
   },
   "devDependencies": {
     "@types/chrome": "0.1.43",
     "@types/node": "22.19.1",
     "esbuild": "0.25.12",
     "playwright": "1.63.0",
+    "selenium-webdriver": "4.52.0",
     "typescript": "5.9.3"
   }
 }

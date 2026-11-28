@@ -20,6 +20,7 @@ class FakeDate extends RealDate {
 const g = globalThis as Record<string, unknown>;
 g.Date = FakeDate;
 g.__AMANFOLD_VERSION__ = "test";
+g.__AMANFOLD_TARGET__ = "chrome";
 g.__AMANFOLD_SERVER__ = "http://127.0.0.1:1";
 const wasm = await readFile(new URL("../../pkg/amanfold_wasm_bg.wasm", import.meta.url));
 g.fetch = async (url: unknown) => {

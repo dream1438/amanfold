@@ -1166,6 +1166,16 @@ pub fn fingerprint(public_keys_bytes: Vec<u8>) -> Result<String> {
     Ok(public_keys(&public_keys_bytes)?.fingerprint())
 }
 
+/// Who signed a vault grant (their public keys), so an app can look them up
+/// among the people whose safety numbers were checked before opening it
+/// with [`Account::open_vault`]. Not verified here: `open_vault` checks the
+/// signature against the keys the app passes in.
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+pub fn grant_granter(grant: Vec<u8>) -> Result<Vec<u8>> {
+    let g: VaultGrant = dec(&grant)?;
+    Ok(enc(&g.granter))
+}
+
 // ---------------------------------------------------------------------------
 // Sites (autofill matching)
 // ---------------------------------------------------------------------------
