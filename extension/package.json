@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/unit/*.test.ts\"",
     "e2e": "node test/e2e/run.mjs",
-    "e2e:firefox": "node test/e2e/firefox.mjs"
+    "e2e:firefox": "node test/e2e/firefox.mjs",
+    "e2e:smoke": "node test/e2e/smoke-cdp.mjs"
   },
   "devDependencies": {
     "@types/chrome": "0.1.43",

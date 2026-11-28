@@ -107,7 +107,8 @@ npm run typecheck
 npm test        # fill rules, card expiry formats, base64, translations
 npm run e2e     # real Chromium + real server, see test/e2e/run.mjs
 E2E_BROWSER=/usr/bin/brave-browser npm run e2e        # another Chromium-based browser
-E2E_BROWSER=/usr/bin/opera E2E_CDP=1 npm run e2e      # Opera, Vivaldi: started by the test, driven over CDP
+E2E_BROWSER=/usr/bin/opera E2E_CDP=1 npm run e2e      # Opera: started by the test, driven over CDP
+E2E_BROWSER=/usr/bin/vivaldi-stable npm run e2e:smoke  # Vivaldi: shorter test over raw DevTools
 npm run e2e:firefox   # real Firefox via geckodriver, see test/e2e/firefox.mjs
 ```
 

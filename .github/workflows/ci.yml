@@ -212,9 +212,10 @@ jobs:
               echo "deb [signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main" | sudo tee /etc/apt/sources.list.d/vivaldi.list
               sudo apt-get update -q && sudo apt-get install -yq vivaldi-stable
               bin=/usr/bin/vivaldi-stable
-              # Started by the test itself, with a window on a virtual
-              # display (no reliable headless mode), driven over CDP.
-              echo "E2E_CDP=1" >> "$GITHUB_ENV"
+              # Vivaldi's own interface is extension pages, which Playwright
+              # can't attach to: the shorter raw-DevTools test, with a window
+              # on a virtual display.
+              echo "E2E_SCRIPT=e2e:smoke" >> "$GITHUB_ENV"
               echo "HEADED=1" >> "$GITHUB_ENV" ;;
             opera)
               key https://deb.opera.com/archive.key opera
@@ -230,7 +231,7 @@ jobs:
       - run: npm run wasm
       # Opera aborts without the GNOME settings schemas; both want a D-Bus session.
       - run: sudo apt-get install -yq gsettings-desktop-schemas dbus-x11
-      - run: xvfb-run -a dbus-run-session -- npm run e2e
+      - run: xvfb-run -a dbus-run-session -- npm run "${E2E_SCRIPT:-e2e}"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
