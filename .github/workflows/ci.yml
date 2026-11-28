@@ -212,20 +212,23 @@ jobs:
               echo "deb [signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main" | sudo tee /etc/apt/sources.list.d/vivaldi.list
               sudo apt-get update -q && sudo apt-get install -yq vivaldi-stable
               bin=/usr/bin/vivaldi-stable
-              # Started by the test itself and driven over CDP.
-              echo "E2E_CDP=1" >> "$GITHUB_ENV" ;;
+              # Started by the test itself, with a window on a virtual
+              # display (no reliable headless mode), driven over CDP.
+              echo "E2E_CDP=1" >> "$GITHUB_ENV"
+              echo "HEADED=1" >> "$GITHUB_ENV" ;;
             opera)
               key https://deb.opera.com/archive.key opera
               echo "deb [signed-by=/usr/share/keyrings/opera.gpg] https://deb.opera.com/opera-stable/ stable non-free" | sudo tee /etc/apt/sources.list.d/opera.list
               sudo apt-get update -q && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq opera-stable
               bin=/usr/bin/opera
-              echo "E2E_CDP=1" >> "$GITHUB_ENV" ;;
+              echo "E2E_CDP=1" >> "$GITHUB_ENV"
+              echo "HEADED=1" >> "$GITHUB_ENV" ;;
           esac
           "$bin" --version || true
           echo "E2E_BROWSER=$bin" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run wasm
-      - run: npm run e2e
+      - run: xvfb-run -a npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

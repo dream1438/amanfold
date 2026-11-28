@@ -44,6 +44,7 @@ async function launch(dir) {
     proc = spawn(browserPath, [...browserArgs, `--user-data-dir=${dir}`, "--remote-debugging-port=0", "--no-sandbox", "--no-first-run", "--disable-component-extensions-with-background-pages", "--no-default-browser-check", "--window-size=1000,800", ...(headless ? ["--headless=new"] : []), "about:blank"], {
       stdio: ["ignore", "ignore", "pipe"],
     });
+    process.on("exit", () => proc.kill());
     const ws = await new Promise((resolve, reject) => {
       let buf = "";
       const timer = setTimeout(() => reject(new Error(`no DevTools address from ${browserPath}:\n${buf.slice(-2000)}`)), 60000);

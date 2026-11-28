@@ -78,7 +78,11 @@ export async function start() {
     stop() {
       server.kill();
       fixtures.close();
-      rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      try {
+        rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      } catch {
+        /* a browser still writing its profile; the OS cleans tmp */
+      }
     },
   };
 }
