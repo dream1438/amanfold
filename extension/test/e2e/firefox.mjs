@@ -226,6 +226,9 @@ try {
     [...document.querySelectorAll("[data-testid=all-items] .row-main")].find((r) => r.textContent.includes("Bank")).click(),
   );
   await click(a, "Fill");
+  // "Fill on a site this login isn't for?": yes, and it's still refused.
+  const anySite = await a.wait(until.alertIsPresent(), T);
+  await anySite.accept();
   await waitFor(a, ".toast.err");
   assert.match(await text(a, ".toast"), /imitates/);
   await a.close();

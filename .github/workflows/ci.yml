@@ -228,7 +228,9 @@ jobs:
           echo "E2E_BROWSER=$bin" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run wasm
-      - run: xvfb-run -a npm run e2e
+      # Opera aborts without the GNOME settings schemas; both want a D-Bus session.
+      - run: sudo apt-get install -yq gsettings-desktop-schemas dbus-x11
+      - run: xvfb-run -a dbus-run-session -- npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

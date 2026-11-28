@@ -69,7 +69,13 @@ async function launch(dir) {
         browser = await chromium.connectOverCDP(addr, { timeout: 30000 });
         break;
       } catch (e) {
-        if (i >= 5) throw new Error(`${e.message}\n${browserPath} said:\n${said.slice(-3000)}`);
+        if (i >= 5) {
+          let targets = "";
+          try {
+            targets = await (await fetch(addr.replace(/^ws(:\/\/[^/]+).*/, "http$1/json/list"))).text();
+          } catch {}
+          throw new Error(`${e.message}\ntargets: ${targets}\n${browserPath} said:\n${said.slice(-3000)}`);
+        }
         await new Promise((r) => setTimeout(r, 3000));
         try {
           const [port, p] = readFileSync(path.join(dir, "DevToolsActivePort"), "utf8").trim().split("\n");
