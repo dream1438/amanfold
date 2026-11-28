@@ -18,16 +18,35 @@ data class StoredAccount(
     val secretKey: String,
     val serverKey: String,
     val token: String,
-    val vaultId: String,
-    val grant: String,
-    val cache: String? = null,
-    val seq: Long = 0,
-    /** Encrypted records not yet accepted by the server, by item id. */
-    val pending: Map<String, String> = emptyMap(),
+    /** The account's own vault; the others in [vaults] are shared. */
+    val personalId: String,
+    val vaults: Map<String, StoredVault> = emptyMap(),
+    /** People whose safety numbers were compared on this device, by account id. */
+    val contacts: Map<String, Contact> = emptyMap(),
     val lastSyncMs: Long? = null,
     /** Quick unlock: the account keys wrapped under the device key. */
     val quickWrapped: String? = null,
 )
+
+/** One vault on this device. */
+@Serializable
+data class StoredVault(
+    val id: String,
+    /** `owner`, `manager`, `writer` or `reader`. */
+    val role: String,
+    /** The newest grant this device opened the vault with. */
+    val grant: String,
+    /** Public keys of whoever signed [grant]; empty for this account. */
+    val granter: String = "",
+    val cache: String? = null,
+    val seq: Long = 0,
+    /** Encrypted records not yet accepted by the server, by item id. */
+    val pending: Map<String, String> = emptyMap(),
+)
+
+/** Someone whose safety number was compared: their email and public keys. */
+@Serializable
+data class Contact(val email: String, val keys: String)
 
 /** Where [StoredAccount] lives. */
 interface AccountStore {

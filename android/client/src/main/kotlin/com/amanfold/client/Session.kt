@@ -9,6 +9,8 @@ import com.amanfold.core.LocalVault
 import com.amanfold.core.LoginMatch
 import com.amanfold.core.LoginSession
 import com.amanfold.core.checkSecretKey
+import com.amanfold.core.fingerprint
+import com.amanfold.core.grantGranter
 import com.amanfold.core.createAccount
 import com.amanfold.core.quickUnlock
 import com.amanfold.core.recoverAccount
@@ -67,9 +69,13 @@ class Amanfold(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
-    private class Open(val account: Account, val vault: LocalVault, val me: ByteArray) {
+    private class Open(val account: Account, val me: ByteArray, val personalId: String) {
+        val vaults = LinkedHashMap<String, LocalVault>()
+        val meB64: String = B64.encode(me)
+
         fun close() {
-            vault.destroy()
+            vaults.values.forEach { it.destroy() }
+            vaults.clear()
             account.destroy()
         }
     }
@@ -114,7 +120,7 @@ class Amanfold(
     suspend fun unlock(password: String) = mutex.withLock {
         val s = stored()
         val account = withContext(io) { unlockAccount(B64.decode(s.bundle), password, s.secretKey) }
-        replaceOpen(openVault(account, s))
+        replaceOpen(openAll(account, s))
     }
 
     /** Unlock with the device key the platform released after a biometric check. */
@@ -122,7 +128,7 @@ class Amanfold(
         val s = stored()
         val wrapped = s.quickWrapped ?: throw IllegalStateException("quick unlock is off")
         val account = quickUnlock(B64.decode(s.bundle), deviceKey, B64.decode(wrapped))
-        replaceOpen(openVault(account, s))
+        replaceOpen(openAll(account, s))
     }
 
     /**
@@ -156,16 +162,32 @@ class Amanfold(
         publish()
     }
 
-    private fun openVault(account: Account, s: StoredAccount): Open {
-        val me = account.publicKeys()
-        val cache = s.cache?.let(B64::decode)
-        val vault = try {
-            account.openVault(B64.decode(s.grant), me, cache)
-        } catch (e: AmanfoldException) {
-            account.destroy()
+    private fun granterOf(o: Open, v: StoredVault): ByteArray = if (v.granter.isEmpty()) o.me else B64.decode(v.granter)
+
+    /**
+     * Open every vault this device has. The personal vault must open; a
+     * shared one that fails is dropped and opened again from the server on
+     * the next sync.
+     */
+    private fun openAll(account: Account, s: StoredAccount): Open {
+        val o = Open(account, account.publicKeys(), s.personalId)
+        val dropped = mutableListOf<String>()
+        try {
+            for (v in s.vaults.values) {
+                try {
+                    o.vaults[v.id] = account.openVault(B64.decode(v.grant), granterOf(o, v), v.cache?.let(B64::decode))
+                } catch (e: AmanfoldException) {
+                    if (v.id == s.personalId) throw e
+                    dropped += v.id
+                }
+            }
+            if (s.personalId !in o.vaults) throw IllegalStateException("personal vault missing")
+        } catch (e: Throwable) {
+            o.close()
             throw e
         }
-        return Open(account, vault, me)
+        if (dropped.isNotEmpty()) store.save(s.copy(vaults = s.vaults - dropped.toSet()))
+        return o
     }
 
     // -----------------------------------------------------------------------
@@ -229,13 +251,21 @@ class Amanfold(
                         secretKey = created.secretKey,
                         serverKey = serverKey,
                         token = api.token!!,
-                        vaultId = nv.vault.id(),
-                        grant = B64.encode(nv.grant),
-                        cache = B64.encode(nv.vault.exportCache()),
+                        personalId = nv.vault.id(),
+                        vaults = mapOf(
+                            nv.vault.id() to StoredVault(
+                                id = nv.vault.id(),
+                                role = "owner",
+                                grant = B64.encode(nv.grant),
+                                cache = B64.encode(nv.vault.exportCache()),
+                            ),
+                        ),
                         lastSyncMs = now(),
                     )
                     store.save(s)
-                    replaceOpen(Open(account, nv.vault, account.publicKeys()))
+                    val o = Open(account, account.publicKeys(), s.personalId)
+                    o.vaults[s.personalId] = nv.vault
+                    replaceOpen(o)
                     _sync.value = SyncStatus(s.lastSyncMs)
                     RecoveryKit(email, created.secretKey, created.recoveryWords)
                 } catch (e: Throwable) {
@@ -288,11 +318,11 @@ class Amanfold(
                             secretKey = secretKey,
                             serverKey = serverKey,
                             token = api.token!!,
-                            vaultId = vaultId,
-                            grant = newestGrant(api, vaultId),
+                            personalId = vaultId,
+                            vaults = mapOf(vaultId to StoredVault(id = vaultId, role = "owner", grant = newestGrant(api, vaultId))),
                         )
-                        val o = openVault(account, s)
-                        store.save(s.copy(cache = B64.encode(o.vault.exportCache())))
+                        val o = openAll(account, s)
+                        store.save(s)
                         replaceOpen(o)
                     } catch (e: Throwable) {
                         if (open?.account !== account) account.destroy()
@@ -390,48 +420,133 @@ class Amanfold(
     }
 
     // -----------------------------------------------------------------------
-    // Items
+    // Items, across the personal vault and every shared vault
     // -----------------------------------------------------------------------
 
-    fun items(trashed: Boolean = false): List<ItemView> = need().vault.items(trashed).filter { it.trashed == trashed }
+    private fun isInfo(i: ItemView) = i.fields.any { it.name == VAULT_INFO }
 
-    fun item(id: String): ItemView? = need().vault.item(id)
+    private fun info(v: LocalVault): Pair<String, VaultKind> {
+        val note = v.items(false).firstOrNull(::isInfo)
+        val kind = if (note?.fields?.firstOrNull { it.name == VAULT_INFO }?.value == "team") VaultKind.Team else VaultKind.Family
+        return (note?.fields?.firstOrNull { it.name == "title" }?.value ?: "") to kind
+    }
 
-    /** The only logins autofill may offer on this web page, best match first. */
-    fun loginsForPage(pageUrl: String): List<LoginMatch> = need().vault.loginsForUrl(pageUrl)
+    private fun tag(o: Open, s: StoredAccount, id: String): VaultTag {
+        val role = Role.of(s.vaults[id]?.role ?: "reader")
+        if (id == o.personalId) return VaultTag(id, "", VaultKind.Personal, role)
+        val (name, kind) = o.vaults[id]?.let(::info) ?: ("" to VaultKind.Family)
+        return VaultTag(id, name, kind, role)
+    }
+
+    /** The vaults items can be shown from, personal first. */
+    fun vaults(): List<VaultTag> {
+        val o = need()
+        val s = stored()
+        return o.vaults.keys.map { tag(o, s, it) }
+    }
+
+    fun items(trashed: Boolean = false): List<ItemView> =
+        need().vaults.values.flatMap { v -> v.items(trashed).filter { it.trashed == trashed && !isInfo(it) } }
+
+    private fun locate(id: String): Pair<String, ItemView>? {
+        for ((vid, v) in need().vaults) {
+            val i = v.item(id) ?: continue
+            if (!isInfo(i)) return vid to i
+        }
+        return null
+    }
+
+    fun item(id: String): ItemView? = locate(id)?.second
+
+    /** The vault an item is in. */
+    fun vaultOf(itemId: String): VaultTag? = locate(itemId)?.let { tag(need(), stored(), it.first) }
+
+    private fun <T> merged(f: (LocalVault) -> List<T>): List<T> = need().vaults.values.flatMap(f)
+
+    /** The only logins autofill may offer on this web page, from every vault, best match first. */
+    fun loginsForPage(pageUrl: String): List<LoginMatch> =
+        merged { it.loginsForUrl(pageUrl) }.filter { !isInfo(it.item) }.sortedByDescending { it.strength.ordinal }
 
     /** The only logins autofill may offer inside this Android app. */
-    fun loginsForApp(appUrl: String): List<LoginMatch> = need().vault.loginsForApp(appUrl)
+    fun loginsForApp(appUrl: String): List<LoginMatch> =
+        merged { it.loginsForApp(appUrl) }.filter { !isInfo(it.item) }.sortedByDescending { it.strength.ordinal }
 
-    /** Saved sites this page imitates, for a warning. */
-    fun lookalikes(pageUrl: String): List<String> = need().vault.lookalikeSites(pageUrl)
+    /** Saved sites (in any vault) this page imitates, for a warning. */
+    fun lookalikes(pageUrl: String): List<String> = merged { it.lookalikeSites(pageUrl) }.distinct()
 
-    suspend fun create(kind: ItemKind, fields: List<FieldInput>): String = mutex.withLock {
-        val saved = need().vault.createItem(kind, fields)
-        saveLocal(saved.id, saved.record)
+    private fun writable(vaultId: String) {
+        val sv = stored().vaults[vaultId] ?: throw IllegalArgumentException("no such vault")
+        if (!Role.of(sv.role).canWrite) throw ReadOnlyException()
+    }
+
+    /** New item, in the personal vault unless [vaultId] names a shared one. */
+    suspend fun create(kind: ItemKind, fields: List<FieldInput>, vaultId: String? = null): String = mutex.withLock {
+        val o = need()
+        val target = vaultId ?: o.personalId
+        writable(target)
+        val v = o.vaults[target] ?: throw IllegalArgumentException("no such vault")
+        val saved = v.createItem(kind, fields)
+        saveLocal(target, saved.id, saved.record)
         saved.id
     }.also { syncQuietly() }
 
     suspend fun update(id: String, set: List<FieldInput>, remove: List<String> = emptyList()) {
         mutex.withLock {
-            val saved = need().vault.updateItem(id, set, remove)
-            saveLocal(saved.id, saved.record)
+            val (vid, _) = locate(id) ?: throw IllegalArgumentException("no such item")
+            writable(vid)
+            val saved = need().vaults[vid]!!.updateItem(id, set, remove)
+            saveLocal(vid, saved.id, saved.record)
         }
         syncQuietly()
     }
 
     suspend fun trash(id: String, trashed: Boolean) {
         mutex.withLock {
-            val saved = need().vault.setTrashed(id, trashed)
-            saveLocal(saved.id, saved.record)
+            val (vid, _) = locate(id) ?: throw IllegalArgumentException("no such item")
+            writable(vid)
+            val saved = need().vaults[vid]!!.setTrashed(id, trashed)
+            saveLocal(vid, saved.id, saved.record)
         }
         syncQuietly()
     }
 
-    private fun saveLocal(id: String, record: ByteArray) {
+    /** Copy an item into another vault and move the original to the trash. */
+    suspend fun move(id: String, toVault: String): String {
+        val newId = mutex.withLock {
+            val (from, item) = locate(id) ?: throw IllegalArgumentException("no such item")
+            if (from == toVault) return id
+            writable(from)
+            writable(toVault)
+            val o = need()
+            val fields = item.fields.map { FieldInput(it.name, it.value) }
+            val copy = o.vaults[toVault]!!.createItem(item.kind, fields)
+            saveLocal(toVault, copy.id, copy.record)
+            val gone = o.vaults[from]!!.setTrashed(id, true)
+            saveLocal(from, gone.id, gone.record)
+            copy.id
+        }
+        syncQuietly()
+        return newId
+    }
+
+    private fun saveLocal(vaultId: String, id: String, record: ByteArray) {
         val o = need()
         val s = stored()
-        store.save(s.copy(pending = s.pending + (id to B64.encode(record)), cache = B64.encode(o.vault.exportCache())))
+        val sv = s.vaults[vaultId] ?: throw IllegalArgumentException("no such vault")
+        val next = sv.copy(pending = sv.pending + (id to B64.encode(record)), cache = B64.encode(o.vaults[vaultId]!!.exportCache()))
+        store.save(s.copy(vaults = s.vaults + (vaultId to next)))
+        _revision.value++
+    }
+
+    private fun putVault(v: StoredVault) {
+        val s = stored()
+        store.save(s.copy(vaults = s.vaults + (v.id to v)))
+    }
+
+    private fun dropVault(o: Open, id: String) {
+        o.vaults.remove(id)?.destroy()
+        val s = stored()
+        store.save(s.copy(vaults = s.vaults - id))
         _revision.value++
     }
 
@@ -443,79 +558,425 @@ class Amanfold(
         runCatching { sync() }
     }
 
-    /** One round of the sync loop in docs/SERVER.md, retried on a conflict. */
+    @Volatile private var waiting: List<WaitingView> = emptyList()
+
+    /**
+     * Shared vaults whose last sync carried changes or a new key signed by
+     * someone not verified on this device. They stay as they were until the
+     * person compares that member's safety number.
+     */
+    @Volatile private var unverifiedChanges: Set<String> = emptySet()
+
+    /**
+     * One round of the sync loop in docs/SERVER.md for every vault: pick up
+     * vaults shared with this account, sync each (retrying on a conflict),
+     * and rotate the key of a vault someone was removed from. A shared vault
+     * that fails does not stop the others; the first failure is reported.
+     */
     suspend fun sync() = mutex.withLock {
-        if (open == null) return@withLock
-        repeat(4) {
-            try {
-                withContext(io) { syncOnce() }
-                _sync.value = SyncStatus(store.load()?.lastSyncMs)
-                _revision.value++
-                return@withLock
-            } catch (e: ApiException) {
-                if (e.status == 409) return@repeat
-                _sync.value = _sync.value.copy(
-                    problem = when {
-                        e.status == 401 -> SyncProblem.SignedOut
-                        e.status == 0 -> SyncProblem.Offline
-                        else -> SyncProblem.Other
-                    },
-                )
-                throw e
-            } catch (e: AmanfoldException) {
-                _sync.value = _sync.value.copy(
-                    problem = when (e) {
-                        is AmanfoldException.Rollback, is AmanfoldException.BadSignature -> SyncProblem.Rollback
-                        else -> SyncProblem.Other
-                    },
-                )
-                throw e
+        val o = open ?: return@withLock
+        try {
+            withContext(io) {
+                val api = Api(stored().server, stored().token)
+                val list = discover(o, api)
+                var first: Throwable? = null
+                val blocked = mutableSetOf<String>()
+                for (id in o.vaults.keys.toList()) {
+                    try {
+                        syncVault(o, id, api)
+                        val row = list.firstOrNull { it.str("vault_id") == id }
+                        if (row?.bool("needs_rotation") == true && Role.of(stored().vaults[id]?.role ?: "reader").canManage) {
+                            rotate(o, id, api)
+                        }
+                    } catch (e: AmanfoldException.BadSignature) {
+                        if (id == o.personalId) throw e
+                        blocked += id
+                    } catch (e: Throwable) {
+                        if (id == o.personalId) throw e
+                        if (first == null) first = e
+                    }
+                }
+                unverifiedChanges = blocked
+                first?.let { throw it }
             }
+            store.save(stored().copy(lastSyncMs = now()))
+            _sync.value = SyncStatus(stored().lastSyncMs)
+            _revision.value++
+        } catch (e: ApiException) {
+            _sync.value = _sync.value.copy(
+                problem = when {
+                    e.status == 409 -> SyncProblem.Conflict
+                    e.status == 401 -> SyncProblem.SignedOut
+                    e.status == 0 -> SyncProblem.Offline
+                    else -> SyncProblem.Other
+                },
+            )
+            _revision.value++
+            throw e
+        } catch (e: AmanfoldException) {
+            _sync.value = _sync.value.copy(
+                problem = when (e) {
+                    is AmanfoldException.Rollback, is AmanfoldException.BadSignature -> SyncProblem.Rollback
+                    else -> SyncProblem.Other
+                },
+            )
+            _revision.value++
+            throw e
         }
-        _sync.value = _sync.value.copy(problem = SyncProblem.Conflict)
     }
 
-    private fun syncOnce() {
-        val o = need()
-        var s = stored()
-        val api = Api(s.server, s.token)
-        val r = api.get("/v1/vaults/${s.vaultId}/sync?since=${s.seq}")
-        val epoch = r.long("epoch") ?: 0
-        if (epoch > o.vault.epoch().toLong()) {
-            val grant = newestGrant(api, s.vaultId)
-            o.account.acceptRotation(o.vault, B64.decode(grant), o.me)
-            s = s.copy(grant = grant)
+    /** Is this public key this account, or someone whose safety number was compared? */
+    private fun trusted(o: Open, s: StoredAccount, keys: String) = keys == o.meB64 || s.contacts.values.any { it.keys == keys }
+
+    private fun writers(o: Open, s: StoredAccount): List<ByteArray> = listOf(o.me) + s.contacts.values.map { B64.decode(it.keys) }
+
+    private fun members(api: Api, vaultId: String) = api.get("/v1/vaults/$vaultId/members")["members"]!!.jsonArray.map { it.jsonObject }
+
+    /** Open vaults newly shared with this account; drop ones it left. */
+    private fun discover(o: Open, api: Api): List<JsonObject> {
+        val rows = api.get("/v1/vaults")["vaults"]!!.jsonArray.map { it.jsonObject }
+        val nextWaiting = mutableListOf<WaitingView>()
+        for (row in rows) {
+            val id = row.need("vault_id")
+            val have = stored().vaults[id]
+            if (have != null) {
+                val role = row.need("role")
+                if (role != have.role) putVault(have.copy(role = role))
+                continue
+            }
+            if (!row.bool("active")) continue
+            val grant = newestGrant(api, id)
+            val granter = B64.encode(grantGranter(B64.decode(grant)))
+            if (!trusted(o, stored(), granter)) {
+                // Opened only after the person compares the sharer's safety number.
+                members(api, id).firstOrNull { it.str("public_keys") == granter }?.let { m ->
+                    nextWaiting += WaitingView(id, m.need("account_id"), m.need("email"), fingerprint(B64.decode(granter)))
+                }
+                continue
+            }
+            val v = o.account.openVault(B64.decode(grant), B64.decode(granter), null)
+            o.vaults[id] = v
+            putVault(
+                StoredVault(
+                    id = id,
+                    role = row.need("role"),
+                    grant = grant,
+                    granter = if (granter == o.meB64) "" else granter,
+                    cache = B64.encode(v.exportCache()),
+                ),
+            )
         }
-        val pending = s.pending.toMutableMap()
+        for (id in stored().vaults.keys) {
+            // Removed from it, or it was deleted.
+            if (id != o.personalId && rows.none { it.str("vault_id") == id }) dropVault(o, id)
+        }
+        waiting = nextWaiting
+        return rows
+    }
+
+    private fun syncVault(o: Open, id: String, api: Api) {
+        repeat(4) {
+            try {
+                syncOnce(o, id, api)
+                return
+            } catch (e: ApiException) {
+                if (e.status != 409) throw e
+            }
+        }
+        throw ApiException(409, "conflict", "another device keeps writing; try again")
+    }
+
+    private fun syncOnce(o: Open, id: String, api: Api) {
+        val s = stored()
+        var sv = s.vaults[id] ?: return
+        val v = o.vaults[id] ?: return
+        val r = api.get("/v1/vaults/$id/sync?since=${sv.seq}")
+        if ((r.long("epoch") ?: 0) > v.epoch().toLong()) {
+            // Someone removed a member and moved the vault to a new key.
+            val grant = newestGrant(api, id)
+            val granter = B64.encode(grantGranter(B64.decode(grant)))
+            if (!trusted(o, s, granter)) throw AmanfoldException.BadSignature()
+            o.account.acceptRotation(v, B64.decode(grant), B64.decode(granter))
+            sv = sv.copy(grant = grant, granter = if (granter == o.meB64) "" else granter)
+        }
+        val canWrite = Role.of(sv.role).canWrite
+        val pending = sv.pending.toMutableMap()
         val manifest = r.str("manifest")
         if (manifest != null) {
             val records = (r["records"] as? JsonArray ?: JsonArray(emptyList())).map { B64.decode(it.jsonPrimitive.content) }
-            for (up in o.vault.sync(B64.decode(manifest), records, listOf(o.me))) {
-                pending[up.id] = B64.encode(up.record)
+            for (up in v.sync(B64.decode(manifest), records, writers(o, s))) {
+                if (canWrite) pending[up.id] = B64.encode(up.record)
             }
         }
-        s = s.copy(pending = pending, cache = B64.encode(o.vault.exportCache()))
-        if (pending.isEmpty()) {
-            store.save(s.copy(seq = r.long("seq") ?: s.seq, lastSyncMs = now()))
+        sv = sv.copy(cache = B64.encode(v.exportCache()))
+        if (pending.isEmpty() || !canWrite) {
+            // A reader's edits would be refused; they never leave this device.
+            putVault(sv.copy(pending = emptyMap(), seq = r.long("seq") ?: sv.seq))
             return
         }
-        store.save(s)
-        val signed = o.vault.signManifest(o.account)
-        val done = api.post("/v1/vaults/${s.vaultId}/commit", JsonObject(mapOf(
+        putVault(sv.copy(pending = pending))
+        val signed = v.signManifest(o.account)
+        val done = api.post("/v1/vaults/$id/commit", JsonObject(mapOf(
             "manifest" to JsonPrimitive(B64.encode(signed)),
             "records" to JsonArray(pending.values.map(::JsonPrimitive)),
         )))
-        o.vault.commitAccepted()
-        store.save(
-            s.copy(
-                seq = done.long("seq") ?: s.seq,
-                pending = emptyMap(),
-                cache = B64.encode(o.vault.exportCache()),
-                lastSyncMs = now(),
-            ),
-        )
+        v.commitAccepted()
+        putVault(sv.copy(seq = done.long("seq") ?: sv.seq, pending = emptyMap(), cache = B64.encode(v.exportCache())))
+    }
+
+    /**
+     * New vault key after a member left or was removed, so they cannot read
+     * anything written from now on. Every remaining member must have been
+     * verified on this device, since each gets the new key.
+     */
+    private fun rotate(o: Open, id: String, api: Api) {
+        val s = stored()
+        val sv = s.vaults[id] ?: throw IllegalArgumentException("no such vault")
+        val v = o.vaults[id] ?: throw IllegalArgumentException("no such vault")
+        val keys = members(api, id).filter { it.bool("active") }.map { m ->
+            when {
+                m.str("account_id") == s.accountId -> o.meB64
+                s.contacts[m.str("account_id")]?.keys == m.str("public_keys") -> m.need("public_keys")
+                else -> throw UnverifiedMembersException()
+            }
+        }
+        val records = v.rotateKey()
+        try {
+            val grants = keys.map { B64.encode(o.account.grantVault(v, B64.decode(it))) }
+            val manifest = v.signManifest(o.account)
+            val r = api.post("/v1/vaults/$id/rotate", JsonObject(mapOf(
+                "manifest" to JsonPrimitive(B64.encode(manifest)),
+                "records" to JsonArray(records.map { JsonPrimitive(B64.encode(it.record)) }),
+                "grants" to JsonArray(grants.map(::JsonPrimitive)),
+            )))
+            v.commitAccepted()
+            putVault(
+                sv.copy(
+                    grant = grants[keys.indexOf(o.meB64)],
+                    granter = "",
+                    seq = r.long("seq") ?: sv.seq,
+                    pending = emptyMap(),
+                    cache = B64.encode(v.exportCache()),
+                ),
+            )
+        } catch (e: Throwable) {
+            // Not accepted: go back to the old key, which the server still has.
+            o.vaults.remove(id)?.destroy()
+            try {
+                o.vaults[id] = o.account.openVault(B64.decode(sv.grant), granterOf(o, sv), sv.cache?.let(B64::decode))
+            } catch (_: AmanfoldException) {
+                // Opened again from the server on the next sync.
+                val now = stored()
+                store.save(now.copy(vaults = now.vaults - id))
+            }
+            throw e
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Sharing
+    // -----------------------------------------------------------------------
+
+    private fun apiNow(): Api = stored().let { Api(it.server, it.token) }
+
+    /** Shared vaults, invitations, vaults waiting for a safety-number check, and this account's safety number. */
+    suspend fun sharing(): SharingView = mutex.withLock {
+        val o = need()
+        withContext(io) {
+            val invites = apiNow().get("/v1/invites")["invites"]!!.jsonArray.map { it.jsonObject }
+            val s = stored()
+            SharingView(
+                vaults = o.vaults.filterKeys { it != o.personalId }.map { (id, v) ->
+                    val (name, kind) = info(v)
+                    SharedVaultView(
+                        id, name, kind, Role.of(s.vaults[id]?.role ?: "reader"),
+                        items = v.items(false).count { !isInfo(it) },
+                        needsVerification = id in unverifiedChanges,
+                    )
+                },
+                invites = invites.map { i ->
+                    val from = i["from"]!!.jsonObject
+                    InviteView(
+                        inviteId = i.need("invite_id"),
+                        vaultId = i.need("vault_id"),
+                        role = Role.of(i.need("role")),
+                        fromEmail = from.need("email"),
+                        fromFingerprint = fingerprint(B64.decode(from.need("public_keys"))),
+                    )
+                },
+                waiting = waiting,
+                myFingerprint = o.account.fingerprint(),
+            )
+        }
+    }
+
+    /** A new family or team vault, owned by this account. */
+    suspend fun createVault(name: String, kind: VaultKind): String {
+        val id = mutex.withLock {
+            val o = need()
+            withContext(io) {
+                val nv = o.account.createVault()
+                val grant = B64.encode(nv.grant)
+                apiNow().post("/v1/vaults", buildJsonObject { put("grant", grant) })
+                val v = nv.vault
+                val id = v.id()
+                o.vaults[id] = v
+                val title = name.trim().ifEmpty { if (kind == VaultKind.Team) "Team" else "Family" }
+                val info = v.createItem(
+                    ItemKind.SECURE_NOTE,
+                    listOf(FieldInput("title", title), FieldInput(VAULT_INFO, if (kind == VaultKind.Team) "team" else "family")),
+                )
+                putVault(
+                    StoredVault(
+                        id = id,
+                        role = "owner",
+                        grant = grant,
+                        cache = B64.encode(v.exportCache()),
+                        pending = mapOf(info.id to B64.encode(info.record)),
+                    ),
+                )
+                _revision.value++
+                id
+            }
+        }
+        syncQuietly()
+        return id
+    }
+
+    suspend fun members(vaultId: String): MembersView = mutex.withLock {
+        val o = need()
+        withContext(io) {
+            val s = stored()
+            val sv = s.vaults[vaultId] ?: throw IllegalArgumentException("no such vault")
+            val api = apiNow()
+            val sent = if (Role.of(sv.role).canManage) {
+                api.get("/v1/vaults/$vaultId/invites")["invites"]!!.jsonArray.map { it.jsonObject }
+                    .map { SentInvite(it.need("invite_id"), it.need("email"), Role.of(it.need("role"))) }
+            } else {
+                emptyList()
+            }
+            MembersView(
+                members = members(api, vaultId).map { m ->
+                    val keys = m.need("public_keys")
+                    MemberView(
+                        accountId = m.need("account_id"),
+                        email = m.need("email"),
+                        role = Role.of(m.need("role")),
+                        active = m.bool("active"),
+                        fingerprint = fingerprint(B64.decode(keys)),
+                        verified = trusted(o, s, keys),
+                        me = m.str("account_id") == s.accountId,
+                    )
+                },
+                invites = sent,
+            )
+        }
+    }
+
+    suspend fun invite(vaultId: String, email: String, role: Role) {
+        require(role != Role.Owner) { "invite as manager, writer or reader" }
+        withContext(io) {
+            apiNow().post("/v1/vaults/$vaultId/invites", buildJsonObject {
+                put("email", email.trim())
+                put("role", role.wire)
+            })
+        }
+    }
+
+    /** Cancel an invitation (managers), or decline one (the invitee). */
+    suspend fun cancelInvite(inviteId: String) {
+        withContext(io) { apiNow().delete("/v1/invites/$inviteId") }
+    }
+
+    /**
+     * Join a shared vault. [fingerprint] is the safety number the person saw
+     * and compared; the inviter is trusted only if it still matches.
+     */
+    suspend fun acceptInvite(inviteId: String, fingerprint: String) {
+        mutex.withLock {
+            withContext(io) {
+                val api = apiNow()
+                val inv = api.get("/v1/invites")["invites"]!!.jsonArray.map { it.jsonObject }
+                    .firstOrNull { it.str("invite_id") == inviteId } ?: throw ApiException(404, "not_found", "invitation not found")
+                val from = inv["from"]!!.jsonObject
+                if (fingerprint(B64.decode(from.need("public_keys"))) != fingerprint) throw FingerprintChangedException()
+                addContact(from.need("account_id"), from.need("email"), from.need("public_keys"))
+                api.post("/v1/invites/$inviteId/accept")
+            }
+        }
+    }
+
+    private fun addContact(accountId: String, email: String, keys: String) {
+        val s = stored()
+        store.save(s.copy(contacts = s.contacts + (accountId to Contact(email, keys))))
+    }
+
+    /**
+     * Mark someone as verified after comparing safety numbers, and give them
+     * the vault key if they are waiting for it (owners and managers). A vault
+     * waiting for this person's key opens on the sync that follows.
+     */
+    suspend fun verify(vaultId: String, accountId: String, fingerprint: String) {
+        mutex.withLock {
+            val o = need()
+            withContext(io) {
+                val api = apiNow()
+                val m = members(api, vaultId).firstOrNull { it.str("account_id") == accountId }
+                    ?: throw ApiException(404, "not_found", "member not found")
+                val keys = m.need("public_keys")
+                if (fingerprint(B64.decode(keys)) != fingerprint) throw FingerprintChangedException()
+                addContact(accountId, m.need("email"), keys)
+                val sv = stored().vaults[vaultId]
+                val v = o.vaults[vaultId]
+                if (sv != null && v != null && !m.bool("active") && Role.of(sv.role).canManage) {
+                    val grant = o.account.grantVault(v, B64.decode(keys))
+                    api.put("/v1/vaults/$vaultId/members/$accountId/grant", buildJsonObject { put("grant", B64.encode(grant)) })
+                }
+            }
+        }
+        syncQuietly()
+    }
+
+    suspend fun setRole(vaultId: String, accountId: String, role: Role) {
+        withContext(io) {
+            apiNow().put("/v1/vaults/$vaultId/members/$accountId/role", buildJsonObject { put("role", role.wire) })
+        }
+    }
+
+    /** Remove someone, then move the vault to a new key at once. */
+    suspend fun removeMember(vaultId: String, accountId: String) {
+        mutex.withLock {
+            val o = need()
+            withContext(io) {
+                val api = apiNow()
+                api.delete("/v1/vaults/$vaultId/members/$accountId")
+                syncVault(o, vaultId, api)
+                rotate(o, vaultId, api)
+            }
+            _revision.value++
+        }
+    }
+
+    suspend fun leaveVault(vaultId: String) {
+        mutex.withLock {
+            val o = need()
+            require(vaultId != o.personalId) { "the personal vault cannot be left" }
+            withContext(io) { apiNow().delete("/v1/vaults/$vaultId/members/${stored().accountId}") }
+            dropVault(o, vaultId)
+        }
+    }
+
+    /** Delete a shared vault and everything in it, for every member (owner only). */
+    suspend fun deleteVault(vaultId: String) {
+        mutex.withLock {
+            val o = need()
+            require(vaultId != o.personalId) { "the personal vault cannot be deleted here" }
+            withContext(io) { apiNow().delete("/v1/vaults/$vaultId") }
+            dropVault(o, vaultId)
+        }
     }
 }
+
 
 /** The vault is locked; unlock it first. */
 class LockedException : IllegalStateException("the vault is locked")

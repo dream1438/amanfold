@@ -115,6 +115,7 @@ class Api(val base: String, var token: String? = null) {
 
     fun get(path: String) = call("GET", path)
     fun post(path: String, body: JsonElement = JsonObject(emptyMap())) = call("POST", path, body)
+    fun put(path: String, body: JsonElement) = call("PUT", path, body)
     fun delete(path: String) = call("DELETE", path)
 }
 
@@ -129,6 +130,9 @@ internal fun JsonObject.long(key: String): Long? =
 
 internal fun JsonObject.int(key: String): Int? =
     this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.intOrNull
+
+internal fun JsonObject.bool(key: String): Boolean =
+    this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull == "true"
 
 internal fun JsonObject.need(key: String): String =
     str(key) ?: throw ApiException(200, "bad_response", "missing $key")
