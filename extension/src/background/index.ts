@@ -15,12 +15,6 @@ import type { ContentEvent, ItemView, PendingSave, Reply, Req, Status, TabInfo }
 
 const EXT = chrome.runtime.getURL("");
 
-try {
-  // Chrome: keep the device key away from content scripts (the default, made explicit).
-  void chrome.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
-} catch {
-  /* Firefox: session storage is never exposed to content scripts */
-}
 
 // ---------------------------------------------------------------------------
 // Save prompts: kept in memory only, per tab, for a few minutes.
@@ -56,7 +50,11 @@ async function onSubmitted(ev: ContentEvent, sender: chrome.runtime.MessageSende
   const open = await s.unlocked();
   let updateId: string | undefined;
   if (open) {
-    const matches = open.vault.loginsForUrl(url) as { item: ItemView }[];
+    // Offer an update only for a login saved for this exact host; any other
+    // page on the same site could otherwise overwrite the parent's password.
+    const matches = s
+      .loginsFor(open, url)
+      .filter((m) => !m.item.vault?.readOnly && (m.strength === "Origin" || m.strength === "Host"));
     const same = matches.find(
       (m) => (m.item.fields.find((f) => f.name === "username")?.value ?? "") === ev.username,
     );
@@ -72,6 +70,7 @@ async function onSubmitted(ev: ContentEvent, sender: chrome.runtime.MessageSende
     password: ev.password,
     url,
     updateId,
+    nonce: crypto.randomUUID(),
     at: Date.now(),
   });
   await badge(tabId);
@@ -86,12 +85,12 @@ async function badge(tabId: number) {
     const tab = await chrome.tabs.get(tabId);
     const open = tab.url ? await s.unlocked() : undefined;
     let text = "";
-    let color = "#0f766e";
+    let color = "#0b6e4f";
     if (open && tab.url) {
-      const n = (open.vault.loginsForUrl(tab.url) as unknown[]).length;
-      if (open.vault.lookalikeSites(tab.url).length > 0) {
+      const n = s.loginsFor(open, tab.url).length;
+      if (s.lookalikesFor(open, tab.url).length > 0) {
         text = "!";
-        color = "#b91c1c";
+        color = "#b3261e";
       } else if (pendingFor(tabId)) {
         text = "+";
       } else if (n > 0) {
@@ -135,11 +134,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
   void s.serial(async () => {
     const t = tab?.id !== undefined ? tab : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
     if (t?.id === undefined || !t.url) return;
-    const open = await s.unlocked();
-    const matches = open ? (open.vault.loginsForUrl(t.url) as { item: ItemView; strength: string }[]) : [];
+    const open = await s.active();
+    const matches = open ? s.loginsFor(open, t.url) : [];
     const best = matches.filter((m) => m.strength === matches[0]?.strength);
     if (open && best.length === 1 && best[0]) {
-      await fillTab(t.id, best[0].item, { lookalikes: (u) => open.vault.lookalikeSites(u) });
+      await fillTab(t.id, best[0].item, { lookalikes: (u) => s.lookalikesFor(open, u) });
     } else {
       await chrome.action.openPopup?.().catch(() => undefined);
     }
@@ -152,13 +151,13 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
 async function status(): Promise<Status> {
   const [stored, settings] = await Promise.all([getAccount(), getSettings()]);
-  const open = stored ? await s.unlocked() : undefined;
+  const open = stored ? await s.active() : undefined;
   return {
     state: !stored ? "new" : open ? "unlocked" : "locked",
     email: stored?.email,
     server: stored?.server,
     settings,
-    kit: s.currentKit(),
+    kit: open ? s.currentKit() : undefined,
     lastSyncMs: stored?.lastSyncMs,
     syncError: s.lastSyncError(),
     version: __AMANFOLD_VERSION__,
@@ -174,9 +173,9 @@ async function tabInfo(tabId: number): Promise<TabInfo> {
   return {
     url,
     site: core.pageSite(url),
-    matches: open.vault.loginsForUrl(url),
-    lookalikes: open.vault.lookalikeSites(url),
-    pendingSave: p && { site: p.site, displayHost: p.displayHost, username: p.username, updateId: p.updateId },
+    matches: s.loginsFor(open, url),
+    lookalikes: s.lookalikesFor(open, url),
+    pendingSave: p && { site: p.site, displayHost: p.displayHost, username: p.username, updateId: p.updateId, nonce: p.nonce },
   };
 }
 
@@ -208,28 +207,31 @@ async function handle(req: Req): Promise<unknown> {
     case "items":
       return s.items(req.trashed);
     case "item":
-      return (await s.need()).vault.item(req.id);
+      return (await s.item(req.id)) ?? null;
     case "tabInfo":
       return tabInfo(req.tabId);
     case "create":
-      return s.create(req.kind, req.fields);
+      return s.create(req.kind, req.fields, req.vaultId);
     case "update":
       return s.update(req.id, req.set, req.remove);
     case "trash":
       return s.trash(req.id, req.trashed);
     case "fill": {
       const open = await s.need();
-      const item = (open.vault.item(req.itemId) as ItemView | undefined) ?? fail("NotFound");
+      const item = (await s.item(req.itemId)) ?? fail("NotFound");
       if (item.trashed) fail("NotFound");
       const r = await fillTab(req.tabId, item, {
         confirmFrames: req.confirmFrames,
         anySite: req.anySite,
-        lookalikes: (u) => open.vault.lookalikeSites(u),
+        lookalikes: (u) => s.lookalikesFor(open, u),
       });
       return r;
     }
     case "pendingSave": {
       const p = pendingFor(req.tabId);
+      // The page may have swapped the capture while the popup was open: only
+      // act on the one the person was shown.
+      if (p && p.nonce !== req.nonce) fail("Changed");
       captured.delete(req.tabId);
       if (p && req.action === "save") {
         if (p.updateId) {
@@ -258,6 +260,30 @@ async function handle(req: Req): Promise<unknown> {
       return (await loadCore()).cardInfo(req.number);
     case "settings":
       return setSettings(req.set);
+    case "sharing":
+      return s.sharing();
+    case "createVault":
+      return s.createVault(req.name, req.kind);
+    case "members":
+      return s.members(req.vaultId);
+    case "invite":
+      return s.invite(req.vaultId, req.email, req.role);
+    case "cancelInvite":
+      return s.cancelInvite(req.inviteId);
+    case "acceptInvite":
+      return s.acceptInvite(req.inviteId, req.fingerprint);
+    case "declineInvite":
+      return s.declineInvite(req.inviteId);
+    case "verify":
+      return s.verify(req.vaultId, req.accountId, req.fingerprint);
+    case "setRole":
+      return s.setRole(req.vaultId, req.accountId, req.role);
+    case "removeMember":
+      return s.removeMember(req.vaultId, req.accountId);
+    case "leaveVault":
+      return s.leaveVault(req.vaultId);
+    case "deleteVault":
+      return s.deleteVault(req.vaultId);
   }
 }
 

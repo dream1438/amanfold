@@ -54,7 +54,7 @@ impl VaultKey {
     pub fn next(&self) -> Self {
         Self {
             id: self.id,
-            epoch: self.epoch + 1,
+            epoch: self.epoch.saturating_add(1),
             key: keys::new_symmetric_key(),
         }
     }
@@ -125,6 +125,10 @@ pub fn grant(
 pub fn accept(g: &VaultGrant, me: &AccountKeys, trusted_granter: &PublicKeys) -> Result<VaultKey> {
     if g.format != FORMAT_VERSION {
         return Err(Error::Malformed("unsupported grant format"));
+    }
+    // The last epoch could never be rotated again (`next` would overflow).
+    if g.epoch == u32::MAX {
+        return Err(Error::Malformed("vault key epoch out of range"));
     }
     if g.granter != *trusted_granter {
         return Err(Error::BadSignature);
@@ -251,6 +255,9 @@ impl Vault {
     /// item keys cannot read future edits. Returns the records to upload; the
     /// caller then issues new grants to the remaining members only.
     pub fn rotate(&mut self) -> Result<Vec<EncryptedRecord>> {
+        if self.key.epoch() >= u32::MAX - 1 {
+            return Err(Error::InvalidArgument("vault key epoch out of range"));
+        }
         let next = self.key.next();
         let mut out = Vec::with_capacity(self.items.len());
         for (item, ik) in self.items.values_mut() {
@@ -273,7 +280,8 @@ impl Vault {
     /// the server refuses (another device wrote first), the rollback state is
     /// untouched and the next sync works normally.
     pub fn sign_manifest(&mut self, author: &AccountKeys) -> manifest::SignedManifest {
-        let seq = self.last_seq.map_or(1, |s| s + 1);
+        // `sync_verified` never accepts u64::MAX, so this cannot overflow.
+        let seq = self.last_seq.map_or(1, |s| s.saturating_add(1));
         let m = manifest::SignedManifest::sign(&self.key, seq, self.digests.clone(), author);
         self.pending = Some((seq, self.digests.clone()));
         m
@@ -327,6 +335,11 @@ impl Vault {
             return Err(Error::Malformed(
                 "vault key rotated: fetch the new grant first",
             ));
+        }
+        // A manifest at the last sequence number would leave no next one to
+        // sign: refuse it rather than wrap or panic later.
+        if body.seq == u64::MAX {
+            return Err(Error::Malformed("manifest sequence number out of range"));
         }
         if self.last_seq.is_some_and(|s| body.seq < s) {
             return Err(Error::Rollback("manifest older than one already seen"));
@@ -493,6 +506,24 @@ mod tests {
         hlc::{Clock, Hlc},
         item::fields,
     };
+
+    #[test]
+    fn last_sequence_number_and_epoch_are_refused() {
+        let owner = AccountKeys::generate();
+        let vk = VaultKey::generate();
+        let mut v = Vault::new(vk.clone());
+        let m = manifest::SignedManifest::sign(&vk, u64::MAX, BTreeMap::new(), &owner);
+        assert!(matches!(
+            v.sync_verified(&m, &[], &[owner.public()]),
+            Err(Error::Malformed(_))
+        ));
+        let mut v = Vault::new(VaultKey {
+            id: vk.id(),
+            epoch: u32::MAX - 1,
+            key: keys::new_symmetric_key(),
+        });
+        assert!(v.rotate().is_err());
+    }
 
     #[test]
     fn grant_to_self_and_member() {

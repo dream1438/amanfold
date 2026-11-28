@@ -293,11 +293,26 @@ pub async fn put_grant(
         if g.recipient != theirs {
             return Err(ApiError::BadRequest("grant is not for this member's keys"));
         }
-        tx.execute(
-            "INSERT INTO grants (vault_id, account_id, epoch, body) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT (vault_id, account_id, epoch) DO UPDATE SET body = ?4",
-            params![id.as_bytes(), member.as_bytes(), row.epoch as i64, canon],
-        )?;
+        // Never replace a member's grant for this epoch: a manager could
+        // otherwise swap the owner's (or another manager's) key for one it
+        // chose. Re-sending the identical grant is fine.
+        let existing: Option<Vec<u8>> = tx
+            .query_row(
+                "SELECT body FROM grants WHERE vault_id = ?1 AND account_id = ?2 AND epoch = ?3",
+                params![id.as_bytes(), member.as_bytes(), row.epoch as i64],
+                |r| r.get(0),
+            )
+            .optional()?;
+        match existing {
+            Some(body) if body == canon => {}
+            Some(_) => return Err(ApiError::Exists("grant")),
+            None => {
+                tx.execute(
+                    "INSERT INTO grants (vault_id, account_id, epoch, body) VALUES (?1, ?2, ?3, ?4)",
+                    params![id.as_bytes(), member.as_bytes(), row.epoch as i64, canon],
+                )?;
+            }
+        }
         tx.execute(
             "UPDATE members SET active = 1 WHERE vault_id = ?1 AND account_id = ?2",
             params![id.as_bytes(), member.as_bytes()],

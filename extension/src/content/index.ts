@@ -86,10 +86,13 @@ function capture(scope: ParentNode | null) {
   void chrome.runtime.sendMessage(ev).catch(() => undefined);
 }
 
-window.addEventListener("submit", (e) => capture(e.target as HTMLFormElement), true);
+// Only events the person caused: a page script can fire synthetic submits
+// and clicks to plant a save prompt with a password it chose.
+window.addEventListener("submit", (e) => e.isTrusted && capture(e.target as HTMLFormElement), true);
 window.addEventListener(
   "click",
   (e) => {
+    if (!e.isTrusted) return;
     const b = (e.target as Element | null)?.closest?.("button, input[type=submit], input[type=button], [role=button]");
     if (b) capture((b as HTMLButtonElement).form ?? document);
   },
@@ -98,7 +101,7 @@ window.addEventListener(
 window.addEventListener(
   "keydown",
   (e) => {
-    if (e.key === "Enter" && e.target instanceof HTMLInputElement) capture(e.target.form ?? document);
+    if (e.isTrusted && e.key === "Enter" && e.target instanceof HTMLInputElement) capture(e.target.form ?? document);
   },
   true,
 );

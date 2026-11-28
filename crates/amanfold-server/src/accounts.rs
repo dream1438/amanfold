@@ -200,10 +200,25 @@ fn account_by_email(c: &Connection, email: &str) -> ApiResult<Option<AccountRow>
     .optional()?)
 }
 
+/// Outstanding challenges one account may hold.
+const MAX_CHALLENGES_PER_ACCOUNT: usize = 5;
+
 fn new_challenge(st: &AppState, account_id: Uuid, purpose: &'static str) -> ApiResult<[u8; 32]> {
     let ch = random32();
     let now = now_secs();
     let mut m = st.challenges.lock().unwrap_or_else(|e| e.into_inner());
+    // A few outstanding challenges per account, the oldest replaced: one
+    // account must not be able to fill the shared map and block everyone.
+    let mine: Vec<([u8; 32], u64)> = m
+        .iter()
+        .filter(|(_, p)| p.account_id == account_id)
+        .map(|(k, p)| (*k, p.expires))
+        .collect();
+    if mine.len() >= MAX_CHALLENGES_PER_ACCOUNT {
+        if let Some((oldest, _)) = mine.iter().min_by_key(|(_, exp)| *exp) {
+            m.remove(oldest);
+        }
+    }
     if m.len() >= MAX_PENDING {
         m.retain(|_, p| p.expires > now);
         if m.len() >= MAX_PENDING {
@@ -388,8 +403,11 @@ pub async fn signup_finish(
     let public = to_cbor(&bundle.public).to_vec();
     let session_id = st
         .db(move |c| {
+            // Check (and count a wrong guess) outside the transaction: an
+            // error inside it would roll the attempt counter back, leaving
+            // the code open to unlimited guessing.
+            check_code(c, required, &email, "signup", req.code.as_deref(), false)?;
             let tx = c.transaction()?;
-            check_code(&tx, required, &email, "signup", req.code.as_deref(), false)?;
             let inserted = tx.execute(
                 "INSERT OR IGNORE INTO accounts (id, email, bundle, public_keys, opaque_record, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
