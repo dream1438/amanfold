@@ -276,8 +276,8 @@ Open (mobile):
 | A4 | **Cards on iOS** cannot be offered through AutoFill (the platform supports passwords and passkeys only); people copy them in the app. | — | Revisit with new iOS APIs. |
 | A5 | **Argon2id on phones.** Unlocking with the master password runs Argon2id with the account's settings (64 MiB by default). The iOS AutoFill extension has a tight memory limit, and the core currently accepts settings up to 1 GiB and 32 passes from pre-login, which a hostile server could use to make unlock fail or run for minutes on a phone (R15, PR #12). Face ID / fingerprint unlock avoids Argon2id. | Medium | Lower the ceiling the apps accept (core fix in PR #12); measure on older phones. |
 | A6 | **Release builds are not minified** (R8 off) so the JNA/UniFFI classes stay intact. | Low | Add keep rules and turn R8 on. |
-| A8 | **Sharing not in the apps yet.** The apps open only the personal vault; family and team sharing ships in the beta, so the apps need shared vaults, invitations and safety-number checks. | High | Follow-up PR after this one. |
 | A7 | **Server key pinned on first use**, as in E6. | Medium | Ship the production key pinned. |
+| A8 | **Sharing not in the apps yet.** The apps open only the personal vault; family and team sharing ships in the beta, so the apps need shared vaults, invitations and safety-number checks. | High | Follow-up PR after this one. |
 
 ## What the server stores
 
