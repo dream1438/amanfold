@@ -42,6 +42,7 @@ pub mod kdf;
 pub mod keys;
 pub mod manifest;
 pub mod secret;
+pub mod site;
 pub mod sync;
 pub mod totp;
 pub mod vault;

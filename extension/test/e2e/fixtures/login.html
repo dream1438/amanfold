@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bank login</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  .decoy { opacity: 0; position: absolute; top: 0; left: 0; }
+  #cover-wrap { position: relative; margin-top: 20px; }
+  #cover { position: absolute; inset: 0; background: white; }
+  iframe { width: 320px; height: 140px; border: 1px solid #ccc; display: block; margin-top: 10px; }
+</style></head>
+<body>
+  <h1>Bank</h1>
+  <form id="real" onsubmit="event.preventDefault(); document.title='submitted'">
+    <label>Email <input id="user" name="email" type="email" autocomplete="username"></label>
+    <label>Password <input id="pass" name="password" type="password" autocomplete="current-password"></label>
+    <button type="submit" id="go">Sign in</button>
+  </form>
+  <!-- Invisible form a malicious script could add to harvest autofill. -->
+  <form class="decoy" id="decoy">
+    <input id="decoy-user" name="login" type="text">
+    <input id="decoy-pass" name="pw" type="password">
+  </form>
+  <!-- Off-screen password field. -->
+  <input id="offscreen" type="password" style="position:absolute; left:-9999px; top:0">
+  <!-- A password field covered by another element (clickjacking). -->
+  <div id="cover-wrap"><input id="covered" type="password"><div id="cover"></div></div>
+  <iframe id="same" src="http://accounts.bank.com:__PORT__/frame-login.html"></iframe>
+  <iframe id="evil" src="http://evil.com:__PORT__/frame-login.html"></iframe>
+</body></html>

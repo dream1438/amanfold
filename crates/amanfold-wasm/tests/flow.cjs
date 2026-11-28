@@ -93,4 +93,27 @@ assert.deepEqual(a.cardInfo("٥٥٥٥ ٥٥٥٥ ٥٥٥٥ ٤٤٤٤"), {
 assert.equal(a.checkSecretKey(created.secretKey.toLowerCase()), created.secretKey);
 assert.equal(a.fingerprint(me), acct.fingerprint());
 
+// Autofill matching (browser extension).
+const web = v1.createItem("Login", [
+  { name: "title", value: "Bank" },
+  { name: "url", value: "https://www.bank.com" },
+]);
+const hits = v1.loginsForUrl("https://login.bank.com/x");
+assert.deepEqual(hits.map((h) => [h.item.id, h.strength]), [[web.id, "Site"]]);
+assert.deepEqual(v1.loginsForUrl("https://bank.com.evil.io/"), []);
+assert.deepEqual(v1.lookalikeSites("https://bank-login.com/"), ["bank.com"]);
+assert.equal(a.siteMatch("https://bank.com", "http://bank.com"), "None");
+assert.deepEqual(a.pageSite("https://www.bücher.de/"), {
+  secure: true,
+  host: "www.xn--bcher-kva.de",
+  displayHost: "www.bücher.de",
+  site: "xn--bcher-kva.de",
+});
+assert.equal(a.pageSite("javascript:alert(1)"), undefined);
+
+// Quick unlock (the extension keeps the device key in session storage).
+const q = acct.enableQuickUnlock();
+assert.equal(a.quickUnlock(bundle, q.deviceKey, q.wrappedKeys).accountId(), acct.accountId());
+throwsKind("Decrypt", () => a.quickUnlock(bundle, new Uint8Array(32), q.wrappedKeys));
+
 console.log("wasm bindings: all checks passed");

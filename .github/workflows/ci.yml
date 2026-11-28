@@ -106,6 +106,43 @@ jobs:
           wasm-bindgen --target nodejs --out-dir pkg target/wasm32-unknown-unknown/release/amanfold_wasm.wasm
           node crates/amanfold-wasm/tests/flow.cjs pkg
 
+  # Browser extension: type check, unit tests, and the end-to-end test in
+  # Chromium against a real amanfold-server. Uploads the store zips.
+  extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install wasm-bindgen (same version as the crate pins)
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - run: npm ci
+      - run: npm run wasm
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Store packages
+        run: node scripts/build.mjs --zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amanfold-extension
+          path: extension/dist/*.zip
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots
+          path: extension/test-results/
+
   audit:
     runs-on: ubuntu-latest
     steps:

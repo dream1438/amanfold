@@ -81,6 +81,14 @@ for proof that the recovery worked: `account.signChallenge("recover",
 challenge)`. The same call, with purposes `change-password`,
 `rotate-recovery-code` and `delete-account`, protects those operations.
 
+**Autofill.** `vault.loginsForUrl(pageUrl)` returns the only logins an app
+may offer on a page, best match first; `vault.lookalikeSites(pageUrl)` names
+saved sites the page imitates, for a warning. `siteMatch(savedUrl, pageUrl)`
+and `pageSite(url)` (with `displayHost` for international names) are there
+for the same rules elsewhere. The rules are in
+[`site.rs`](../crates/amanfold-core/src/site.rs); Android autofill and iOS
+AutoFill must use them too, never their own matching.
+
 **Tools.** `generatePassword(rules)`, `generatePassphrase(words, separator)`,
 `totpNow(secretOrUri)`, `cardInfo(number)` (Arabic-Indic and Persian digits
 accepted), `checkSecretKey(text)`, `checkRecoveryWords(words)`.

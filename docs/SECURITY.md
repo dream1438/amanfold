@@ -149,6 +149,71 @@ wrapped for JavaScript in `crates/amanfold-wasm`. See [BINDINGS.md](BINDINGS.md)
   `Date.now`. The extension must run the core in its service worker, never in
   a content script.
 
+## Browser extension and autofill (milestone 5)
+
+The extension is described in [extension/README.md](../extension/README.md).
+Security-relevant design:
+
+* **Where keys live.** The core runs in the extension's background service
+  worker only. Content scripts (which share a process with web pages) never
+  hold vault data; they receive values for one fill the person started, in
+  one frame, and nothing else. Messages are accepted from extension pages
+  (checked by the sender URL the browser sets) and, from content scripts,
+  only "a login form was submitted". No `externally_connectable`.
+* **Site matching is in the core** (`amanfold_core::site`), so every app uses
+  the same rules: registrable domain from the Public Suffix List (ICANN and
+  private sections), ASCII/punycode comparison, no match from an HTTPS login
+  to an HTTP page, same host and port only for IP addresses, `localhost` and
+  unknown suffixes, and only `http`/`https` pages. `LocalVault::logins_for_url`
+  is the only list autofill may offer.
+* **Look-alike warning.** `LocalVault::lookalike_sites` flags pages whose
+  name folds to a saved site's name under common homoglyphs (Cyrillic, Greek,
+  digits, `rn`→`m`), is one edit away, uses another suffix, or adds words
+  with hyphens. Such pages never match anyway; the warning also blocks
+  filling a login there by hand.
+* **Frames.** A login fills a frame only if the frame and every ancestor up
+  to the top page match the login. Cards fill frames on the top page's site;
+  a frame from another site needs a confirmation naming its host, and must
+  itself be a child of same-site frames.
+* **No automatic fill.** Values are sent only after the popup button or the
+  keyboard shortcut. Fields must be rendered, opaque enough (product of
+  ancestor opacities ≥ 0.2), at least 4×4 px, on screen and hit-testable at
+  three points (not covered). Inside frames, Chrome's IntersectionObserver v2
+  `isVisible` must also be true.
+* **Navigation races.** Values go to the exact frame document (`documentId`
+  in Chrome; `frameId` in Firefox) and the content script re-checks its
+  origin before filling.
+* **Service worker lifetime.** Browsers stop idle service workers. The
+  extension enables quick unlock at unlock time and keeps the device key in
+  `chrome.storage.session` (memory only, trusted contexts only), so the vault
+  can reopen without the password; locking, auto-lock and quitting the
+  browser delete it. This is the same trust as keeping the vault open.
+* **Server key pinning** is trust-on-first-use from `GET /v1/server` at
+  sign-up or first sign-in, then enforced on every login. Production builds
+  must ship the production key pinned (`PINNED` in `session.ts`); see E6.
+
+### Internal review findings (milestone 5, browser extension, 2026-11-28)
+
+Fixed while building:
+
+* Edits, sync and locking could interleave; every request now runs through
+  one queue, so a lock can never free the vault in the middle of a sync and a
+  sync can never drop an edit made during it.
+* Guessed card fields ("security code") on two-step verification pages were
+  taken for card CVV fields; guessed card roles now count only in a form
+  that has a card number.
+
+Open (extension):
+
+| # | Issue | Severity | Plan |
+| --- | --- | --- | --- |
+| E1 | **Firefox not yet run.** Built from the same code with a Firefox manifest; Firefox has no IntersectionObserver v2, so frame visibility is not checked there beyond the in-frame checks. | Medium | Test in Firefox; Playwright-driven Firefox run in CI. |
+| E2 | **Clipboard** is cleared after 30 s only while the popup stays open. | Low | Offscreen document (Chrome) to clear it later. |
+| E3 | **Secret Key and session token on disk** in `storage.local`, like other managers keep their device secrets. Malware with access to the browser profile can copy them, but still needs the master password. | Low | OS keychain via native messaging (desktop app). |
+| E4 | **Only the personal vault** is opened; shared vaults wait for the sharing UI with safety-number checks. | — | Next milestone. |
+| E5 | **Field detection is heuristic** beyond `autocomplete` attributes; a miss means no fill, never a fill elsewhere. | Low | Grow the detection test page from real sites. |
+| E6 | **Server key pinned on first use** until a production server exists. | Medium | Pin the production key in release builds. |
+
 ## What the server stores
 
 * `AccountBundle`: account id, KDF parameters, salt, public keys, two wrapped
