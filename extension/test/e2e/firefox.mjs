@@ -30,8 +30,6 @@ async function launch() {
   const o = new firefox.Options();
   if (process.env.FIREFOX) o.setBinary(process.env.FIREFOX);
   if (process.env.HEADED !== "1") o.addArguments("-headless");
-  // Lets the test open the popup page in a tab (see `tab`).
-  o.addArguments("-remote-allow-system-access");
   o.windowSize({ width: 1000, height: 800 });
   const prefs = {
     // Every made-up domain goes to the test page server.
@@ -48,7 +46,10 @@ async function launch() {
     "intl.accept_languages": "en-US, en",
   };
   for (const [k, v] of Object.entries(prefs)) o.setPreference(k, v);
-  const d = await new Builder().forBrowser("firefox").setFirefoxOptions(o).build();
+  // Lets the test open the popup page in a tab (see `tab`). geckodriver
+  // passes it on to Firefox as -remote-allow-system-access.
+  const service = new firefox.ServiceBuilder().addArguments("--allow-system-access");
+  const d = await new Builder().forBrowser("firefox").setFirefoxOptions(o).setFirefoxService(service).build();
   const id = await d.installAddon(path.join(ext, "dist/firefox"), true);
   assert.equal(id, ADDON_ID);
   return d;
@@ -62,7 +63,7 @@ async function tab(d, address) {
     return d.getWindowHandle();
   }
   // WebDriver may not navigate to extension pages, so the browser window
-  // opens the tab itself (needs -remote-allow-system-access).
+  // opens the tab itself (needs geckodriver --allow-system-access).
   const before = new Set(await d.getAllWindowHandles());
   await d.setContext(firefox.Context.CHROME);
   try {

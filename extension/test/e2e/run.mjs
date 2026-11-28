@@ -15,6 +15,7 @@ import { chromium } from "playwright";
 import { build } from "esbuild";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { currentStep, ext, log, start } from "./harness.mjs";
 
@@ -45,6 +46,8 @@ async function launch(dir) {
       stdio: ["ignore", "ignore", "pipe"],
     });
     process.on("exit", () => proc.kill());
+    let said = "";
+    proc.stderr.on("data", (d) => (said += d));
     const ws = await new Promise((resolve, reject) => {
       let buf = "";
       const timer = setTimeout(() => reject(new Error(`no DevTools address from ${browserPath}:\n${buf.slice(-2000)}`)), 60000);
@@ -58,7 +61,22 @@ async function launch(dir) {
       });
       proc.on("exit", (code) => reject(new Error(`${browserPath} exited (${code}):\n${buf.slice(-2000)}`)));
     });
-    const browser = await chromium.connectOverCDP(ws);
+    // Some browsers restart themselves once on a new profile, which drops the
+    // first connection: read the current address again and retry.
+    let browser;
+    for (let i = 0, addr = ws; ; i++) {
+      try {
+        browser = await chromium.connectOverCDP(addr, { timeout: 30000 });
+        break;
+      } catch (e) {
+        if (i >= 5) throw new Error(`${e.message}\n${browserPath} said:\n${said.slice(-3000)}`);
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          const [port, p] = readFileSync(path.join(dir, "DevToolsActivePort"), "utf8").trim().split("\n");
+          addr = `ws://127.0.0.1:${port}${p}`;
+        } catch {}
+      }
+    }
     ctx = browser.contexts()[0];
   } else {
     ctx = await chromium.launchPersistentContext(dir, {
