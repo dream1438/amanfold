@@ -239,7 +239,6 @@
     <string name="remove">Remove</string>
     <string name="delete_vault_confirm">Delete %1$s and everything in it, for everyone? This can\'t be undone.</string>
     <string name="leave_vault_confirm">Leave %1$s? Its items disappear from this account.</string>
-    <string name="safety_number">Safety number</string>
     <string name="change_role">Change role</string>
     <string name="done">Done</string>
     <string name="err_read_only">You can view this vault, not change it.</string>

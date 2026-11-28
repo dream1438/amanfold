@@ -226,7 +226,6 @@
     <string name="remove">إزالة</string>
     <string name="delete_vault_confirm">حذف %1$s وكل ما فيها للجميع؟ لا يمكن التراجع عن ذلك.</string>
     <string name="leave_vault_confirm">مغادرة %1$s؟ ستختفي عناصرها من هذا الحساب.</string>
-    <string name="safety_number">رقم الأمان</string>
     <string name="change_role">تغيير الدور</string>
     <string name="done">تم</string>
     <string name="err_read_only">يمكنك عرض هذه الخزنة دون تغييرها.</string>
