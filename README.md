@@ -38,7 +38,7 @@ The browser extension (Chrome, Edge, Firefox) is in [`extension/`](extension/REA
 the Android app in [`android/`](android/README.md) and the iOS app in [`ios/`](ios/README.md).
 
 How the apps use it: [docs/BINDINGS.md](docs/BINDINGS.md). The server and
-its API: [docs/SERVER.md](docs/SERVER.md).
+its API: [docs/SERVER.md](docs/SERVER.md). To put it live, see [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Build and test
 
