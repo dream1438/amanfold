@@ -927,6 +927,30 @@ impl LocalVault {
         out
     }
 
+    /// Logins saved for the Android app `app_url` (from
+    /// [`android_app_url`]): same package and same signing certificate.
+    /// Trashed items are left out. This is the only list Android autofill
+    /// may offer inside that app.
+    pub fn logins_for_app(&self, app_url: String) -> Vec<LoginMatch> {
+        let v = lock(&self.inner);
+        let mut out: Vec<LoginMatch> = v
+            .all_items()
+            .filter(|i| !i.is_deleted() && i.kind() == item::ItemKind::Login)
+            .filter(|i| item_urls(i).any(|u| site::app_matches(u, &app_url)))
+            .map(|i| LoginMatch {
+                item: ItemView::of(i),
+                strength: SiteMatch::Origin,
+            })
+            .collect();
+        out.sort_by(|a, b| {
+            b.item
+                .modified_ms
+                .cmp(&a.item.modified_ms)
+                .then(a.item.id.cmp(&b.item.id))
+        });
+        out
+    }
+
     /// Saved sites (registrable domains) that `page_url` imitates without
     /// being them, for a phishing warning. Empty when the page is one of the
     /// saved sites or resembles none.
@@ -1245,6 +1269,22 @@ pub fn site_match(saved_url: String, page_url: String) -> SiteMatch {
 #[cfg_attr(feature = "uniffi", uniffi::export)]
 pub fn page_site(page_url: String) -> Option<SiteView> {
     site::page_site(&page_url).map(Into::into)
+}
+
+/// Address of an Android app for a login (`androidapp://<package>?cert=...`):
+/// its package name and the SHA-256 digest of its signing certificate.
+/// Save it in the login's `url` (or `url.N`) field.
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+pub fn android_app_url(package_name: String, signing_cert_sha256: Vec<u8>) -> Result<String> {
+    site::android_app_url(&package_name, &signing_cert_sha256)
+        .ok_or_else(|| invalid("android app identity"))
+}
+
+/// The package name in a saved Android app address, for display; `None`
+/// for anything else (for example a website).
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+pub fn android_app_package(saved_url: String) -> Option<String> {
+    site::android_app_package(&saved_url).map(str::to_owned)
 }
 
 fn item_urls(i: &Item) -> impl Iterator<Item = &str> {

@@ -169,3 +169,43 @@ fn logins_for_url_and_lookalikes() {
     assert_ne!(p.host, p.display_host);
     assert!(page_site("javascript:alert(1)".into()).is_none());
 }
+
+#[test]
+fn logins_for_android_apps() {
+    let new = create_account("correct horse battery".into()).unwrap();
+    let v = new.account.create_vault().unwrap().vault;
+    let app = android_app_url("com.bank.mobile".into(), vec![3u8; 32]).unwrap();
+    assert_eq!(
+        android_app_package(app.clone()).as_deref(),
+        Some("com.bank.mobile")
+    );
+    assert!(android_app_package("https://bank.com".into()).is_none());
+    assert!(android_app_url("not a package".into(), vec![3u8; 32]).is_err());
+
+    let saved = v
+        .create_item(
+            ItemKind::Login,
+            vec![
+                f("title", "Bank"),
+                f("url", "https://bank.com"),
+                f("url.2", &app),
+            ],
+        )
+        .unwrap();
+    v.create_item(ItemKind::Login, vec![f("url", "https://bank.com")])
+        .unwrap();
+
+    let m = v.logins_for_app(app.clone());
+    assert_eq!(m.len(), 1);
+    assert_eq!(m[0].item.id, saved.id);
+
+    // Same package name, other signing key: a sideloaded impostor gets nothing.
+    let impostor = android_app_url("com.bank.mobile".into(), vec![4u8; 32]).unwrap();
+    assert!(v.logins_for_app(impostor).is_empty());
+    // A website address is not an app, and the app address is not a website.
+    assert!(v.logins_for_app("https://bank.com".into()).is_empty());
+    assert_eq!(v.logins_for_url("https://bank.com".into()).len(), 2);
+
+    v.set_trashed(saved.id, true).unwrap();
+    assert!(v.logins_for_app(app).is_empty());
+}
