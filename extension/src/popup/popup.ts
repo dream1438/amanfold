@@ -108,11 +108,21 @@ function screen(...children: Child[]) {
   first?.focus();
 }
 
+/** A brand image: the colour drawing, and the white one for dark mode. */
+function brandImg(name: string, cls: string, alt = "") {
+  return h(
+    "span",
+    { class: `brand ${cls}`, ...(alt ? { role: "img", "aria-label": alt } : { "aria-hidden": "true" }) },
+    h("img", { class: "on-light", src: `brand/${name}.svg`, alt: "" }),
+    h("img", { class: "on-dark", src: `brand/${name}-white.svg`, alt: "" }),
+  );
+}
+
 function header(title: string, opts: { back?: () => void; actions?: Child[] } = {}) {
   return h(
     "header",
     {},
-    opts.back ? h("button", { class: "icon", "aria-label": t("back"), onclick: opts.back }, dir() === "rtl" ? "→" : "←") : h("span", { class: "logo", "aria-hidden": "true" }, "◆"),
+    opts.back ? h("button", { class: "icon", "aria-label": t("back"), onclick: opts.back }, dir() === "rtl" ? "→" : "←") : brandImg("mark-small", "logo"),
     h("h1", {}, title),
     h("span", { class: "badge-beta", title: t("betaNote") }, t("beta")),
     ...(opts.actions ?? []),
@@ -213,7 +223,7 @@ function showWelcome() {
     h(
       "main",
       { class: "center" },
-      h("div", { class: "hero", "aria-hidden": "true" }, "◆"),
+      h("div", { class: "hero" }, brandImg("logo", "hero-logo", t("appName"))),
       h("p", { class: "lead" }, t("tagline")),
       h("button", { class: "primary wide", onclick: () => showSignup() }, t("createAccount")),
       h("button", { class: "wide", onclick: () => showSignin() }, t("signIn")),

@@ -86,12 +86,12 @@ async function badge(tabId: number) {
     const tab = await chrome.tabs.get(tabId);
     const open = tab.url ? await s.unlocked() : undefined;
     let text = "";
-    let color = "#0f766e";
+    let color = "#0b6e4f";
     if (open && tab.url) {
       const n = (open.vault.loginsForUrl(tab.url) as unknown[]).length;
       if (open.vault.lookalikeSites(tab.url).length > 0) {
         text = "!";
-        color = "#b91c1c";
+        color = "#b3261e";
       } else if (pendingFor(tabId)) {
         text = "+";
       } else if (n > 0) {
