@@ -475,12 +475,19 @@ try {
     }
   }
 } finally {
+  // A browser driven over CDP may never answer the close (Opera): give each
+  // step 10 seconds, then end the process outright.
+  const within = (p, ms = 10000) => Promise.race([p.catch(() => {}), new Promise((r) => setTimeout(r, ms).unref())]);
   for (const b of browsers) {
-    await b.ctx.close().catch(() => {});
+    await within(b.ctx.close());
     if (b.proc && b.proc.exitCode === null) {
       const gone = new Promise((r) => b.proc.once("exit", r));
       b.proc.kill();
-      await gone;
+      await within(gone);
+      if (b.proc.exitCode === null) {
+        b.proc.kill("SIGKILL");
+        await within(gone);
+      }
     }
   }
   env.stop();
