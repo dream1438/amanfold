@@ -105,17 +105,8 @@ try {
   log("extension loaded");
 
   /** Open `address` in a new tab and return a page handle. */
-  const swSession = (await cdp("Target.attachToTarget", { targetId: sw.targetId, flatten: true })).sessionId;
   async function open(address) {
-    let targetId;
-    if (address.startsWith("chrome-extension:")) {
-      // Browsers refuse to open extension pages for DevTools; the extension opens its own.
-      const r = await cdp("Runtime.evaluate", { expression: `chrome.tabs.create({ url: ${JSON.stringify(address)} }).then(() => true)`, awaitPromise: true, returnByValue: true }, swSession);
-      if (r.exceptionDetails) throw new Error(`open ${address}: ${r.exceptionDetails.exception?.description}`);
-      ({ targetId } = await until(address, async () => (await cdp("Target.getTargets")).targetInfos.find((t) => t.type === "page" && t.url === address)));
-    } else {
-      ({ targetId } = await cdp("Target.createTarget", { url: address }));
-    }
+    const { targetId } = await cdp("Target.createTarget", { url: address });
     const { sessionId } = await cdp("Target.attachToTarget", { targetId, flatten: true });
     const page = {
       targetId,
