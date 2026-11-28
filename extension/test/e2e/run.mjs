@@ -440,6 +440,8 @@ try {
   for (const b of browsers) {
     for (const [i, pg] of b.ctx.pages().entries()) {
       await pg.screenshot({ path: path.join(ext, `test-results/fail-${browsers.indexOf(b)}-${i}.png`) }).catch(() => {});
+      const txt = await pg.evaluate(() => document.body?.innerText ?? "").catch(() => "");
+      if (pg.url().includes("popup.html")) console.error(`--- ${pg.url()}\n${txt.slice(0, 1500)}`);
     }
   }
 } finally {

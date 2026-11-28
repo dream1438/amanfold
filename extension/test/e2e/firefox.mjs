@@ -30,6 +30,8 @@ async function launch() {
   const o = new firefox.Options();
   if (process.env.FIREFOX) o.setBinary(process.env.FIREFOX);
   if (process.env.HEADED !== "1") o.addArguments("-headless");
+  // Lets the test open the popup page in a tab (see `tab`).
+  o.addArguments("-remote-allow-system-access");
   o.windowSize({ width: 1000, height: 800 });
   const prefs = {
     // Every made-up domain goes to the test page server.
@@ -54,9 +56,32 @@ async function launch() {
 
 /** Open a new tab at `address` and return its window handle. */
 async function tab(d, address) {
-  await d.switchTo().newWindow("tab");
-  await d.get(address);
-  return d.getWindowHandle();
+  if (!address.startsWith("moz-extension:")) {
+    await d.switchTo().newWindow("tab");
+    await d.get(address);
+    return d.getWindowHandle();
+  }
+  // WebDriver may not navigate to extension pages, so the browser window
+  // opens the tab itself (needs -remote-allow-system-access).
+  const before = new Set(await d.getAllWindowHandles());
+  await d.setContext(firefox.Context.CHROME);
+  try {
+    await d.executeScript((u) => {
+      const w = Services.wm.getMostRecentWindow("navigator:browser");
+      w.gBrowser.selectedTab = w.gBrowser.addTab(u, {
+        triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+      });
+    }, address);
+  } finally {
+    await d.setContext(firefox.Context.CONTENT);
+  }
+  let handle;
+  await d.wait(async () => {
+    handle = (await d.getAllWindowHandles()).find((h) => !before.has(h));
+    return !!handle;
+  }, T, "new tab");
+  await d.switchTo().window(handle);
+  return handle;
 }
 
 /** Open the popup in a new tab, aimed at the page `target` (an address). */

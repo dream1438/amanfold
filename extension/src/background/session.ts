@@ -668,7 +668,14 @@ async function rotate(o: Open, id: string, api: Api) {
   } catch (e) {
     // Not accepted: go back to the old key, which the server still has.
     vault.free();
-    o.vaults.set(id, o.account.openVault(fromB64(sv.grant), granterOf(o, sv), sv.cache ? fromB64(sv.cache) : undefined));
+    o.vaults.delete(id);
+    try {
+      o.vaults.set(id, o.account.openVault(fromB64(sv.grant), granterOf(o, sv), sv.cache ? fromB64(sv.cache) : undefined));
+    } catch {
+      // Opened again from the server on the next sync.
+      delete stored.vaults[id];
+      await putAccount(stored);
+    }
     throw e;
   } finally {
     for (const s of records) s.free();
