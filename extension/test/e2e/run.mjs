@@ -118,6 +118,12 @@ async function popup(b, target) {
   return p;
 }
 
+/** Go back one screen and wait until `screen` shows (a second quick Back could hit the old button). */
+async function back(p, screen) {
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.waitForSelector(screen);
+}
+
 async function click(p, text) {
   await p.getByRole("button", { name: text, exact: true }).first().click();
 }
@@ -431,8 +437,8 @@ try {
   await pc.waitForSelector("text=Last synced");
   log("member opens the shared vault and adds a login to it");
 
-  await p.getByRole("button", { name: "Back" }).click();
-  await p.getByRole("button", { name: "Back" }).click();
+  await back(p, "[data-testid=shared-vaults]");
+  await back(p, "[data-testid=all-items]");
   await p.getByRole("button", { name: "Settings" }).click();
   await click(p, "Sync now");
   await p.waitForSelector("text=Last synced");
@@ -446,8 +452,8 @@ try {
   await p.locator("[data-testid=shared-vaults] .row-main").first().click();
   await click(p, "Remove");
   await p.waitForFunction(() => !document.body.textContent.includes("family@example.com"));
-  await p.getByRole("button", { name: "Back" }).click();
-  await p.getByRole("button", { name: "Back" }).click();
+  await back(p, "[data-testid=shared-vaults]");
+  await back(p, "[data-testid=all-items]");
   await p.waitForSelector("text=Wi-Fi router");
   await click(pc, "Sync now");
   await pc.waitForSelector("text=Last synced");
