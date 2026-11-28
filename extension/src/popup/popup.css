@@ -151,4 +151,4 @@ dialog output { display: block; padding: 10px; background: var(--card); border-r
 .member-head select { width: auto; }
 .member-email { overflow: hidden; text-overflow: ellipsis; }
 .member-check { display: flex; flex-direction: column; gap: 6px; }
-.ok { color: var(--accent); }
+.check-ok { color: var(--accent); }

@@ -363,12 +363,14 @@ try {
   await p.selectOption("#f-irole", "writer");
   await click(p, "Invite");
   await p.waitForSelector("text=family@example.com");
+  await snap(p, "5-family-vault");
   log("owner creates the Home family vault and invites family@example.com");
 
   await pc.getByRole("button", { name: "Sharing" }).click();
   await pc.waitForSelector("[data-testid=invite]");
   const cFingerprint = (await pc.textContent("[data-testid=my-fingerprint]")).trim();
   assert.equal((await pc.textContent("[data-testid=invite-fingerprint]")).trim(), aFingerprint);
+  await snap(pc, "6-invitation");
   await click(pc, "Numbers match, join");
   await pc.waitForSelector("[data-testid=invite]", { state: "detached" });
   log("invitee sees the owner's safety number (matches) and joins");
@@ -377,6 +379,7 @@ try {
   await p.locator("[data-testid=shared-vaults] .row-main").first().click();
   await p.waitForSelector("[data-testid=member-fingerprint]");
   assert.equal((await p.textContent("[data-testid=member-fingerprint]")).trim(), cFingerprint);
+  await snap(p, "7-confirm-member");
   await click(p, "Numbers match, share");
   await p.waitForSelector("text=Safety number checked");
   log("owner compares the member's safety number and shares the vault key");

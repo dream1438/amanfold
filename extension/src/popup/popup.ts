@@ -1019,7 +1019,7 @@ async function showVault(v: VaultView) {
         (x.active || manage) && h("button", { class: "primary small", onclick: () => void run({ type: "verify", vaultId: v.id, accountId: x.accountId, fingerprint: x.fingerprint }, x.active ? undefined : t("sharedWith", x.email)) },
           x.active ? t("numbersMatch") : t("numbersMatchShare")),
       ),
-      !x.me && x.verified && h("p", { class: "ok small" }, x.active ? `✓ ${t("verified")}` : t("pendingKey")),
+      !x.me && x.verified && h("p", { class: "check-ok small" }, x.active ? `✓ ${t("verified")}` : t("pendingKey")),
       manage && !x.me && x.role !== "owner" && (v.role === "owner" || x.role !== "manager") &&
         h("button", { class: "small danger", onclick: () => {
           if (confirm(t("removeConfirm", x.email))) void run({ type: "removeMember", vaultId: v.id, accountId: x.accountId });

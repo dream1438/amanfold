@@ -1,7 +1,8 @@
 # Amanfold browser extension
 
-Chrome, Edge and Firefox (Manifest V3). The vault opens only inside the
-extension's background service worker, through the Rust security core
+Chrome, Edge, Brave, Opera, Vivaldi and Arc (one Chromium build), Firefox
+and Safari on Mac and iPhone (Manifest V3). The vault opens only inside the
+extension's background, through the Rust security core
 compiled to WebAssembly. Pages never see vault data unless the person fills
 a form, and then only the one frame that passed the checks below receives
 values.
@@ -17,6 +18,10 @@ values.
 * One-time codes (TOTP) shown live and filled into one-time-code fields.
 * Fill from the popup or with **Ctrl+Shift+L** (**⌘+Shift+L** on Mac).
 * Offers to save or update a login after you submit a form.
+* Shared **family and team vaults**: create one, invite people by email,
+  compare safety numbers, then share. Roles: owner, can manage, can edit,
+  can view. Removing someone moves the vault to a new key at once. Items
+  from shared vaults show which vault they are in and fill like your own.
 * Toolbar badge: number of logins for the open site, `!` on a look-alike site.
 * English and Arabic (right to left). Text lives in `src/shared/locales.ts`;
   a missing translation is a compile error.
@@ -42,8 +47,9 @@ extension at all.
 ## What is stored where
 
 * `chrome.storage.local` (disk): account bundle (private keys wrapped under
-  your master password and Secret Key), the Secret Key, the vault grant, the
-  encrypted vault cache, and encrypted records waiting to upload. Nothing in
+  your master password and Secret Key), the Secret Key, each vault's grant,
+  the encrypted vault caches, encrypted records waiting to upload, and the
+  public keys of people whose safety numbers you compared. Nothing in
   it opens without the master password. The session token lets someone with
   disk access download ciphertext only.
 * `chrome.storage.session` (memory, cleared when the browser quits, not
@@ -60,7 +66,8 @@ Needs Rust with the `wasm32-unknown-unknown` target, `wasm-bindgen-cli`
 cd extension
 npm ci
 npm run wasm                    # security core → pkg/
-npm run build                   # → dist/chrome and dist/firefox
+npm run build                   # → dist/chrome, dist/firefox, dist/safari
+sh scripts/safari.sh            # macOS + Xcode: Safari app for Mac and iPhone (unsigned)
 node scripts/build.mjs --server https://your-server.example --zip   # store zips
 ```
 
@@ -70,10 +77,16 @@ on the welcome screen; it must be HTTPS except on this computer.
 
 Load it:
 
-* Chrome / Edge: `chrome://extensions` → Developer mode → Load unpacked →
-  `extension/dist/chrome`.
+* Chrome, Edge, Brave, Opera, Vivaldi, Arc: the extensions page
+  (`chrome://extensions`, `edge://extensions`, `opera://extensions`, …) →
+  Developer mode → Load unpacked → `extension/dist/chrome`.
 * Firefox: `about:debugging` → This Firefox → Load Temporary Add-on →
   `extension/dist/firefox/manifest.json`.
+* Safari: run `scripts/safari.sh` on a Mac, open
+  `build/safari/Amanfold/Amanfold.xcodeproj`, run the macOS app, then in
+  Safari turn on Settings → Advanced → Show features for web developers,
+  Develop → Allow Unsigned Extensions, and enable Amanfold in Settings →
+  Extensions. Publishing to the App Store needs an Apple Developer account.
 
 Run a local server for it:
 
@@ -90,6 +103,9 @@ AMANFOLD_NO_EMAIL_VERIFICATION=1 target/debug/amanfold-server serve
 npm run typecheck
 npm test        # fill rules, card expiry formats, base64, translations
 npm run e2e     # real Chromium + real server, see test/e2e/run.mjs
+E2E_BROWSER=/usr/bin/brave-browser npm run e2e        # another Chromium-based browser
+E2E_BROWSER=/usr/bin/opera E2E_CDP=1 npm run e2e      # Opera, Vivaldi: started by the test, driven over CDP
+npm run e2e:firefox   # real Firefox via geckodriver, see test/e2e/firefox.mjs
 ```
 
 The end-to-end test signs up, adds a login with a one-time code and a card,
@@ -98,14 +114,22 @@ decoy, off-screen and covered fields stay empty, that a same-site frame is
 filled and a frame from another site is not, the look-alike warning and
 refusal, one-time codes, card selects and an `MM / YY` box, asking before a
 payment-provider frame, the save prompt, the vault reopening after the
-service worker is stopped, lock and unlock, Arabic right-to-left, and a
-second browser signing in with the Secret Key and receiving every item.
+service worker is stopped, lock and unlock, Arabic right-to-left, a second
+browser signing in with the Secret Key and receiving every item, and a
+family vault: invite, compare safety numbers both ways, share, the member
+adds a login the owner receives, and removing the member takes the vault
+away from them.
+
+CI runs the Chromium test in Chromium, Edge, Brave, Opera and Vivaldi, the
+Firefox test in Firefox, and builds the Safari app for macOS and iOS. Arc
+(Mac and Windows only) uses the same Chrome build but can't be automated in
+CI; Safari can't load an unsigned extension without someone ticking "Allow
+Unsigned Extensions", so it is built but not driven automatically.
 
 ## Not yet
 
-* Firefox is built from the same code but not yet tested in Firefox itself.
-* Shared family and team vaults (the server and core support them; the
-  extension opens only the personal vault so far).
+* Safari not yet tried by hand on a Mac or iPhone; Arc not tried by hand.
+* Moving vault ownership to someone else (the server doesn't support it yet).
 * Passkeys, identities, import from other managers, an in-page suggestion
   menu (left out on purpose for now: in-page menus are the main target of
   extension clickjacking), clearing the clipboard after the popup closes.

@@ -192,6 +192,16 @@ Security-relevant design:
   sign-up or first sign-in, then enforced on every login. Production builds
   must ship the production key pinned (`PINNED` in `session.ts`); see E6.
 
+* **Shared vaults.** A vault key from someone else is opened only if the
+  grant was signed by public keys whose safety number the person compared
+  (on accepting an invitation, or with "Numbers match" on the member list);
+  the extension never takes the server's word for who a member is. Sync
+  accepts a shared vault's manifest only when it is signed by this account
+  or one of those people. Before accepting, the extension re-reads the keys
+  from the server and checks they still give the safety number the person
+  saw. Removing a member rotates the vault key at once; every remaining
+  member must have been verified on this device to receive the new key.
+
 ### Internal review findings (milestone 5, browser extension, 2026-11-28)
 
 Fixed while building:
@@ -207,10 +217,10 @@ Open (extension):
 
 | # | Issue | Severity | Plan |
 | --- | --- | --- | --- |
-| E1 | **Firefox not yet run.** Built from the same code with a Firefox manifest; Firefox has no IntersectionObserver v2, so frame visibility is not checked there beyond the in-frame checks. | Medium | Test in Firefox; Playwright-driven Firefox run in CI. |
+| E1 | **Firefox and Safari have no IntersectionObserver v2**, so a frame made transparent or covered by the page around it is not detected there (the in-frame checks still run). Firefox is tested in CI; Safari is built in CI but not yet driven by a test. | Medium | Try Safari by hand; watch for IntersectionObserver v2 in Firefox and Safari. |
 | E2 | **Clipboard** is cleared after 30 s only while the popup stays open. | Low | Offscreen document (Chrome) to clear it later. |
 | E3 | **Secret Key and session token on disk** in `storage.local`, like other managers keep their device secrets. Malware with access to the browser profile can copy them, but still needs the master password. | Low | OS keychain via native messaging (desktop app). |
-| E4 | **Only the personal vault** is opened; shared vaults wait for the sharing UI with safety-number checks. | — | Next milestone. |
+| E4 | **Shared vaults trust whoever's safety number was compared on this device.** Contacts are kept per browser (in `storage.local`); a person who signs in on a new browser compares numbers again before shared vaults open there. Any verified contact may sign changes to any shared vault they are a member of; the server enforces roles (readers can't commit), the app does not yet check a signer's role. | Low | Sync verified contacts inside the personal vault; check signer roles from a signed member list. |
 | E5 | **Field detection is heuristic** beyond `autocomplete` attributes; a miss means no fill, never a fill elsewhere. | Low | Grow the detection test page from real sites. |
 | E6 | **Server key pinned on first use** until a production server exists. | Medium | Pin the production key in release builds. |
 
