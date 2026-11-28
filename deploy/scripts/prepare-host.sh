@@ -1,6 +1,6 @@
 #!/bin/sh
 # Same as cloud-init.yaml, for hosts without a cloud-config box (for example
-# a Hostinger VPS). Run once as root on a fresh Ubuntu 24.04 server:
+# a Hostinger VPS). Run once as root on a fresh Ubuntu 26.04 LTS (or 24.04 LTS) server:
 #   curl -fsSL https://raw.githubusercontent.com/dream1438/amanfold/main/deploy/scripts/prepare-host.sh | sh
 set -eu
 export DEBIAN_FRONTEND=noninteractive

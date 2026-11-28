@@ -21,14 +21,17 @@ services:
       AMANFOLD_ALLOWED_ORIGINS: ${AMANFOLD_ALLOWED_ORIGINS:-}
       AMANFOLD_SITE_URL: ${AMANFOLD_SITE_URL:-https://amanfold.com}
       RUST_LOG: ${RUST_LOG:-info}
+      SQLITE_TMPDIR: /tmp
     secrets:
       - amanfold
     volumes:
       - data:/data
-    # Not published: only Caddy can reach port 8080.
-    expose:
-      - "8080"
+    # Reachable only from the host's loopback, where Caddy listens.
+    ports:
+      - "127.0.0.1:8080:8080"
     read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     mem_limit: 1g
@@ -41,10 +44,10 @@ services:
     image: caddy:2.10-alpine
     restart: unless-stopped
     depends_on: [server]
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+    # Host networking: Caddy sees every client's real IPv4 and IPv6 address
+    # (Docker's port publishing would replace IPv6 clients with the bridge
+    # gateway, so they would all share one rate-limit budget).
+    network_mode: host
     environment:
       API_DOMAIN: ${API_DOMAIN:-api.amanfold.com}
       SITE_DOMAIN: ${SITE_DOMAIN:-amanfold.com}
@@ -62,6 +65,10 @@ services:
   backup:
     build: ./backup
     restart: unless-stopped
+    cap_drop: [ALL]
+    # Read the server-owned database and key file; cron changes to root.
+    cap_add: [DAC_OVERRIDE, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
     environment:
       RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY in .env}
       RESTIC_PASSWORD_FILE: /run/secrets/restic
