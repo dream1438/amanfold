@@ -214,6 +214,70 @@ Open (extension):
 | E5 | **Field detection is heuristic** beyond `autocomplete` attributes; a miss means no fill, never a fill elsewhere. | Low | Grow the detection test page from real sites. |
 | E6 | **Server key pinned on first use** until a production server exists. | Medium | Pin the production key in release builds. |
 
+## Mobile apps (milestone 6)
+
+The apps are described in [android/README.md](../android/README.md) and
+[ios/README.md](../ios/README.md). Both keep every key inside the Rust core
+and follow the browser extension's rules; what differs:
+
+* **Account file at rest.** What the phone remembers (encrypted bundle,
+  Secret Key, session token, encrypted cache, pending records) is one file,
+  sealed with AES-256-GCM under a key that never leaves the phone: an
+  Android Keystore key (hardware-backed where available), or a Keychain item
+  `AfterFirstUnlockThisDeviceOnly` on iOS. Both are excluded from backups
+  (`allowBackup=false` plus data-extraction rules on Android; this-device-only
+  Keychain classes and `kSecAttrSynchronizable = false` on iOS).
+* **Biometric unlock** wraps the account keys under a random device key
+  (`enable_quick_unlock`). On Android that key is encrypted by a Keystore key
+  that needs a strong biometric for every use (`BiometricPrompt` with a
+  `CryptoObject`) and is invalidated when a fingerprint or face is added. On
+  iOS it is a Keychain item with `.biometryCurrentSet`, gone when biometrics
+  change or the passcode is removed. A changed or failed key turns biometric
+  unlock off and asks for the master password.
+* **Screens.** Android sets `FLAG_SECURE` (no screenshots or app-switcher
+  preview); iOS covers the window whenever the app is not active. Copied
+  values are marked sensitive and cleared after 60 seconds; on iOS they stay
+  on this device (no Universal Clipboard).
+* **Android autofill.** The service never puts a value in a fill response
+  before the person unlocks and picks a login in Amanfold's own screen
+  (dataset authentication). Web pages are matched with
+  `logins_for_url` only when the requesting app is a browser on a fixed list
+  and the field is in the focused document of the top page; a login frame
+  from another site gets nothing, and a card frame from another site needs a
+  confirmation naming its host. For apps, the identity is the package name
+  **plus the SHA-256 of its signing certificate**
+  (`androidapp://pkg?cert=…`, `android_app_url`), so a look-alike app with
+  the same package name but another signer never matches. Apps never get web
+  logins automatically, whatever domain they claim. Filling another login
+  needs a search and a confirmation, and can be remembered for that app.
+* **iOS AutoFill.** iOS gives the extension the page's domain (from Safari,
+  or an app's verified associated domains), and the extension offers only
+  `logins_for_url` for it, with the look-alike, punycode and http warnings.
+  The QuickType bar's credential identity store is left empty, so site names
+  and usernames never sit outside the encrypted vault.
+
+### Internal review findings (milestone 6, mobile apps, 2026-11-28)
+
+Checked while building:
+
+* Logins not matched to the app or page are never in the first list; filling
+  one needs a search and a confirmation naming the target.
+* A password captured by Android's "save" prompt is not put in the pending
+  intent; it stays in the service's memory under a random token, is taken
+  once, and is dropped after ten minutes.
+
+Open (mobile):
+
+| # | Issue | Severity | Plan |
+| --- | --- | --- | --- |
+| A1 | **Not yet run on real phones.** Both apps compile and their logic is tested against a real server in CI, but autofill, biometrics and the Keystore/Keychain need devices. | High | Device testing before the beta goes out (TestFlight, Play internal testing). |
+| A2 | **Trusted browser list on Android is by package name.** A sideloaded app reusing a browser's package name would be trusted to report page addresses. | Medium | Pin the signing certificates of the listed browsers. |
+| A3 | **Browsers that report no scheme** are assumed to show `https` pages. | Low | Use the scheme where the browser reports it (already done); review per browser. |
+| A4 | **Cards on iOS** cannot be offered through AutoFill (the platform supports passwords and passkeys only); people copy them in the app. | — | Revisit with new iOS APIs. |
+| A5 | **Argon2id in the iOS AutoFill extension.** Extensions have a tight memory limit; unlocking with the master password there runs Argon2id with 64 MiB. Face ID unlock avoids it. | Medium | Measure on older iPhones; if needed, ask people to unlock in the app. |
+| A6 | **Release builds are not minified** (R8 off) so the JNA/UniFFI classes stay intact. | Low | Add keep rules and turn R8 on. |
+| A7 | **Server key pinned on first use**, as in E6. | Medium | Ship the production key pinned. |
+
 ## What the server stores
 
 * `AccountBundle`: account id, KDF parameters, salt, public keys, two wrapped
