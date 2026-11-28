@@ -1,5 +1,6 @@
 package com.amanfold.app.ui
 
+import androidx.activity.compose.LocalActivity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -67,7 +68,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
-    val activity = LocalContext.current as FragmentActivity
+    val activity = LocalActivity.current as FragmentActivity
     val app = activity.amanfold
     val scope = rememberCoroutineScope()
     val sync by app.vault.syncStatus.collectAsState()

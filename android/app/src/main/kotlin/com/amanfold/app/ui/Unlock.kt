@@ -1,5 +1,6 @@
 package com.amanfold.app.ui
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
@@ -19,7 +20,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
@@ -80,7 +80,7 @@ fun disableQuickUnlock(activity: FragmentActivity) {
 
 @Composable
 fun UnlockScreen(onSignOut: (() -> Unit)?) {
-    val activity = LocalContext.current as FragmentActivity
+    val activity = LocalActivity.current as FragmentActivity
     val app = activity.amanfold
     val scope = rememberCoroutineScope()
     var pw by rememberSaveable { mutableStateOf("") }
@@ -136,7 +136,7 @@ fun UnlockScreen(onSignOut: (() -> Unit)?) {
 /** Offered once after the first unlock on this phone. */
 @Composable
 fun QuickUnlockOffer(onDone: () -> Unit) {
-    val activity = LocalContext.current as FragmentActivity
+    val activity = LocalActivity.current as FragmentActivity
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDone,
