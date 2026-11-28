@@ -50,7 +50,11 @@ async function onSubmitted(ev: ContentEvent, sender: chrome.runtime.MessageSende
   const open = await s.unlocked();
   let updateId: string | undefined;
   if (open) {
-    const matches = s.loginsFor(open, url).filter((m) => !m.item.vault?.readOnly);
+    // Offer an update only for a login saved for this exact host; any other
+    // page on the same site could otherwise overwrite the parent's password.
+    const matches = s
+      .loginsFor(open, url)
+      .filter((m) => !m.item.vault?.readOnly && (m.strength === "Origin" || m.strength === "Host"));
     const same = matches.find(
       (m) => (m.item.fields.find((f) => f.name === "username")?.value ?? "") === ev.username,
     );
@@ -66,6 +70,7 @@ async function onSubmitted(ev: ContentEvent, sender: chrome.runtime.MessageSende
     password: ev.password,
     url,
     updateId,
+    nonce: crypto.randomUUID(),
     at: Date.now(),
   });
   await badge(tabId);
@@ -129,7 +134,7 @@ chrome.commands.onCommand.addListener((command, tab) => {
   void s.serial(async () => {
     const t = tab?.id !== undefined ? tab : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
     if (t?.id === undefined || !t.url) return;
-    const open = await s.unlocked();
+    const open = await s.active();
     const matches = open ? s.loginsFor(open, t.url) : [];
     const best = matches.filter((m) => m.strength === matches[0]?.strength);
     if (open && best.length === 1 && best[0]) {
@@ -146,13 +151,13 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
 async function status(): Promise<Status> {
   const [stored, settings] = await Promise.all([getAccount(), getSettings()]);
-  const open = stored ? await s.unlocked() : undefined;
+  const open = stored ? await s.active() : undefined;
   return {
     state: !stored ? "new" : open ? "unlocked" : "locked",
     email: stored?.email,
     server: stored?.server,
     settings,
-    kit: s.currentKit(),
+    kit: open ? s.currentKit() : undefined,
     lastSyncMs: stored?.lastSyncMs,
     syncError: s.lastSyncError(),
     version: __AMANFOLD_VERSION__,
@@ -170,7 +175,7 @@ async function tabInfo(tabId: number): Promise<TabInfo> {
     site: core.pageSite(url),
     matches: s.loginsFor(open, url),
     lookalikes: s.lookalikesFor(open, url),
-    pendingSave: p && { site: p.site, displayHost: p.displayHost, username: p.username, updateId: p.updateId },
+    pendingSave: p && { site: p.site, displayHost: p.displayHost, username: p.username, updateId: p.updateId, nonce: p.nonce },
   };
 }
 
@@ -224,6 +229,9 @@ async function handle(req: Req): Promise<unknown> {
     }
     case "pendingSave": {
       const p = pendingFor(req.tabId);
+      // The page may have swapped the capture while the popup was open: only
+      // act on the one the person was shown.
+      if (p && p.nonce !== req.nonce) fail("Changed");
       captured.delete(req.tabId);
       if (p && req.action === "save") {
         if (p.updateId) {

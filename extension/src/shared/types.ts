@@ -151,6 +151,8 @@ export interface PendingSave {
   username: string;
   /** Existing login to update, when only the password changed. */
   updateId?: string;
+  /** Names this capture; a save is refused if the page replaced it since. */
+  nonce: string;
 }
 
 export interface TabInfo {
@@ -189,7 +191,7 @@ export type Req =
   | { type: "update"; id: string; set: FieldInput[]; remove: string[] }
   | { type: "trash"; id: string; trashed: boolean }
   | { type: "fill"; tabId: number; itemId: string; confirmFrames?: number[]; anySite?: boolean }
-  | { type: "pendingSave"; tabId: number; action: "save" | "dismiss" }
+  | { type: "pendingSave"; tabId: number; action: "save" | "dismiss"; nonce: string }
   | { type: "totp"; secret: string }
   | { type: "generate"; rules?: PasswordRules; words?: number }
   | { type: "cardInfo"; number: string }

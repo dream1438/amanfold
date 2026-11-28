@@ -44,11 +44,14 @@ impl KdfParams {
         iterations: 3,
         lanes: 1,
     };
-    /// Maximum accepted values (protects low-end phones from a hostile server).
+    /// Maximum accepted values. The pre-login answer is not authenticated, so
+    /// a hostile server can ask for anything up to this: it must stay safe on
+    /// low-end phones and in a browser tab (256 MiB, about 4x the default
+    /// cost per pass; 1 GiB could abort the app on allocation).
     pub const CEILING: Self = Self {
-        memory_kib: 1024 * 1024,
-        iterations: 32,
-        lanes: 16,
+        memory_kib: 256 * 1024,
+        iterations: 12,
+        lanes: 8,
     };
     /// Default for new accounts: 64 MiB, 3 passes, 4 lanes.
     pub const DEFAULT: Self = Self {
@@ -282,6 +285,11 @@ mod tests {
             huge.validate(),
             Err(Error::WeakKdfParams("above safety ceiling"))
         );
+        let gib = KdfParams {
+            memory_kib: 1024 * 1024,
+            ..KdfParams::DEFAULT
+        };
+        assert!(gib.validate().is_err());
     }
 
     #[test]

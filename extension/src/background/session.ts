@@ -123,7 +123,12 @@ async function rememberUnlock(account: Account) {
   q.free();
 }
 
-/** The open vaults, reopening them after a service worker restart. */
+/**
+ * The open vaults, reopening them after a service worker restart. Reading
+ * the vaults is not activity: only `active()` and `need()`, which serve
+ * requests the person made, push the auto-lock deadline back. Alarms,
+ * badges, tab events and pages must never keep the vault open.
+ */
 export async function unlocked(): Promise<Open | undefined> {
   if (open) {
     const settings = await getSettings();
@@ -131,7 +136,6 @@ export async function unlocked(): Promise<Open | undefined> {
       await lock();
       return undefined;
     }
-    await touch();
     return open;
   }
   const [stored, quick, settings] = await Promise.all([getAccount(), getQuick(), getSettings()]);
@@ -144,12 +148,20 @@ export async function unlocked(): Promise<Open | undefined> {
   try {
     const account = core.quickUnlock(fromB64(stored.bundle), fromB64(quick.deviceKey), fromB64(quick.wrappedKeys));
     open = openAll(account, stored);
+    // Carry the last real use over the restart; reopening is not activity.
+    lastActiveMs = quick.lastActiveMs;
   } catch {
     await lock();
     return undefined;
   }
-  await touch();
   return open;
+}
+
+/** The open vault for a request the person made (popup, shortcut). */
+export async function active(): Promise<Open | undefined> {
+  const o = await unlocked();
+  if (o) await touch();
+  return o;
 }
 
 function expired(lastActiveMs: number, minutes: number): boolean {
@@ -168,12 +180,14 @@ export async function lock() {
     open.account.free();
   }
   open = undefined;
+  // The recovery kit opens the account: never show it once locked.
+  kit = undefined;
   waiting = [];
   await putQuick(undefined);
 }
 
 export async function need(): Promise<Open> {
-  return (await unlocked()) ?? fail("Locked", "the vault is locked");
+  return (await active()) ?? fail("Locked", "the vault is locked");
 }
 
 /** Public keys of who signed a stored grant ("" = this account). */
@@ -268,10 +282,11 @@ export async function signup(server: string, email: string, password: string, co
     vaults: { [id]: { id, role: "owner", grant: toB64(grant), granter: "", cache: toB64(vault.exportCache()), seq: 0, pending: {} } },
     contacts: {},
   };
-  kit = { secretKey: created.secretKey, recoveryWords: created.recoveryWords, email };
+  const newKit = { secretKey: created.secretKey, recoveryWords: created.recoveryWords, email };
   created.free();
   await putAccount(stored);
   await lock();
+  kit = newKit;
   open = { account, me: account.publicKeys(), personalId: id, vaults: new Map([[id, vault]]) };
   await rememberUnlock(account);
 }

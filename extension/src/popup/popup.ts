@@ -518,11 +518,11 @@ async function showHome(query = "") {
           "div",
           { class: "actions" },
           h("button", { class: "primary small", onclick: async () => {
-            await call({ type: "pendingSave", tabId: tabId!, action: "save" });
+            await call({ type: "pendingSave", tabId: tabId!, action: "save", nonce: p.nonce });
             await showHome();
           } }, p.updateId ? t("update") : t("save")),
           h("button", { class: "small", onclick: async () => {
-            await call({ type: "pendingSave", tabId: tabId!, action: "dismiss" });
+            await call({ type: "pendingSave", tabId: tabId!, action: "dismiss", nonce: p.nonce });
             await showHome();
           } }, t("notNow")),
         ),
