@@ -26,9 +26,9 @@ Everything is in [`deploy/`](../deploy):
 
 | File | |
 | --- | --- |
-| `compose.yaml` | The three services. The server container is read-only, has no Linux capabilities and is reachable only from Caddy. |
+| `compose.yaml` | The three services. The server container is read-only, has no Linux capabilities and listens only on the host's loopback (`127.0.0.1:8080`). Caddy uses the host network so it sees every client's real IPv4 and IPv6 address (rate limits depend on it); its admin API is off. The backup container keeps only the capabilities it needs. |
 | `server.Dockerfile` | Builds the server into a distroless image (no shell, runs as uid 65532). CI publishes it as `ghcr.io/dream1438/amanfold-server`. |
-| `Caddyfile` | Automatic Let's Encrypt certificates, HSTS, strict CSP. **No access log**: we keep no record of who connects. |
+| `Caddyfile` | Automatic Let's Encrypt certificates, HSTS, strict CSP, the same security headers on errors and redirects. **No access log**: we keep no record of who connects. |
 | `backup/` | Hourly `sqlite3 .backup`, integrity check, `restic` upload (encrypted before it leaves the server), retention 48 hourly / 30 daily / 12 weekly / 24 monthly, daily read-back check, optional health-check ping. |
 | `env.example` | Every setting, with examples. Copied to `.env` on the server. |
 | `cloud-init.yaml` | First-boot setup for Hetzner or DigitalOcean: SSH keys only, firewall (22, 80, 443), automatic security updates, fail2ban, Docker. |
@@ -38,8 +38,9 @@ Everything is in [`deploy/`](../deploy):
 | `scripts/restore.sh` | List snapshots, or restore one. |
 
 The workflow `.github/workflows/server-image.yml` builds the images and runs
-the whole stack on every change (API and site through Caddy, a real backup
-and snapshot listing), then publishes the server image from `main`.
+the whole stack on every change (API and site through Caddy over IPv4 and
+IPv6, a real backup, failed and successful restores). Only pushes to `main`
+publish the server image, with signed build provenance.
 
 ## Monthly cost (beta)
 
@@ -186,14 +187,29 @@ above do not conflict with them.
 
 ### 6. Set up backup storage (you)
 
-**Backblaze B2**: backblaze.com → B2 Cloud Storage → **Create bucket**
-`amanfold-backups` (private, *Object Lock* off, region EU Central). Then
-**Application Keys → Add** with access to that bucket only, *Read and Write*.
-Note the endpoint shown on the bucket (for example
+**Backblaze B2** (recommended): backblaze.com → B2 Cloud Storage →
+**Create bucket**:
+
+* Name `amanfold-backups`, **Private**, region **EU Central**.
+* **Object Lock: Enable**. Then open the bucket's *Object Lock* settings →
+  default retention **Compliance**, **30 days**.
+* *Lifecycle settings*: **Keep prior versions for this number of days: 31**.
+
+Object Lock is what protects the backups if the server itself is ever taken
+over: the server's key can add backups and hide old ones, but nobody, not
+even you or Backblaze, can delete any version for 30 days. Restic keeps
+working normally; its deletions become hidden versions that the lifecycle
+rule cleans up after the lock expires. Storage grows by about a month of
+history, which at beta size is still pennies.
+
+Then **Application Keys → Add**: access to `amanfold-backups` only, *Read and
+Write*. Note the endpoint shown on the bucket (for example
 `s3.eu-central-003.backblazeb2.com`), the keyID and the applicationKey.
 
-**Or Hetzner Storage Box**: order a BX11, enable *SSH support*. The install
-script prints a backup SSH key to add under the Storage Box's SSH keys.
+**Or Hetzner Storage Box**: order a BX11, enable *SSH support* and
+**automatic snapshots** (daily, keep 30), so a compromised server cannot wipe
+the history. The install script prints a backup SSH key to add under the
+Storage Box's SSH keys.
 
 Optional: healthchecks.io → new check, period 1 hour, grace 2 hours. Copy
 its ping URL. You get an email if backups stop.
@@ -261,7 +277,8 @@ Until then the server builds the image itself (about 10 minutes).
 | Status | `docker compose ps` |
 | Backups | `docker compose exec backup restic snapshots` |
 | Restore | `sh scripts/restore.sh` (list), `sh scripts/restore.sh latest` |
-| Pin an exact version | set `AMANFOLD_IMAGE=ghcr.io/dream1438/amanfold-server:sha-abc1234` in `.env`, then `docker compose up -d` |
+| Pin an exact build | set `AMANFOLD_IMAGE=ghcr.io/dream1438/amanfold-server@sha256:<digest>` in `.env` (the digest is on the workflow run's summary page), then `docker compose up -d` |
+| Check an image is genuine | on your computer: `gh attestation verify oci://ghcr.io/dream1438/amanfold-server:latest -R dream1438/amanfold`. It proves the image was built by this repository's workflow from `main`. |
 
 Ubuntu installs security updates every night and reboots at 04:00 server
 time when a kernel update needs it; the containers come back on their own.

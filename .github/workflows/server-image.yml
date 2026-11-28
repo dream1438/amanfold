@@ -45,36 +45,61 @@ jobs:
           curl -sfk --resolve api.localhost:443:127.0.0.1 https://api.localhost/v1/server | jq -e '.opaque_public_key | length > 20'
           curl -sfk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null https://api.localhost/v1/server | grep -i strict-transport-security
           curl -sfk --resolve localhost:443:127.0.0.1 https://localhost/ | grep ok
-          curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ && exit 1 || true
+          # IPv6 clients reach Caddy directly (host networking).
+          curl -sfk -6 --resolve 'api.localhost:443:[::1]' https://api.localhost/v1/server | jq -e .version
+          # The server port is bound to loopback only.
+          ss -ltnH | awk '{print $4}' | grep ':8080$' | grep -v '^127\.0\.0\.1:' && exit 1 || true
+          # Errors carry the security headers too.
+          curl -sk --resolve localhost:443:127.0.0.1 -D - -o /dev/null https://localhost/missing | grep -i x-content-type-options
       - name: Backup and list snapshots
         working-directory: deploy
         run: |
           sudo docker compose exec -T backup /usr/local/bin/backup.sh
           sudo docker compose exec -T backup restic snapshots | grep amanfold
+      - name: Restore
+        working-directory: deploy
+        run: |
+          # A bad snapshot ID is refused and the server keeps running.
+          echo RESTORE | sudo sh scripts/restore.sh 'x;y' && exit 1 || true
+          # Restoring a snapshot that does not exist leaves the server up.
+          echo RESTORE | sudo sh scripts/restore.sh deadbeef && exit 1 || true
+          sleep 2
+          curl -sfk --resolve api.localhost:443:127.0.0.1 https://api.localhost/v1/server
+          # A real restore brings the server back with the restored database.
+          echo RESTORE | sudo sh scripts/restore.sh latest
+          for i in $(seq 1 15); do
+            curl -sfk --resolve api.localhost:443:127.0.0.1 https://api.localhost/v1/server && break
+            sleep 2
+          done
+          curl -sfk --resolve api.localhost:443:127.0.0.1 https://api.localhost/v1/server | jq -e .version
       - name: Logs
         if: always()
         working-directory: deploy
         run: sudo docker compose logs --no-color | tail -100
       - uses: actions/upload-artifact@v4
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: server-image
           path: /tmp/server.tar
           retention-days: 1
 
+  # Only pushes to main publish; a manual run or another branch never does.
   publish:
     needs: smoke
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: server-image
           path: /tmp
       - name: Push to GitHub Container Registry
+        id: push
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -82,7 +107,18 @@ jobs:
           docker load -i /tmp/server.tar
           repo=ghcr.io/${{ github.repository_owner }}/amanfold-server
           short=$(echo "${{ github.sha }}" | cut -c1-7)
-          for tag in latest "sha-$short"; do
+          for tag in "sha-$short" latest; do
             docker tag amanfold-server:ci "$repo:$tag"
             docker push "$repo:$tag"
           done
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$repo:sha-$short" | cut -d@ -f2)
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published $repo@$digest" >> "$GITHUB_STEP_SUMMARY"
+      # Signed build provenance: anyone can check the image was built by this
+      # workflow from this commit (gh attestation verify, see DEPLOY.md).
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.push.outputs.repo }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

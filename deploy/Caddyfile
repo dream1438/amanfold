@@ -2,6 +2,12 @@
 # No access log is written: we keep no record of who connects.
 {
 	email {$ACME_EMAIL}
+	# No admin API: Caddy shares the host network, so nothing local may reconfigure it.
+	admin off
+	# Caddy's request error log would record client addresses; drop it.
+	log default {
+		exclude http.log.error
+	}
 }
 
 (security_headers) {
@@ -25,7 +31,11 @@
 		max_size 65MB
 	}
 	# Caddy replaces any client-sent X-Forwarded-For with the real address.
-	reverse_proxy server:8080
+	reverse_proxy 127.0.0.1:8080
+	handle_errors {
+		import security_headers
+		respond "{err.status_code}" {err.status_code}
+	}
 }
 
 # Static website from the repository's site/ folder.
@@ -37,11 +47,13 @@
 	try_files {path} {path}.html {path}/index.html
 	file_server
 	handle_errors {
+		import security_headers
 		rewrite * /404.html
 		file_server
 	}
 }
 
 www.{$SITE_DOMAIN} {
+	import security_headers
 	redir https://{$SITE_DOMAIN}{uri} permanent
 }
