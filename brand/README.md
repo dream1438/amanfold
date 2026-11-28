@@ -44,6 +44,5 @@ Change colours in `tools/palette.py` and the symbol's geometry in `tools/mark.py
 ## Still open
 
 - A trademark similarity search and registration of the name and symbol (classes 9 and 42). A keyhole inside a letter is not a new idea, so this needs checking before launch.
-- amanfold.com is not yet bought.
 - The Arabic name should be reviewed by a native Arabic type designer.
 - The logo has not been tested with real users.
