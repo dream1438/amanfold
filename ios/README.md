@@ -5,8 +5,8 @@ XCFramework). iOS 17 and later.
 
 | Folder | What it is |
 | --- | --- |
-| `AmanfoldKit/` | Swift package shared by the app and the extension: server API, session and sync loop, encrypted account file, Keychain helpers, strings, shared views. `swift test` runs it on macOS against a real `amanfold-server`. |
-| `App/` | The app: onboarding with the printed recovery kit, vault (logins, cards, notes, one-time codes), password generator, settings, Face ID / Touch ID unlock. |
+| `AmanfoldKit/` | Swift package shared by the app and the extension: server API, session and sync loop (personal and shared vaults), encrypted account file, Keychain helpers, strings, shared views. `swift test` runs it on macOS against a real `amanfold-server`. |
+| `App/` | The app: onboarding with the printed recovery kit, vault (logins, cards, notes, one-time codes), password generator, family and team sharing with safety-number checks, settings, Face ID / Touch ID unlock. |
 | `AutoFill/` | The AutoFill credential provider for Safari and apps. |
 | `project.yml` | [XcodeGen](https://github.com/yonaskolb/XcodeGen) project (the `.xcodeproj` is generated, not committed). |
 | `scripts/` | `build-core.sh` builds the core for iOS, the simulator and macOS; `strings.py` makes the English and Arabic strings from the Android ones. |

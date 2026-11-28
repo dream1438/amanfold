@@ -5,8 +5,8 @@ bindings). Android 9 (API 28) and later.
 
 | Module | What it is |
 | --- | --- |
-| `client/` | Plain Kotlin (JVM): server API, account and vault session, sync loop, encrypted account file, autofill field classification and fill policy. Tested on the JVM against a real `amanfold-server`. |
-| `app/` | The app: onboarding with the printed recovery kit, vault (logins, cards, notes, one-time codes), password generator, settings, fingerprint/face unlock, the Autofill Service. English and Arabic (right to left). |
+| `client/` | Plain Kotlin (JVM): server API, account and vault session (personal and shared vaults), sync loop, encrypted account file, autofill field classification and fill policy. Tested on the JVM against a real `amanfold-server`. |
+| `app/` | The app: onboarding with the printed recovery kit, vault (logins, cards, notes, one-time codes), password generator, family and team sharing with safety-number checks, settings, fingerprint/face unlock, the Autofill Service. English and Arabic (right to left). |
 
 ## Build
 
