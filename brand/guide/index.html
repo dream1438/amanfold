@@ -1,0 +1,575 @@
+<title>Amanfold Brand Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: oasis hero with the folding mark, sticky section nav, then numbered sections (numbers = the guide's real chapter order), each a label column + content column that stacks on phones */
+:root{
+  --bg:#F6F8F7; --surface:#FFFFFF; --sunken:#EDF2F0; --line:#DCE4E1; --fg:#13211F; --muted:#4F625E;
+  --primary:#0F3B3A; --primary-h:#18514A; --on-primary:#FFFFFF; --accent:#E9A23B; --accent-text:#A2661A; --on-accent:#0B1716;
+  --focus:#3B7D71; --ok:#1E7A50; --warn:#A35F00; --bad:#B93A27; --info:#2D64A3;
+  --mk-l:#8DBAB0; --mk-d:#0F3B3A; --mk-s:#E9A23B; --mk-gap:var(--surface);
+  --hero-bg:#0F3B3A; --hero-fg:#EEF6F4; --hero-muted:#B0D3CA;
+  --digit:#A2661A; --sym:#3B7D71;
+  --display:"Readex Pro","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --text:"IBM Plex Sans","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --fold:cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1716; --surface:#112220; --sunken:#081210; --line:#22403C; --fg:#E6EFEC; --muted:#9DB2AD;
+  --primary:#8DBAB0; --primary-h:#B0D3CA; --on-primary:#061B1A; --accent:#EDAE4C; --accent-text:#F0BB62; --on-accent:#0B1716;
+  --focus:#8DBAB0; --ok:#5CC495; --warn:#F0BB62; --bad:#F08A78; --info:#8DB8EA;
+  --mk-l:#EEF6F4; --mk-d:#5E9A8E; --mk-s:#E9A23B;
+  --hero-bg:#081210; --hero-fg:#EEF6F4; --hero-muted:#8DBAB0; --digit:#F0BB62; --sym:#8DBAB0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1716; --surface:#112220; --sunken:#081210; --line:#22403C; --fg:#E6EFEC; --muted:#9DB2AD;
+  --primary:#8DBAB0; --primary-h:#B0D3CA; --on-primary:#061B1A; --accent:#EDAE4C; --accent-text:#F0BB62; --on-accent:#0B1716;
+  --focus:#8DBAB0; --ok:#5CC495; --warn:#F0BB62; --bad:#F08A78; --info:#8DB8EA;
+  --mk-l:#EEF6F4; --mk-d:#5E9A8E; --mk-s:#E9A23B;
+  --hero-bg:#081210; --hero-fg:#EEF6F4; --hero-muted:#8DBAB0; --digit:#F0BB62; --sym:#8DBAB0; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 var(--text)}
+[lang="ar"]{font-family:"IBM Plex Sans Arabic",var(--text);line-height:1.7}
+code{font:13px/1.4 var(--mono);background:var(--sunken);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* mark */
+.mk{display:block;overflow:visible}
+.hero-mark{padding:18%}
+.mk .fl{fill:var(--mk-l);stroke:var(--mk-l);stroke-width:2;stroke-linejoin:round}
+.mk .fd{fill:var(--mk-d);stroke:var(--mk-d);stroke-width:2;stroke-linejoin:round}
+.mk .seal{fill:var(--mk-s)}
+.rev,.appicon,.tile.dark,.hero{--mk-l:#EEF6F4;--mk-d:#5E9A8E;--mk-s:#E9A23B}
+
+/* hero */
+.hero{background:var(--hero-bg);color:var(--hero-fg);margin-top:calc(-1 * env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px)}
+.hero-in{max-width:1120px;margin:0 auto;padding-block:56px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px;align-items:center}
+.hero-mark{display:grid;place-items:center}
+.mk.big{width:min(300px,100%);height:auto;aspect-ratio:1}
+.mk.big .fl,.mk.big .fd,.mk.big .seal{transform-box:view-box;transform-origin:32px 32px}
+.mk.big .t{transform-origin:32px 8px}.mk.big .r{transform-origin:56px 32px}.mk.big .b{transform-origin:32px 56px}.mk.big .l{transform-origin:8px 32px}
+.folding .mk.big .t{animation:inT 900ms var(--fold) both}
+.folding .mk.big .r{animation:inR 900ms var(--fold) 120ms both}
+.folding .mk.big .b{animation:inB 900ms var(--fold) 240ms both}
+.folding .mk.big .l{animation:inL 900ms var(--fold) 360ms both}
+.folding .mk.big .seal{animation:seal 520ms var(--fold) 900ms both}
+@keyframes inT{from{transform:scaleY(-1)}to{transform:none}}
+@keyframes inR{from{transform:scaleX(-1)}to{transform:none}}
+@keyframes inB{from{transform:scaleY(-1)}to{transform:none}}
+@keyframes inL{from{transform:scaleX(-1)}to{transform:none}}
+@keyframes seal{0%{transform:scale(.2)}70%{transform:scale(1.12)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.folding .mk.big *{animation:none!important}}
+.kicker{margin:0 0 18px;font:500 12.5px/1 var(--text);letter-spacing:.09em;text-transform:uppercase;color:var(--hero-muted)}
+.hero h1{margin:0 0 20px}
+.wm{display:block;fill:currentColor;height:auto}
+.hero-wm{width:min(520px,100%)}
+.tagline{margin:0;font:500 clamp(20px,2.6vw,28px)/1.35 var(--display);color:var(--hero-fg)}
+.tagline.ar{margin-top:6px;color:var(--hero-muted);font-family:"Readex Pro",var(--display)}
+.ghost{margin-top:28px;display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--hero-fg);border:1px solid rgb(255 255 255 / .25);border-radius:10px;padding:9px 14px;font:500 14px/1 var(--text);cursor:pointer}
+.ghost:hover{border-color:rgb(255 255 255 / .5)}
+.ghost .ic{width:16px;height:16px}
+
+/* nav */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav-in{max-width:1120px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-width:none}
+.nav a{flex:none;color:var(--muted);text-decoration:none;font:500 14px/1 var(--text);padding:9px 11px;border-radius:8px}
+.nav a:hover{color:var(--fg);background:var(--sunken)}
+
+/* sections */
+main{max-width:1120px;margin:0 auto;padding-block:16px 80px}
+.sec{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:40px;padding-block:56px;border-bottom:1px solid var(--line);scroll-margin-top:64px}
+.sec-h{align-self:start;position:sticky;top:80px}
+.num{margin:0 0 8px;font:500 13px/1 var(--mono);color:var(--accent-text)}
+.sec h2{margin:0 0 12px;font:600 30px/1.15 var(--display);letter-spacing:-.01em}
+.lede{margin:0;color:var(--muted);font-size:15px}
+.sec-b{min-width:0;display:grid;gap:28px}
+h3.sub{margin:8px 0 -8px;font:600 18px/1.3 var(--display)}
+h4{margin:0 0 6px;font:600 16px/1.3 var(--display)}
+.note{margin:0;color:var(--muted);font-size:14.5px;max-width:72ch}
+.cap{margin:0;color:var(--muted);font-size:13.5px}
+.two{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:32px;align-items:start}
+.prose p{margin:0 0 14px;max-width:62ch}
+.anatomy{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:grid;gap:18px}
+.mk.anat{width:150px;height:150px;margin:0 auto}
+.anatomy ol{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
+
+/* logo */
+.logo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.tile{margin:0;border-radius:14px;padding:40px 28px 16px;display:grid;gap:28px;justify-items:center;align-content:space-between;min-height:200px;border:1px solid var(--line)}
+.tile.light{background:#FFFFFF;color:#13211F;--mk-l:#8DBAB0;--mk-d:#0F3B3A}
+.tile.dark{background:#0F3B3A;color:#FFFFFF;border-color:#0F3B3A}
+.tile figcaption{font-size:12.5px;justify-self:stretch;color:inherit;opacity:.72}
+.tile code{background:transparent;padding:0;color:inherit}
+.lockup{display:flex;align-items:center;gap:14px}
+.lockup .mk{width:54px;height:54px;flex:none;margin:-3px}
+.lockup .wm{width:auto;height:32px;fill:currentColor}
+.lockup[dir="rtl"] .wm{height:36px}
+.lockup.sm .mk{width:34px;height:34px}.lockup.sm .wm{height:20px}.lockup.sm{gap:9px}
+.tile.stack{gap:10px;justify-items:center}
+.tile.stack>.mk{width:76px;height:76px}
+.stk-lat .wm{height:24px;width:auto}.stk-ar .wm{height:28px;width:auto}
+.tile.stack figcaption{margin-top:14px}
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.rule{margin:0;display:grid;gap:12px;align-content:start}
+.rule figcaption{font-size:14px;color:var(--muted)}
+.rule b{color:var(--fg)}
+.clear{position:relative;background:#FFFFFF;color:#13211F;--mk-l:#8DBAB0;--mk-d:#0F3B3A;border-radius:12px;padding:30px;display:grid;place-items:center;border:1px solid var(--line);background-image:linear-gradient(#FFFFFF,#FFFFFF),repeating-linear-gradient(45deg,#E9A23B33 0 6px,transparent 6px 12px);background-clip:content-box,padding-box}
+.minsz{background:#FFFFFF;color:#13211F;--mk-l:#8DBAB0;--mk-d:#0F3B3A;border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;gap:36px;align-items:flex-end;justify-content:center;flex-wrap:wrap}
+.minsz>span{display:grid;gap:8px;justify-items:center}
+.minsz>span>.mk{width:16px;height:16px}
+.minsz .lockup{gap:5px}.minsz .lockup .mk{width:18px;height:18px;margin:-1px}.minsz .lockup .wm{height:11px}
+.minsz small{font:12px/1 var(--mono);color:#4F625E}
+.donts{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.donts li{display:grid;gap:10px;font-size:13.5px;color:var(--muted);align-content:start}
+.dz{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;aspect-ratio:4/3;display:grid;place-items:center;max-width:100%}
+.dz::after{content:"";position:absolute;inset:10px;background:linear-gradient(to top right,transparent calc(50% - 1px),var(--bad) calc(50% - 1px),var(--bad) calc(50% + 1px),transparent calc(50% + 1px));opacity:.55;pointer-events:none}
+.dz .mk{width:64px;height:64px}
+.mk.x-rot{transform:rotate(45deg)}
+.mk.x-col{--mk-l:#7C5CFF;--mk-d:#2B79FF;--mk-s:#FF4D6D}
+.mk.x-str{transform:scaleX(1.6) scaleY(.75)}
+.x-lock{grid-template-columns:auto auto;gap:6px;place-content:center}
+.pad{width:34px;height:34px;fill:none;stroke:var(--fg);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* app icon */
+.appicon{display:inline-grid;place-items:center;background:linear-gradient(#ffffff12,#00000018),#0F3B3A;border-radius:22.5%;aspect-ratio:1;flex:none}
+.appicon .mk{width:58%;height:58%}
+.icon-row{display:grid;gap:20px}
+.phone-row{display:grid;gap:10px}
+.homescreen{display:flex;gap:22px;flex-wrap:wrap;padding:26px 24px;border-radius:16px;background:linear-gradient(135deg,#C9D8D3,#7FA79D 55%,#3E6C64);justify-content:center}
+.homescreen .app{display:grid;gap:6px;justify-items:center;color:#FFFFFF;font-size:12px;text-shadow:0 1px 2px #0006}
+.homescreen .appicon,.homescreen .ph{width:64px;height:64px}
+.ph{display:block;border-radius:22.5%}
+.p1{background:conic-gradient(from 30deg,#F7B32B,#E76F51,#8E7DBE,#2A9D8F,#F7B32B)}.p2{background:linear-gradient(#5AA9E6,#2F6FD0)}.p3{background:linear-gradient(135deg,#9ED29A,#E8F1E4 60%,#F2D27A)}
+.sizes{display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap}
+.s120{width:120px}.s64{width:64px}.s40{width:40px}.s28{width:28px}.s24{width:24px}.s16{width:16px}
+.tabbar{display:flex;gap:2px;background:var(--sunken);border:1px solid var(--line);border-radius:12px 12px 0 0;padding:8px 8px 0;overflow:hidden}
+.tab{display:flex;gap:8px;align-items:center;padding:8px 14px;background:var(--surface);border-radius:8px 8px 0 0;font-size:13px;white-space:nowrap;min-width:0}
+.tab.dim{background:transparent;color:var(--muted)}
+
+/* colour */
+.scale{display:grid;gap:10px}
+.scale-h{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline}
+.scale-h h4{margin:0}.scale-h p{margin:0;font-size:14px;color:var(--muted)}
+.chips{list-style:none;margin:0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.chips li.brand{box-shadow:inset 0 0 0 3px currentColor}
+.chips li{padding:10px 8px 9px;min-width:0;display:grid;gap:22px;min-height:84px;align-content:space-between}
+.chips b{font:600 13px/1 var(--text);display:flex;gap:6px;align-items:center}
+.chips code{background:transparent;padding:0;font-size:10.5px;letter-spacing:-.02em;color:inherit;opacity:.85}
+.tag{font:600 9.5px/1 var(--text);letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:99px;padding:3px 5px}
+.sem ul{list-style:none;margin:8px 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.sem li{display:flex;gap:10px;align-items:center;font-size:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.sem li code{margin-left:auto;font-size:11px}
+.sem p{margin:0;color:var(--muted);font-size:14px}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--c);flex:none}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .dot{background:var(--cd)}}
+:root[data-theme="dark"] .dot{background:var(--cd)}
+.seal-rule{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 24px}
+.seal-rule p{margin:0;color:var(--muted);font-size:14.5px;max-width:60ch}
+.srv{display:grid;gap:10px;justify-items:center}.srv .mk{width:56px;height:56px}
+.pill-s{background:var(--accent);color:var(--on-accent);font:600 12.5px/1 var(--text);padding:7px 11px;border-radius:99px;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:14px}
+caption{text-align:left;font:600 14px/1.4 var(--display);padding-bottom:8px;caption-side:top}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-weight:600;color:var(--muted);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase}
+.contrast td:not(:first-child){font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13px}
+.tok th{width:150px;font-weight:600;white-space:nowrap}
+.files th{width:auto}
+
+/* type */
+.faces{display:grid;gap:14px}
+.face{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 24px;display:grid;gap:6px}
+.role{margin:0;font:500 12px/1 var(--text);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.spec{margin:4px 0 0;font-size:15px;font-weight:600}
+.spec.d{font-family:var(--display)}.spec.m{font-family:var(--mono)}
+.pair{margin:0;max-width:100%}
+.pair.d{font:500 clamp(26px,3.6vw,38px)/1.25 "Readex Pro",var(--display)}
+.pair.d [lang="ar"]{font-family:"Readex Pro",var(--display);display:inline-block}
+.pair.t{font-size:18px;line-height:1.6}
+.pw{margin:4px 0;font:500 clamp(20px,3vw,28px)/1.2 var(--mono);letter-spacing:.06em;overflow-wrap:anywhere;font-variant-numeric:slashed-zero}
+.pw .n{color:var(--digit)}.pw .y{color:var(--sym)}
+.meta{margin:0;color:var(--muted);font-size:14px;max-width:68ch}
+.scale-t{display:grid;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 24px;overflow:hidden}
+.scale-t>div{display:flex;gap:16px;align-items:baseline;min-width:0}
+.scale-t .sz{font:12px/1 var(--mono);color:var(--muted);width:24px;flex:none}
+.scale-t span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ts48{font:600 48px/1.15 var(--display)}.ts36{font:600 36px/1.2 var(--display)}.ts28{font:600 28px/1.25 var(--display)}.ts22{font:500 22px/1.3 var(--display)}
+.ts18{font:500 18px/1.4 var(--text)}.ts16{font:400 16px/1.5 var(--text)}.ts14{font:400 14px/1.5 var(--text);color:var(--muted)}.ts12{font:600 12px/1.4 var(--text);letter-spacing:.08em}
+
+/* voice */
+.principles{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.principles li{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.principles p{margin:0;color:var(--muted);font-size:14.5px}
+.dodont{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.col{border-radius:14px;padding:18px 20px;border:1px solid var(--line);display:grid;gap:10px;align-content:start}
+.col p{margin:0;font-size:15px}
+.col.do{background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+.col.dont{background:color-mix(in srgb,var(--bad) 7%,var(--surface))}
+.col.dont p{text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--bad) 60%,transparent);color:var(--muted)}
+.lines{display:grid;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.line{display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);gap:20px;padding:14px 20px;border-top:1px solid var(--line);font-size:14.5px}
+.line:first-child{border-top:0}
+.line p{margin:0}
+.ctx{font:600 12px/1.6 var(--text);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.taglines{background:var(--hero-bg);color:var(--hero-fg);border-radius:14px;padding:24px 28px;display:grid;gap:8px}
+.taglines h4{color:var(--hero-muted);font:500 12px/1 var(--text);letter-spacing:.08em;text-transform:uppercase}
+.tg{margin:0;font:500 clamp(22px,3vw,30px)/1.35 "Readex Pro",var(--display);display:grid;gap:4px}
+.tg span{color:var(--hero-muted);font-family:"Readex Pro",var(--display)}
+.taglines .note{color:var(--hero-muted)}
+
+/* icons */
+.icons{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.icons li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 8px 10px;display:grid;gap:10px;justify-items:center;font:12px/1.2 var(--mono);color:var(--muted);text-align:center}
+.ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.icons .ic{width:28px;height:28px;color:var(--fg)}
+
+/* ui */
+.ui-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ui-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:12px;align-content:start;min-width:0}
+.btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.b{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:10px 16px;font:500 14.5px/1.2 var(--text);border:1px solid transparent;cursor:pointer}
+.b .ic{width:18px;height:18px}
+.b.primary{background:var(--primary);color:var(--on-primary)}.b.primary:hover{background:var(--primary-h)}
+.b.secondary{background:var(--surface);color:var(--fg);border-color:var(--line)}
+.b.quiet{background:transparent;color:var(--primary);padding-inline:8px}
+.b.seal{background:var(--accent);color:var(--on-accent);font-weight:600}
+.b.sm{padding:7px 12px;font-size:13px}
+.fld{display:grid;gap:6px;font-size:13px;color:var(--muted);font-weight:500}
+.fld input{font:15px/1.3 var(--text);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+.fld input.mono{font-family:var(--mono);font-variant-numeric:slashed-zero}
+.pwrow{display:flex;gap:8px}
+.iconbtn{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;flex:none}
+.iconbtn .ic{width:20px;height:20px}
+.items{list-style:none;margin:0;padding:0;display:grid}
+.items li{display:flex;gap:12px;align-items:center;padding:10px 4px;border-top:1px solid var(--line);min-width:0}
+.items li:first-child{border-top:0}
+.fav{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font:600 15px/1 var(--display);flex:none;color:#fff;background:#24292F}
+.fav .ic{width:20px;height:20px}
+.fav.c{background:#0F3B3A}.fav.n{background:var(--sunken);color:var(--fg)}.fav.b2{background:#1E7A50}
+.it{display:grid;min-width:0;flex:1}
+.it b{font-weight:500;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it small{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;gap:5px;align-items:center;font:500 12px/1 var(--text);color:var(--muted);background:var(--sunken);border-radius:99px;padding:5px 9px}
+.chip .ic{width:14px;height:14px}
+.msg{margin:0;display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:10px 12px;border-radius:10px}
+.msg .ic{width:18px;height:18px;margin-top:1px}
+.msg.ok{background:color-mix(in srgb,var(--ok) 11%,transparent);color:var(--ok)}
+.msg.warn{background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn)}
+.msg.bad{background:color-mix(in srgb,var(--bad) 10%,transparent);color:var(--bad)}
+.beta{display:inline-block;font:600 11.5px/1 var(--text);letter-spacing:.06em;text-transform:uppercase;color:var(--primary);border:1px dashed currentColor;border-radius:99px;padding:6px 10px}
+.beta.sm{font-size:10px;padding:4px 7px}
+
+/* mocks */
+.mock-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.mock{margin:0;display:grid;gap:10px;justify-items:center;min-width:0}
+.mock figcaption{font-size:13.5px;color:var(--muted);text-align:center}
+.popup,.phone{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 32px rgb(6 27 26 / .14);padding:14px;display:grid;gap:12px}
+.pp-h{display:flex;align-items:center;gap:8px}
+.pp-logo{display:flex;align-items:center;gap:8px;margin-inline-end:auto;font:500 17px/1 var(--display)}
+.pp-logo .mk{width:26px;height:26px}
+.pp-h .iconbtn{width:32px;height:32px}
+.pp-search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:0 10px;color:var(--muted)}
+.pp-search .ic{width:18px;height:18px}
+.pp-search input{border:0;background:transparent;font:14px var(--text);color:var(--fg);padding:9px 0;flex:1;min-width:0}
+.pp-site{margin:0;display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.pp-site .ic{width:16px;height:16px}
+.pp-foot{border-top:1px solid var(--line);padding-top:10px;font-size:12.5px;color:var(--muted)}
+.pp-foot span{display:flex;gap:6px;align-items:center}.pp-foot .ic{width:15px;height:15px;color:var(--accent-text)}
+.phone{border-radius:28px;padding:14px 16px 10px;gap:12px}
+.ph-status{display:flex;justify-content:space-between;font:600 12px/1 var(--text);color:var(--muted);padding:2px 6px}
+.ph-h{display:flex;align-items:center;justify-content:space-between}
+.ph-h h5{margin:0;font:600 26px/1.2 "Readex Pro",var(--display)}
+.cats{display:flex;gap:6px;overflow:hidden}
+.cats span{font-size:13px;padding:6px 12px;border-radius:99px;background:var(--sunken);color:var(--muted);white-space:nowrap}
+.cats .on{background:var(--primary);color:var(--on-primary)}
+.paycard{position:relative;aspect-ratio:1.586;border-radius:14px;background:linear-gradient(135deg,#18514A,#0A2B2A);color:#EEF6F4;padding:16px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto auto;overflow:hidden;--mk-l:#fff}
+.pc-fold{position:absolute;top:0;left:0;width:38px;height:38px;background:linear-gradient(135deg,var(--surface) 50%,#E9A23B 50%);border-bottom-right-radius:6px;box-shadow:2px 2px 6px rgb(0 0 0 / .25)}
+[dir="ltr"] .pc-fold{left:auto;right:0;background:linear-gradient(225deg,var(--surface) 50%,#E9A23B 50%);border-bottom-left-radius:6px;border-bottom-right-radius:0}
+.pc-brand{grid-column:1;grid-row:1;font:700 italic 18px/1 var(--text);letter-spacing:.02em;justify-self:start}
+.pc-num{grid-column:1/3;grid-row:3;font:500 17px/1 var(--mono);letter-spacing:.08em;justify-self:start;direction:ltr}
+.pc-name{grid-column:1;grid-row:4;font-size:13px;opacity:.85;margin-top:8px}
+.pc-exp{grid-column:2;grid-row:4;font:13px var(--mono);opacity:.85;margin-top:8px}
+.ph-tabs{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px}
+.ph-tabs span{display:grid;justify-items:center;gap:3px;font-size:11px;color:var(--muted)}
+.ph-tabs .ic{width:20px;height:20px}
+.ph-tabs .on{color:var(--primary)}
+.mock.wide{justify-items:stretch}
+.site{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 32px rgb(6 27 26 / .1)}
+.site-n{display:flex;align-items:center;gap:20px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.site-n .links{display:flex;gap:18px;font-size:14px;color:var(--muted);margin-inline-start:auto}
+.site-n .lang{font-size:13px;color:var(--muted)}
+.site-hero{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:28px;padding:44px 32px;align-items:center;background:radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--mk-l) 22%,transparent),transparent 60%)}
+.sh-copy{display:grid;gap:16px;justify-items:start}
+.sh-copy h3{margin:0;font:600 clamp(28px,4vw,44px)/1.12 var(--display);letter-spacing:-.015em;text-wrap:balance}
+.sh-copy p{margin:0;color:var(--muted);max-width:52ch}
+.sh-art{display:grid;place-items:center}
+.mk.site-mk{width:min(220px,100%);height:auto;aspect-ratio:1}
+
+@media (max-width:900px){
+  .hero-in,.sec,.two,.site-hero{grid-template-columns:1fr}
+  .hero-in{gap:28px;padding-block:40px 44px}
+  .mk.big{width:200px}
+  .sec{gap:20px;padding-block:44px}.sec-h{position:static}
+  .donts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .line{grid-template-columns:1fr;gap:6px}
+}
+@media (max-width:640px){
+  .chips{grid-auto-flow:row;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .logo-grid,.rules,.principles,.dodont,.ui-grid,.mock-row{grid-template-columns:1fr}
+  .seal-rule{grid-template-columns:1fr}
+  .site-n .links{display:none}
+  .site-hero{padding:28px 20px}
+  .sh-art{display:none}
+  .lockup .mk{width:40px;height:40px}.lockup .wm{height:24px}.lockup[dir="rtl"] .wm{height:27px}
+  .tile{padding:28px 16px 14px}
+  .ts48{font-size:34px}.ts36{font-size:28px}
+}
+</style>
+
+<section class="hero">
+  <div class="hero-in">
+    <div class="hero-mark" id="heroMark"><svg class="mk big" viewBox="0 0 64 64" role="img" aria-label="Amanfold mark"><clipPath id="g1"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g1)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></div>
+    <div class="hero-copy">
+      <p class="kicker">Brand guide · version 1.0 · November 2026</p>
+      <h1><svg class="wm hero-wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg><span class="sr">Amanfold</span></h1>
+      <p class="tagline">Everything you keep, safely folded.</p>
+      <p class="tagline ar" lang="ar" dir="rtl">كل ما تحفظه، مطويٌّ بأمان.</p>
+      <button class="ghost" id="replay" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.3L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.3L20 15.5"/><path d="M20 20v-4.5h-4.5"/></svg> Fold it again</button>
+    </div>
+  </div>
+</section>
+<nav class="nav gut" aria-label="Sections"><div class="nav-in"><a href="#idea">Idea</a><a href="#logo">Logo</a><a href="#icon">App icon</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#voice">Voice</a><a href="#icons">Icons</a><a href="#ui">Interface</a><a href="#apps">In use</a><a href="#files">Files</a></div></nav>
+<main class="gut">
+<section id="idea" class="sec"><header class="sec-h"><p class="num">01</p><h2>The idea</h2><p class="lede">Amanfold joins two words. <em>Aman</em> (أمان) is Arabic for safety, trust and peace of mind. <em>Fold</em> is what you do to keep something private.</p></header><div class="sec-b"><div class="two">
+  <div class="prose">
+    <p>Before envelopes existed, people sealed letters by folding them in on themselves and closing the last flap with wax or a paper lock. If anyone opened the letter on the way, the folds showed it. Historians call this <strong>letterlocking</strong>. It was everyday, end-to-end privacy, centuries before computers.</p>
+    <p>The Amanfold mark is that letter: a square sheet with its four corners folded to the centre, held shut by a saffron seal. It says what the product does without a padlock or a shield. Your passwords, cards and notes are folded shut on your own device, and only you hold the seal.</p>
+    <p>The same idea runs through the brand. Light and dark faces show the two sides of each fold. Containers in the interface carry one folded corner. Saffron appears once per screen, like a seal.</p>
+  </div>
+  <figure class="anatomy">
+    <svg class="mk anat" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g2"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g2)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg>
+    <figcaption>
+      <ol>
+        <li><b>Four flaps.</b> The corners of one sheet, folded in. Light faces catch the light; dark faces turn away.</li>
+        <li><b>The fold lines.</b> A clean gap between flaps, so the mark reads even in one colour.</li>
+        <li><b>The seal.</b> Saffron, set apart by a ring. The one warm note in the brand.</li>
+      </ol>
+    </figcaption>
+  </figure>
+</div></div></section><section id="logo" class="sec"><header class="sec-h"><p class="num">02</p><h2>Logo</h2><p class="lede">Use the full lockup wherever there is room, and the mark alone where the name is already present, such as an app icon or a browser toolbar.</p></header><div class="sec-b"><div class="logo-grid">
+  <figure class="tile light"><div class="lockup " dir="ltr" role="img" aria-label="Amanfold"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g3"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g3)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg class="wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg></div><figcaption>Primary lockup · <code>amanfold-logo.svg</code></figcaption></figure>
+  <figure class="tile light"><div class="lockup " dir="rtl" role="img" aria-label="أمانفولد"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g4"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g4)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg class="wm" viewBox="0 0 498.14 176.57" style="aspect-ratio:498.14/176.57" aria-hidden="true"><path transform="translate(-5.14 143.71) scale(1.4286)" d="M5.8 0 3.6 -12H31.8Q36.5 -12 38.6 -12.95Q40.7 -13.9 41.7 -15.4L45.5 -5.5Q44.8 -3.4 42.65 -2.25Q40.5 -1.1 37.6 -0.55Q34.7 0 31.8 0ZM19.7 -37.8 29 -49.7 46.5 -19Q48.1 -16.3 49.45 -14.75Q50.8 -13.2 52.35 -12.6Q53.9 -12 56.1 -12H57.1V0H56.1Q53 0 50.4 -0.6Q47.8 -1.2 45.45 -2.65Q43.1 -4.1 40.8 -6.5Q38.5 -8.9 36.1 -12.6ZM57.1 0V-12H68.7V-74H81V0ZM57.1 -12H58.1V0H57.1Q54.1 0 54.1 -6.1Q54.1 -12 57.1 -12ZM107.9 23Q103.4 23 98.25 21.4Q93.1 19.8 88.6 16L92.7 7.9Q95.9 9.1 99.35 9.95Q102.8 10.8 105.7 10.8Q112.3 10.8 116.85 7.85Q121.4 4.9 123.4 0H116.4Q110.3 0 106.1 -1.25Q101.9 -2.5 99.3 -4.7Q96.7 -6.9 95.5 -9.85Q94.3 -12.8 94.3 -16.3Q94.3 -21.6 96 -26.05Q97.7 -30.5 100.65 -33.7Q103.6 -36.9 107.25 -38.7Q110.9 -40.5 115 -40.5Q120.8 -40.5 125.1 -37.45Q129.4 -34.4 132.1 -28.95Q134.8 -23.5 135.6 -16.2Q135.7 -15.2 135.8 -14.15Q135.9 -13.1 136 -12H142.3V0H134.8Q133.6 4.2 131.45 8.3Q129.3 12.4 126 15.75Q122.7 19.1 118.2 21.05Q113.7 23 107.9 23ZM116.8 -12H124.8Q124.7 -12.9 124.65 -13.7Q124.6 -14.5 124.5 -15.2Q123.9 -18.8 122.45 -21.8Q121 -24.8 118.95 -26.65Q116.9 -28.5 114.2 -28.5Q111.8 -28.5 109.8 -27.05Q107.8 -25.6 106.7 -23.3Q105.6 -21 105.6 -18.5Q105.6 -16.6 106.55 -15.15Q107.5 -13.7 109.95 -12.85Q112.4 -12 116.8 -12ZM142.3 0V-12H151.4Q152.3 -12 153.1 -11.95Q153.9 -11.9 154.7 -11.85Q155.5 -11.8 156.2 -11.7Q153.5 -14.6 152.2 -17.9Q150.9 -21.2 150.9 -25Q150.9 -29.2 152.45 -32.9Q154 -36.6 156.9 -39.4Q159.8 -42.2 163.75 -43.8Q167.7 -45.4 172.5 -45.4Q177.4 -45.4 181.35 -43.8Q185.3 -42.2 188.15 -39.35Q191 -36.5 192.6 -32.85Q194.2 -29.2 194.2 -25Q194.2 -21.7 193.1 -18.3Q192 -14.9 189.1 -11.7Q189.5 -11.8 190.2 -11.85Q190.9 -11.9 191.3 -12H200.8V0H196Q190.2 0 186.1 -0.2Q182 -0.4 178.9 -0.95Q175.8 -1.5 172.9 -2.6Q170.8 -1.9 168.65 -1.45Q166.5 -1 164.05 -0.65Q161.6 -0.3 158.6 -0.15Q155.6 0 151.9 0ZM172.8 -11.8Q175.3 -13.1 177.3 -14.9Q179.3 -16.7 180.5 -19Q181.7 -21.3 181.7 -24.3Q181.7 -26.8 180.5 -28.85Q179.3 -30.9 177.25 -32.1Q175.2 -33.3 172.5 -33.3Q169.9 -33.3 167.8 -32.1Q165.7 -30.9 164.55 -28.85Q163.4 -26.8 163.4 -24.3Q163.4 -20.9 164.75 -18.45Q166.1 -16 168.3 -14.4Q170.5 -12.8 172.8 -11.8ZM142.3 -12H143.3V0H142.3Q139.3 0 139.3 -6.1Q139.3 -12 142.3 -12ZM172.8 -55.3 163.8 -64.3 172.3 -73.4 181.2 -64.3ZM200.8 0V-12H218.6Q218.3 -17.7 216.2 -22.95Q214.1 -28.2 210.6 -33.8L221.5 -44.8Q224.4 -38.7 226.65 -31.9Q228.9 -25.1 229.1 -17.25Q229.3 -9.4 226 0ZM200.8 -12H201.8V0H200.8Q197.8 0 197.8 -6.1Q197.8 -12 200.8 -12ZM216.5 -53.8 207.5 -62.8 216 -71.9 224.9 -62.8ZM261.2 0Q256.1 0 252.65 -1.2Q249.2 -2.4 247.15 -4.6Q245.1 -6.8 244.2 -9.95Q243.3 -13.1 243.3 -16.9V-74H255.6V-20.6Q255.6 -18.3 255.95 -16.65Q256.3 -15 257.15 -14Q258 -13 259.65 -12.5Q261.3 -12 264 -12H267.8V0ZM267.8 0V-12H268.1Q270 -12 271.5 -12.85Q273 -13.7 274.4 -15.55Q275.8 -17.4 277.5 -20.4Q279.4 -24 281.8 -27.7Q284.2 -31.4 287.15 -34.6Q290.1 -37.8 293.75 -39.75Q297.4 -41.7 301.8 -41.7Q307.9 -41.7 312.3 -38.6Q316.7 -35.5 319.2 -30Q321.7 -24.5 322.1 -17.3Q322.5 -10.1 320.5 -1.8Q316.8 0 312.75 0.95Q308.7 1.9 304.65 1.95Q300.6 2 296.7 1.1Q292.8 0.2 289.35 -1.65Q285.9 -3.5 283.1 -6.35Q280.3 -9.2 278.3 -13L285.9 -18.8Q287.5 -16.6 290.05 -14.85Q292.6 -13.1 295.85 -11.85Q299.1 -10.6 302.95 -10.1Q306.8 -9.6 311 -10.1Q311.2 -13.9 310.55 -17.4Q309.9 -20.9 308.55 -23.65Q307.2 -26.4 305.2 -27.95Q303.2 -29.5 300.8 -29.5Q299.2 -29.5 297.35 -28.35Q295.5 -27.2 293.2 -24Q290.9 -20.8 287.5 -14.5Q286.1 -11.9 284.45 -9.3Q282.8 -6.7 280.65 -4.6Q278.5 -2.5 275.45 -1.25Q272.4 0 268.1 0ZM267.8 -12H268.8V0H267.8Q264.8 0 264.8 -6.1Q264.8 -12 267.8 -12ZM336.4 -74H348.7V0H336.4ZM332.4 -81V-87.6H335.4Q334.8 -88.4 334.5 -89.45Q334.2 -90.5 334.2 -91.6Q334.2 -95.6 337 -98.1Q339.8 -100.6 344.3 -100.6Q346.2 -100.6 348 -100.2Q349.8 -99.8 351.2 -99L348.7 -93.2Q347.7 -93.6 346.75 -93.8Q345.8 -94 344.8 -94Q342.9 -94 341.95 -93.15Q341 -92.3 341 -91Q341 -89.8 342.2 -88.7Q343.4 -87.6 346.9 -87.6H352.3V-81Z"/></svg></div><figcaption>Arabic lockup, mark on the right · <code>amanfold-logo-arabic.svg</code></figcaption></figure>
+  <figure class="tile dark"><div class="lockup rev" dir="ltr" role="img" aria-label="Amanfold"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g5"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g5)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg class="wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg></div><figcaption>Reversed, on Oasis 800 · <code>amanfold-logo-reversed.svg</code></figcaption></figure>
+  <figure class="tile light stack"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g6"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g6)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><span class="stk-lat"><svg class="wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg></span><span class="stk-ar"><svg class="wm" viewBox="0 0 438.37 155.38" style="aspect-ratio:438.37/155.38" aria-hidden="true"><path transform="translate(-4.53 126.47) scale(1.2571)" d="M5.8 0 3.6 -12H31.8Q36.5 -12 38.6 -12.95Q40.7 -13.9 41.7 -15.4L45.5 -5.5Q44.8 -3.4 42.65 -2.25Q40.5 -1.1 37.6 -0.55Q34.7 0 31.8 0ZM19.7 -37.8 29 -49.7 46.5 -19Q48.1 -16.3 49.45 -14.75Q50.8 -13.2 52.35 -12.6Q53.9 -12 56.1 -12H57.1V0H56.1Q53 0 50.4 -0.6Q47.8 -1.2 45.45 -2.65Q43.1 -4.1 40.8 -6.5Q38.5 -8.9 36.1 -12.6ZM57.1 0V-12H68.7V-74H81V0ZM57.1 -12H58.1V0H57.1Q54.1 0 54.1 -6.1Q54.1 -12 57.1 -12ZM107.9 23Q103.4 23 98.25 21.4Q93.1 19.8 88.6 16L92.7 7.9Q95.9 9.1 99.35 9.95Q102.8 10.8 105.7 10.8Q112.3 10.8 116.85 7.85Q121.4 4.9 123.4 0H116.4Q110.3 0 106.1 -1.25Q101.9 -2.5 99.3 -4.7Q96.7 -6.9 95.5 -9.85Q94.3 -12.8 94.3 -16.3Q94.3 -21.6 96 -26.05Q97.7 -30.5 100.65 -33.7Q103.6 -36.9 107.25 -38.7Q110.9 -40.5 115 -40.5Q120.8 -40.5 125.1 -37.45Q129.4 -34.4 132.1 -28.95Q134.8 -23.5 135.6 -16.2Q135.7 -15.2 135.8 -14.15Q135.9 -13.1 136 -12H142.3V0H134.8Q133.6 4.2 131.45 8.3Q129.3 12.4 126 15.75Q122.7 19.1 118.2 21.05Q113.7 23 107.9 23ZM116.8 -12H124.8Q124.7 -12.9 124.65 -13.7Q124.6 -14.5 124.5 -15.2Q123.9 -18.8 122.45 -21.8Q121 -24.8 118.95 -26.65Q116.9 -28.5 114.2 -28.5Q111.8 -28.5 109.8 -27.05Q107.8 -25.6 106.7 -23.3Q105.6 -21 105.6 -18.5Q105.6 -16.6 106.55 -15.15Q107.5 -13.7 109.95 -12.85Q112.4 -12 116.8 -12ZM142.3 0V-12H151.4Q152.3 -12 153.1 -11.95Q153.9 -11.9 154.7 -11.85Q155.5 -11.8 156.2 -11.7Q153.5 -14.6 152.2 -17.9Q150.9 -21.2 150.9 -25Q150.9 -29.2 152.45 -32.9Q154 -36.6 156.9 -39.4Q159.8 -42.2 163.75 -43.8Q167.7 -45.4 172.5 -45.4Q177.4 -45.4 181.35 -43.8Q185.3 -42.2 188.15 -39.35Q191 -36.5 192.6 -32.85Q194.2 -29.2 194.2 -25Q194.2 -21.7 193.1 -18.3Q192 -14.9 189.1 -11.7Q189.5 -11.8 190.2 -11.85Q190.9 -11.9 191.3 -12H200.8V0H196Q190.2 0 186.1 -0.2Q182 -0.4 178.9 -0.95Q175.8 -1.5 172.9 -2.6Q170.8 -1.9 168.65 -1.45Q166.5 -1 164.05 -0.65Q161.6 -0.3 158.6 -0.15Q155.6 0 151.9 0ZM172.8 -11.8Q175.3 -13.1 177.3 -14.9Q179.3 -16.7 180.5 -19Q181.7 -21.3 181.7 -24.3Q181.7 -26.8 180.5 -28.85Q179.3 -30.9 177.25 -32.1Q175.2 -33.3 172.5 -33.3Q169.9 -33.3 167.8 -32.1Q165.7 -30.9 164.55 -28.85Q163.4 -26.8 163.4 -24.3Q163.4 -20.9 164.75 -18.45Q166.1 -16 168.3 -14.4Q170.5 -12.8 172.8 -11.8ZM142.3 -12H143.3V0H142.3Q139.3 0 139.3 -6.1Q139.3 -12 142.3 -12ZM172.8 -55.3 163.8 -64.3 172.3 -73.4 181.2 -64.3ZM200.8 0V-12H218.6Q218.3 -17.7 216.2 -22.95Q214.1 -28.2 210.6 -33.8L221.5 -44.8Q224.4 -38.7 226.65 -31.9Q228.9 -25.1 229.1 -17.25Q229.3 -9.4 226 0ZM200.8 -12H201.8V0H200.8Q197.8 0 197.8 -6.1Q197.8 -12 200.8 -12ZM216.5 -53.8 207.5 -62.8 216 -71.9 224.9 -62.8ZM261.2 0Q256.1 0 252.65 -1.2Q249.2 -2.4 247.15 -4.6Q245.1 -6.8 244.2 -9.95Q243.3 -13.1 243.3 -16.9V-74H255.6V-20.6Q255.6 -18.3 255.95 -16.65Q256.3 -15 257.15 -14Q258 -13 259.65 -12.5Q261.3 -12 264 -12H267.8V0ZM267.8 0V-12H268.1Q270 -12 271.5 -12.85Q273 -13.7 274.4 -15.55Q275.8 -17.4 277.5 -20.4Q279.4 -24 281.8 -27.7Q284.2 -31.4 287.15 -34.6Q290.1 -37.8 293.75 -39.75Q297.4 -41.7 301.8 -41.7Q307.9 -41.7 312.3 -38.6Q316.7 -35.5 319.2 -30Q321.7 -24.5 322.1 -17.3Q322.5 -10.1 320.5 -1.8Q316.8 0 312.75 0.95Q308.7 1.9 304.65 1.95Q300.6 2 296.7 1.1Q292.8 0.2 289.35 -1.65Q285.9 -3.5 283.1 -6.35Q280.3 -9.2 278.3 -13L285.9 -18.8Q287.5 -16.6 290.05 -14.85Q292.6 -13.1 295.85 -11.85Q299.1 -10.6 302.95 -10.1Q306.8 -9.6 311 -10.1Q311.2 -13.9 310.55 -17.4Q309.9 -20.9 308.55 -23.65Q307.2 -26.4 305.2 -27.95Q303.2 -29.5 300.8 -29.5Q299.2 -29.5 297.35 -28.35Q295.5 -27.2 293.2 -24Q290.9 -20.8 287.5 -14.5Q286.1 -11.9 284.45 -9.3Q282.8 -6.7 280.65 -4.6Q278.5 -2.5 275.45 -1.25Q272.4 0 268.1 0ZM267.8 -12H268.8V0H267.8Q264.8 0 264.8 -6.1Q264.8 -12 267.8 -12ZM336.4 -74H348.7V0H336.4ZM332.4 -81V-87.6H335.4Q334.8 -88.4 334.5 -89.45Q334.2 -90.5 334.2 -91.6Q334.2 -95.6 337 -98.1Q339.8 -100.6 344.3 -100.6Q346.2 -100.6 348 -100.2Q349.8 -99.8 351.2 -99L348.7 -93.2Q347.7 -93.6 346.75 -93.8Q345.8 -94 344.8 -94Q342.9 -94 341.95 -93.15Q341 -92.3 341 -91Q341 -89.8 342.2 -88.7Q343.4 -87.6 346.9 -87.6H352.3V-81Z"/></svg></span><figcaption>Stacked, for splash screens and stickers · <code>amanfold-logo-stacked.svg</code></figcaption></figure>
+</div>
+<div class="rules">
+  <figure class="rule">
+    <div class="clear"><div class="lockup " dir="ltr" role="img" aria-label="Amanfold"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g7"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g7)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg class="wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg></div><span class="cz t"></span><span class="cz b"></span><span class="cz l"></span><span class="cz r"></span></div>
+    <figcaption><b>Clear space</b> equals the seal's diameter on every side. Keep text, edges and other logos outside it.</figcaption>
+  </figure>
+  <figure class="rule">
+    <div class="minsz"><span><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g8"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g8)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><small>16 px</small></span><span><div class="lockup " dir="ltr" role="img" aria-label="Amanfold"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g9"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g9)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg class="wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg></div><small>96 px wide</small></span></div>
+    <figcaption><b>Minimum size.</b> The mark holds up at 16 px. Use the lockup only from 96 px wide; below that, use the mark alone.</figcaption>
+  </figure>
+</div>
+<h3 class="sub">Please don't</h3>
+<ul class="donts">
+  <li><div class="dz"><svg class="mk x-rot" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g10"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g10)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></div><span>Rotate it into a diamond. It stops reading as a folded letter.</span></li>
+  <li><div class="dz"><svg class="mk x-col" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g11"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g11)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></div><span>Recolour the flaps or the seal outside the palette.</span></li>
+  <li><div class="dz"><svg class="mk x-str" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g12"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g12)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></div><span>Stretch, squash or skew it.</span></li>
+  <li><div class="dz x-lock"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g13"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g13)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg viewBox="0 0 24 24" class="pad" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg></div><span>Add padlocks, shields or keys. The fold already says it.</span></li>
+</ul></div></section><section id="icon" class="sec"><header class="sec-h"><p class="num">03</p><h2>App icon</h2><p class="lede">One icon for every platform: the mark in its reversed colours on an Oasis 800 tile. Stores and launchers apply their own corner masks, so the source is a full-bleed square.</p></header><div class="sec-b"><div class="icon-row">
+  <div class="phone-row">
+    <div class="homescreen">
+      <span class="app"><i class="ph p1"></i><small>Photos</small></span>
+      <span class="app"><i class="ph p2"></i><small>Mail</small></span>
+      <span class="app"><span class="appicon"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g14"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g14)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span><small>Amanfold</small></span>
+      <span class="app"><i class="ph p3"></i><small>Maps</small></span>
+    </div>
+    <p class="cap">On a home screen beside other apps. The saffron seal is the brightest point in the row.</p>
+  </div>
+  <div class="sizes">
+    <span class="appicon s120"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g15"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g15)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span><span class="appicon s64"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g16"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g16)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span><span class="appicon s40"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g17"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g17)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span>
+    <span class="appicon s24"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g18"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g18)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span><span class="appicon s16"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g19"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g19)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span>
+  </div>
+  <div class="tabbar"><span class="tab"><span class="appicon s16"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g20"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g20)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span>Amanfold · Your vault</span><span class="tab dim">Inbox</span><span class="tab dim">Docs</span></div>
+</div>
+<p class="note">Files: <code>app-icon/app-icon-1024.svg</code> (iOS, macOS, Windows, stores), <code>android-adaptive-foreground.svg</code> + <code>android-adaptive-background.svg</code> + <code>android-monochrome.svg</code> (Android 13 themed icons), <code>favicon.svg</code> and <code>favicon.ico</code>, plus PNGs from 16 to 1024 px in <code>app-icon/png/</code>.</p></div></section><section id="colour" class="sec"><header class="sec-h"><p class="num">04</p><h2>Colour</h2><p class="lede">Deep Oasis green carries the brand: calm, natural, and unlike the blues most security apps use. Saffron is the seal, used sparingly. Mist neutrals are tinted towards Oasis so greys never look accidental.</p></header><div class="sec-b"><div class="scale"><div class="scale-h"><h4>Oasis</h4><p>Primary. Oasis 800 (outlined) is the brand colour, used for the app icon, primary buttons and headings on light.</p></div><ol class="chips"><li style="background:#EEF6F4;color:#0B1716"><b>50</b><code>#EEF6F4</code></li><li style="background:#D5E9E4;color:#0B1716"><b>100</b><code>#D5E9E4</code></li><li style="background:#B0D3CA;color:#0B1716"><b>200</b><code>#B0D3CA</code></li><li style="background:#8DBAB0;color:#0B1716"><b>300</b><code>#8DBAB0</code></li><li style="background:#5E9A8E;color:#FFFFFF"><b>400</b><code>#5E9A8E</code></li><li style="background:#3B7D71;color:#FFFFFF"><b>500</b><code>#3B7D71</code></li><li style="background:#26665B;color:#FFFFFF"><b>600</b><code>#26665B</code></li><li style="background:#18514A;color:#FFFFFF"><b>700</b><code>#18514A</code></li><li class="brand" title="Brand colour" style="background:#0F3B3A;color:#FFFFFF"><b>800</b><code>#0F3B3A</code></li><li style="background:#0A2B2A;color:#FFFFFF"><b>900</b><code>#0A2B2A</code></li><li style="background:#061B1A;color:#FFFFFF"><b>950</b><code>#061B1A</code></li></ol></div>
+<div class="scale"><div class="scale-h"><h4>Saffron</h4><p>The seal. Saffron 500 (outlined) is the seal colour. Never use Saffron 500 for text on light backgrounds; use Saffron 700 instead.</p></div><ol class="chips"><li style="background:#FDF6E9;color:#0B1716"><b>50</b><code>#FDF6E9</code></li><li style="background:#FBEACB;color:#0B1716"><b>100</b><code>#FBEACB</code></li><li style="background:#F6D395;color:#0B1716"><b>200</b><code>#F6D395</code></li><li style="background:#F0BB62;color:#0B1716"><b>300</b><code>#F0BB62</code></li><li style="background:#EDAE4C;color:#0B1716"><b>400</b><code>#EDAE4C</code></li><li class="brand" title="Brand colour" style="background:#E9A23B;color:#0B1716"><b>500</b><code>#E9A23B</code></li><li style="background:#CC8420;color:#FFFFFF"><b>600</b><code>#CC8420</code></li><li style="background:#A2661A;color:#FFFFFF"><b>700</b><code>#A2661A</code></li><li style="background:#7B4D17;color:#FFFFFF"><b>800</b><code>#7B4D17</code></li><li style="background:#573813;color:#FFFFFF"><b>900</b><code>#573813</code></li></ol></div>
+<div class="scale"><div class="scale-h"><h4>Mist</h4><p>Neutrals for text, surfaces and borders, with a slight green bias.</p></div><ol class="chips"><li style="background:#FFFFFF;color:#0B1716"><b>0</b><code>#FFFFFF</code></li><li style="background:#F6F8F7;color:#0B1716"><b>50</b><code>#F6F8F7</code></li><li style="background:#EDF2F0;color:#0B1716"><b>100</b><code>#EDF2F0</code></li><li style="background:#DCE4E1;color:#0B1716"><b>200</b><code>#DCE4E1</code></li><li style="background:#C3CFCB;color:#0B1716"><b>300</b><code>#C3CFCB</code></li><li style="background:#96A6A1;color:#0B1716"><b>400</b><code>#96A6A1</code></li><li style="background:#6A7D78;color:#FFFFFF"><b>500</b><code>#6A7D78</code></li><li style="background:#4F625E;color:#FFFFFF"><b>600</b><code>#4F625E</code></li><li style="background:#374845;color:#FFFFFF"><b>700</b><code>#374845</code></li><li style="background:#1F2F2D;color:#FFFFFF"><b>800</b><code>#1F2F2D</code></li><li style="background:#13211F;color:#FFFFFF"><b>900</b><code>#13211F</code></li><li style="background:#0B1716;color:#FFFFFF"><b>950</b><code>#0B1716</code></li></ol></div>
+<div class="sem">
+  <h4>Status colours</h4>
+  <ul><li><span class="dot" style="--c:#1E7A50;--cd:#5CC495"></span><b>Success</b><code>#1E7A50 / #5CC495</code></li><li><span class="dot" style="--c:#A35F00;--cd:#F0BB62"></span><b>Warning</b><code>#A35F00 / #F0BB62</code></li><li><span class="dot" style="--c:#B93A27;--cd:#F08A78"></span><b>Danger</b><code>#B93A27 / #F08A78</code></li><li><span class="dot" style="--c:#2D64A3;--cd:#8DB8EA"></span><b>Info</b><code>#2D64A3 / #8DB8EA</code></li></ul>
+  <p>Light / dark theme values. Status colours always come with an icon and words, never colour alone.</p>
+</div>
+<div class="seal-rule">
+  <div class="srv"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g21"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g21)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><span class="pill-s">Saved and sealed</span></div>
+  <div><h4>One seal per screen</h4><p>Apart from the seal in the logo itself, saffron appears at most once per screen, on its single most reassuring moment: a "sealed" confirmation, the folded corner of a payment card, the main button on a marketing page. If two things on a screen are saffron, one of them is wrong.</p></div>
+</div>
+<table class="contrast"><caption>Text contrast, checked against WCAG 2.2</caption>
+<thead><tr><th>Pairing</th><th>Light theme</th><th>Dark theme</th></tr></thead>
+<tbody>
+<tr><td>Body text on background</td><td>15.6 : 1</td><td>15.6 : 1</td></tr>
+<tr><td>Muted text on surface</td><td>6.5 : 1</td><td>7.4 : 1</td></tr>
+<tr><td>Text on primary button</td><td>12.3 : 1</td><td>8.3 : 1</td></tr>
+<tr><td>Ink text on saffron</td><td>8.4 : 1</td><td>9.4 : 1</td></tr>
+<tr><td>Danger text on surface</td><td>5.7 : 1</td><td>6.8 : 1</td></tr>
+</tbody></table></div></section><section id="type" class="sec"><header class="sec-h"><p class="num">05</p><h2>Typography</h2><p class="lede">Three open-source families (SIL Open Font License) that cover Latin and Arabic with matching rhythm, so English and Arabic screens feel like the same product.</p></header><div class="sec-b"><div class="faces">
+  <article class="face">
+    <p class="role">Display · headlines, the wordmark</p>
+    <p class="spec d">Readex Pro</p>
+    <p class="pair d">Safely folded. <span lang="ar" dir="rtl">مطويٌّ بأمان.</span></p>
+    <p class="meta">Weights 500 and 600. One family designed for both scripts, so mixed headlines keep one rhythm.</p>
+  </article>
+  <article class="face">
+    <p class="role">Text · interface and reading</p>
+    <p class="spec t">IBM Plex Sans + Plex Sans Arabic</p>
+    <p class="pair t">Your vault is encrypted on this device before it syncs.<br><span lang="ar" dir="rtl">تُشفَّر خزنتك على هذا الجهاز قبل المزامنة.</span></p>
+    <p class="meta">Weights 400, 500 and 600. Built for screens, with clear figures and a generous Arabic x-height.</p>
+  </article>
+  <article class="face">
+    <p class="role">Secrets · passwords, codes, card numbers</p>
+    <p class="spec m">IBM Plex Mono</p>
+    <p class="pw" aria-label="Example password">k<span class="n">7</span>Rv<span class="y">#</span>q<span class="n">2</span>Lm<span class="y">!</span>W<span class="n">0</span>o<span class="y">-</span>fs<span class="n">9</span>T</p>
+    <p class="meta">Slashed zero and distinct l, 1 and I. Digits show in Saffron 700, symbols in Oasis 500, so a password can be read aloud without mistakes. Passwords are always left-to-right, even in Arabic.</p>
+  </article>
+</div>
+<div class="scale-t" aria-label="Type scale">
+  <div><span class="sz">48</span><span class="ts48">Everything you keep</span></div>
+  <div><span class="sz">36</span><span class="ts36">Safely folded</span></div>
+  <div><span class="sz">28</span><span class="ts28">Your vault</span></div>
+  <div><span class="sz">22</span><span class="ts22">Logins and cards</span></div>
+  <div><span class="sz">18</span><span class="ts18">Sync is on for 3 devices</span></div>
+  <div><span class="sz">16</span><span class="ts16">Body text and most of the interface</span></div>
+  <div><span class="sz">14</span><span class="ts14">Secondary details and labels</span></div>
+  <div><span class="sz">12</span><span class="ts12">CAPTIONS AND BADGES</span></div>
+</div>
+<p class="note">Arabic text runs one step larger than Latin at sizes under 16 px, and line height is 1.6 for Arabic body text against 1.5 for Latin. Use Arabic-Indic or Western digits according to the user's locale setting, never mixed in one string.</p></div></section><section id="voice" class="sec"><header class="sec-h"><p class="num">06</p><h2>Voice and tone</h2><p class="lede">Amanfold sounds like a calm, knowledgeable friend who happens to understand cryptography. It never tries to scare anyone into buying.</p></header><div class="sec-b"><ul class="principles">
+  <li><h4>Calm, not alarming</h4><p>State what happened, then the next step. Security news is stressful enough without us adding to it.</p></li>
+  <li><h4>Plain, not clever</h4><p>Say "password", not "credential". Explain how encryption works in one sentence when asked, and skip it when not.</p></li>
+  <li><h4>Honest about limits</h4><p>Say what we cannot do. We cannot see your vault, so we cannot reset your master password. We are in beta, and we say so.</p></li>
+  <li><h4>Equal in every language</h4><p>Arabic and every other language are written by people who think in them, not translated word for word. The same warmth in each.</p></li>
+</ul>
+<div class="dodont">
+  <div class="col do"><h4>We say</h4>
+    <p>"Your vault is encrypted on your device. We never see what is inside."</p>
+    <p>"This password appeared in a public leak. Change it on example.com, then update it here."</p>
+    <p>"Free on every device you own. Premium adds secure file storage and emergency access."</p>
+  </div>
+  <div class="col dont"><h4>We don't say</h4>
+    <p>"Military-grade, unhackable, bank-level security."</p>
+    <p>"WARNING! You are at risk! Hackers could steal everything!"</p>
+    <p>"Upgrade now or lose your data."</p>
+  </div>
+</div>
+<h3 class="sub">Sample lines, English and Arabic</h3>
+<div class="lines">
+  <div class="line"><p class="ctx">Empty vault</p><p>Nothing here yet. Add your first login, or bring everything over from another password manager.</p><p lang="ar" dir="rtl">لا شيء هنا بعد. أضف أول حساب، أو انقل كل بياناتك من مدير كلمات مرور آخر.</p></div>
+  <div class="line"><p class="ctx">Lookalike site</p><p>This site is paypa1.com, not paypal.com. We did not fill your password.</p><p lang="ar" dir="rtl">هذا الموقع هو paypa1.com وليس paypal.com، لذلك لم نُدخل كلمة مرورك.</p></div>
+  <div class="line"><p class="ctx">Recovery kit</p><p>Print your recovery kit and keep it somewhere safe. It is the only way back in if you forget your master password, because we cannot reset it for you.</p><p lang="ar" dir="rtl">اطبع مجموعة الاسترداد واحفظها في مكان آمن. إنها طريقك الوحيد للعودة إذا نسيت كلمة المرور الرئيسية، لأننا لا نستطيع إعادة تعيينها نيابةً عنك.</p></div>
+  <div class="line"><p class="ctx">Beta label</p><p>Amanfold is in public beta. Our code is open and reviewed; an independent audit comes next.</p><p lang="ar" dir="rtl">أمانفولد في مرحلة تجريبية عامة. شيفرتنا مفتوحة وخضعت للمراجعة، والتدقيق المستقل هو الخطوة التالية.</p></div>
+</div>
+<div class="taglines">
+  <h4>Tagline</h4>
+  <p class="tg">Everything you keep, safely folded.<span lang="ar" dir="rtl">كل ما تحفظه، مطويٌّ بأمان.</span></p>
+  <p class="note">Short form for small spaces: "Safely folded." / «مطويٌّ بأمان». Alternatives we considered: "Keep it folded." and "Private by fold."</p>
+</div></div></section><section id="icons" class="sec"><header class="sec-h"><p class="num">07</p><h2>Icons</h2><p class="lede">Twenty-four interface icons drawn on a 24 unit grid with a 1.75 stroke and round ends. Containers such as cards, notes and identities carry the brand's folded corner.</p></header><div class="sec-b"><ul class="icons"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8"/><path d="M16 7l2.5 2.5"/><path d="M13.5 9.5l2 2"/></svg><span>login</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h11l5 5v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 5v3a2 2 0 0 0 2 2h3"/><path d="M3 10h9"/><path d="M7 15h3"/></svg><span>card</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v3a2 2 0 0 0 2 2h3"/><path d="M8 13h8"/><path d="M8 17h5"/></svg><span>note</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h11l5 5v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 5v3a2 2 0 0 0 2 2h3"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.3 1.7-2 3-2s2.4.7 3 2"/><path d="M14 13h3.5"/><path d="M14 16h3.5"/></svg><span>identity</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>folder</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/></svg><span>search</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>add</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>copy</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><span>show</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.5 5.6A9 9 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.7 3.5"/><path d="M6.7 7.2C4 9 2.5 12 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.6-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg><span>hide</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="M6 6l2.5 2.5"/><path d="M15.5 15.5L18 18"/><path d="M18 6l-2.5 2.5"/><path d="M8.5 15.5L6 18"/></svg><span>generate</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4"/><path d="M8.2 13.2l7.6 4.4"/></svg><span>share</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.5" r="2.2"/><path d="M3.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><path d="M15.5 14.2c2.4-.3 4.4 1.3 5 4.3"/></svg><span>family</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><circle cx="5" cy="10" r="2"/><circle cx="19" cy="10" r="2"/><path d="M7 19c.5-2.8 2.5-4.5 5-4.5s4.5 1.7 5 4.5"/><path d="M2.5 17.5c.3-1.8 1.4-3 3-3.2"/><path d="M21.5 17.5c-.3-1.8-1.4-3-3-3.2"/></svg><span>team</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>settings</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.3L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.3L20 15.5"/><path d="M20 20v-4.5h-4.5"/></svg><span>sync</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.4 12.8a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3z"/><path d="M12 9.5v4"/><path d="M12 17h.01"/></svg><span>warning</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></svg><span>done</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span>delete</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"/></svg><span>website</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/></svg><span>one-time-code</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5.6 5.6l3.9 3.9"/><path d="M14.5 14.5l3.9 3.9"/><path d="M18.4 5.6l-3.9 3.9"/><path d="M9.5 14.5l-3.9 3.9"/></svg><span>recovery-kit</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M4.6 4.6l4.8 4.8"/><path d="M19.4 4.6l-4.8 4.8"/><path d="M4.6 19.4l4.8-4.8"/><path d="M19.4 19.4l-4.8-4.8"/><circle cx="12" cy="12" r="2.6"/></svg><span>sealed</span></li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="M3.5 10.5h14"/><path d="M10.5 3.5c1.9 1.9 2.9 4.3 2.9 7"/><path d="M10.5 3.5c-1.9 1.9-2.9 4.3-2.9 7s1 5.1 2.9 7"/><path d="M18.5 15v3"/><path d="M18.5 21h.01"/></svg><span>lookalike</span></li></ul>
+<p class="note">Icons use the text colour by default and Oasis 800 when active. Arrows and directional icons mirror in right-to-left layouts; everything else, including the sync arrows and the clock, stays as drawn. Files: <code>icons/*.svg</code> and <code>icons/sprite.svg</code>.</p></div></section><section id="ui" class="sec"><header class="sec-h"><p class="num">08</p><h2>Interface basics</h2><p class="lede">Quiet surfaces, generous spacing and one clear action per view. Corners are soft but not round; spacing follows a 4 px grid.</p></header><div class="sec-b"><div class="ui-grid">
+  <div class="ui-card">
+    <h4>Buttons</h4>
+    <div class="btns"><button class="b primary" type="button">Save login</button><button class="b secondary" type="button">Cancel</button><button class="b quiet" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg> Copy</button></div>
+    <div class="btns"><button class="b seal" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M4.6 4.6l4.8 4.8"/><path d="M19.4 4.6l-4.8 4.8"/><path d="M4.6 19.4l4.8-4.8"/><path d="M19.4 19.4l-4.8-4.8"/><circle cx="12" cy="12" r="2.6"/></svg> Get Amanfold free</button><span class="cap">Saffron button: marketing pages only, once per page.</span></div>
+  </div>
+  <div class="ui-card">
+    <h4>Fields</h4>
+    <label class="fld" for="demoUser"><span>Username</span><input id="demoUser" value="eslam@example.com"></label>
+    <label class="fld" for="demoPw"><span>Password</span><span class="pwrow"><input id="demoPw" class="mono" value="k7Rv#q2Lm!W0o-fs9T" spellcheck="false"><button class="iconbtn" type="button" aria-label="Generate"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="M6 6l2.5 2.5"/><path d="M15.5 15.5L18 18"/><path d="M18 6l-2.5 2.5"/><path d="M8.5 15.5L6 18"/></svg></button></span></label>
+  </div>
+  <div class="ui-card">
+    <h4>Vault items</h4>
+    <ul class="items">
+      <li><span class="fav g">G</span><span class="it"><b>GitHub</b><small>eslam-dev</small></span><span class="chip"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/></svg> 2FA</span></li>
+      <li><span class="fav c"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h11l5 5v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 5v3a2 2 0 0 0 2 2h3"/><path d="M3 10h9"/><path d="M7 15h3"/></svg></span><span class="it"><b>Visa ending 4821</b><small>Expires 08/29</small></span></li>
+      <li><span class="fav n"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v3a2 2 0 0 0 2 2h3"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span><span class="it"><b>Wi-Fi at home</b><small>Secure note</small></span></li>
+    </ul>
+  </div>
+  <div class="ui-card">
+    <h4>Messages</h4>
+    <p class="msg ok"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></svg> Saved and sealed on this device.</p>
+    <p class="msg warn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.4 12.8a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3z"/><path d="M12 9.5v4"/><path d="M12 17h.01"/></svg> This password appeared in a public leak.</p>
+    <p class="msg bad"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="M3.5 10.5h14"/><path d="M10.5 3.5c1.9 1.9 2.9 4.3 2.9 7"/><path d="M10.5 3.5c-1.9 1.9-2.9 4.3-2.9 7s1 5.1 2.9 7"/><path d="M18.5 15v3"/><path d="M18.5 21h.01"/></svg> This site is paypa1.com, not paypal.com.</p>
+    <p><span class="beta">Public beta</span></p>
+  </div>
+</div>
+<table class="tok"><caption>Core tokens (full set in <code>tokens/tokens.css</code> and <code>tokens.json</code>)</caption>
+<tbody>
+<tr><th>Spacing</th><td>4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48 · 64 px</td></tr>
+<tr><th>Radius</th><td>6 px small controls · 10 px buttons and fields · 14 px cards · 20 px sheets</td></tr>
+<tr><th>Motion</th><td>220 ms with the "fold" curve <code>cubic-bezier(.2,.8,.2,1)</code>; 120 ms for hovers. Respect reduced motion.</td></tr>
+<tr><th>Elevation</th><td>Borders first, shadows only for things that float: menus, popovers, the extension popup.</td></tr>
+</tbody></table></div></section><section id="apps" class="sec"><header class="sec-h"><p class="num">09</p><h2>In use</h2><p class="lede">Three places people will meet Amanfold first: the browser extension, the mobile app (shown in Arabic) and the website.</p></header><div class="sec-b"><div class="mock-row">
+  <figure class="mock">
+    <div class="popup">
+      <div class="pp-h"><span class="pp-logo"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g22"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g22)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><b>amanfold</b></span><span class="beta sm">Beta</span><button class="iconbtn" type="button" aria-label="Settings"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button></div>
+      <label class="pp-search" for="ppS"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/></svg><input id="ppS" placeholder="Search your vault"></label>
+      <p class="pp-site"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"/></svg> Matches for <b>github.com</b></p>
+      <ul class="items pp">
+        <li><span class="fav g">G</span><span class="it"><b>GitHub</b><small>eslam-dev</small></span><button class="b primary sm" type="button">Fill</button></li>
+        <li><span class="fav g">G</span><span class="it"><b>GitHub (work)</b><small>eslam@company.com</small></span><button class="b secondary sm" type="button">Fill</button></li>
+      </ul>
+      <div class="pp-foot"><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M4.6 4.6l4.8 4.8"/><path d="M19.4 4.6l-4.8 4.8"/><path d="M4.6 19.4l4.8-4.8"/><path d="M19.4 19.4l-4.8-4.8"/><circle cx="12" cy="12" r="2.6"/></svg> Vault sealed · synced 2 min ago</span></div>
+    </div>
+    <figcaption>Browser extension popup, 360 px wide.</figcaption>
+  </figure>
+  <figure class="mock">
+    <div class="phone" dir="rtl" lang="ar">
+      <div class="ph-status"><span>٩:٤١</span><span>●●●</span></div>
+      <div class="ph-h"><h5>الخزنة</h5><span class="appicon s28"><svg class="mk rev" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g23"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g23)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></span></div>
+      <label class="pp-search" for="phS"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/></svg><input id="phS" placeholder="ابحث في خزنتك"></label>
+      <div class="cats"><span class="on">الكل</span><span>الحسابات</span><span>البطاقات</span><span>الملاحظات</span></div>
+      <div class="paycard"><span class="pc-fold"></span><span class="pc-brand">VISA</span><span class="pc-num" dir="ltr">•••• •••• •••• 4821</span><span class="pc-name">بطاقة الراتب</span><span class="pc-exp" dir="ltr">08/29</span></div>
+      <ul class="items">
+        <li><span class="fav g">G</span><span class="it"><b>Gmail</b><small><bdi>eslam@gmail.com</bdi></small></span></li>
+        <li><span class="fav b2">ب</span><span class="it"><b>البنك الأهلي</b><small>حساب شخصي</small></span></li>
+        <li><span class="fav n"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9.5" r="2.2"/><path d="M3.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><path d="M15.5 14.2c2.4-.3 4.4 1.3 5 4.3"/></svg></span><span class="it"><b>خزنة العائلة</b><small>٤ أعضاء</small></span></li>
+      </ul>
+      <nav class="ph-tabs"><span class="on"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>الخزنة</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="M6 6l2.5 2.5"/><path d="M15.5 15.5L18 18"/><path d="M18 6l-2.5 2.5"/><path d="M8.5 15.5L6 18"/></svg>المولّد</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.4 12.8a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3z"/><path d="M12 9.5v4"/><path d="M12 17h.01"/></svg>الأمان</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9"/><path d="M17 7h3"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>الإعدادات</span></nav>
+    </div>
+    <figcaption>Mobile app in Arabic, mirrored right to left. Card numbers stay left to right.</figcaption>
+  </figure>
+</div>
+<figure class="mock wide">
+  <div class="site">
+    <nav class="site-n"><div class="lockup sm" dir="ltr" role="img" aria-label="Amanfold"><svg class="mk " viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g24"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g24)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg><svg class="wm" viewBox="0 0 619.14 107.14" style="aspect-ratio:619.14/107.14" aria-hidden="true"><path transform="translate(-6.43 105.71) scale(1.4286)" d="M37.3 0V-33.7Q37.3 -38 34.45 -40.45Q31.6 -42.9 27.1 -42.9Q22.9 -42.9 19.5 -41.25Q16.1 -39.6 13.2 -36L5.6 -43.6Q10.3 -48.6 16 -51.2Q21.7 -53.8 28.3 -53.8Q34.6 -53.8 39.15 -51.8Q43.7 -49.8 46.2 -45.85Q48.7 -41.9 48.7 -36.2V0ZM22.3 1Q17.2 1 13.2 -1Q9.2 -3 6.85 -6.55Q4.5 -10.1 4.5 -14.9Q4.5 -19.1 6 -22.25Q7.5 -25.4 10.45 -27.5Q13.4 -29.6 17.85 -30.65Q22.3 -31.7 28.1 -31.7H43.2L42.3 -22.9H27.4Q24.7 -22.9 22.6 -22.4Q20.5 -21.9 19 -20.9Q17.5 -19.9 16.8 -18.55Q16.1 -17.2 16.1 -15.3Q16.1 -13.3 17.1 -11.85Q18.1 -10.4 19.8 -9.6Q21.5 -8.8 23.8 -8.8Q27.1 -8.8 30.05 -9.9Q33 -11 35.3 -13Q37.6 -15 38.9 -17.5L41.4 -10.7Q39.3 -7.2 36.25 -4.6Q33.2 -2 29.65 -0.5Q26.1 1 22.3 1ZM60.3 0V-52.7H72.3L72.5 -42L70.5 -41.2Q71.4 -43.8 73.2 -46.05Q75 -48.3 77.5 -50Q80 -51.7 82.8 -52.65Q85.6 -53.6 88.6 -53.6Q92.9 -53.6 96.2 -52.2Q99.5 -50.8 101.75 -47.9Q104 -45 105.2 -40.5L103.3 -40.9L104 -42.5Q105.2 -44.9 107.2 -46.9Q109.2 -48.9 111.7 -50.45Q114.2 -52 116.95 -52.8Q119.7 -53.6 122.3 -53.6Q128.3 -53.6 132.3 -51.2Q136.3 -48.8 138.3 -43.9Q140.3 -39 140.3 -31.8V0H128V-31Q128 -37 125.65 -39.9Q123.3 -42.8 118.4 -42.8Q115.8 -42.8 113.6 -41.95Q111.4 -41.1 109.75 -39.55Q108.1 -38 107.2 -35.95Q106.3 -33.9 106.3 -31.4V0H94V-31.1Q94 -36.8 91.55 -39.8Q89.1 -42.8 84.6 -42.8Q82 -42.8 79.85 -41.95Q77.7 -41.1 76.05 -39.55Q74.4 -38 73.5 -36Q72.6 -34 72.6 -31.6V0ZM182.9 0V-33.7Q182.9 -38 180.05 -40.45Q177.2 -42.9 172.7 -42.9Q168.5 -42.9 165.1 -41.25Q161.7 -39.6 158.8 -36L151.2 -43.6Q155.9 -48.6 161.6 -51.2Q167.3 -53.8 173.9 -53.8Q180.2 -53.8 184.75 -51.8Q189.3 -49.8 191.8 -45.85Q194.3 -41.9 194.3 -36.2V0ZM167.9 1Q162.8 1 158.8 -1Q154.8 -3 152.45 -6.55Q150.1 -10.1 150.1 -14.9Q150.1 -19.1 151.6 -22.25Q153.1 -25.4 156.05 -27.5Q159 -29.6 163.45 -30.65Q167.9 -31.7 173.7 -31.7H188.8L187.9 -22.9H173Q170.3 -22.9 168.2 -22.4Q166.1 -21.9 164.6 -20.9Q163.1 -19.9 162.4 -18.55Q161.7 -17.2 161.7 -15.3Q161.7 -13.3 162.7 -11.85Q163.7 -10.4 165.4 -9.6Q167.1 -8.8 169.4 -8.8Q172.7 -8.8 175.65 -9.9Q178.6 -11 180.9 -13Q183.2 -15 184.5 -17.5L187 -10.7Q184.9 -7.2 181.85 -4.6Q178.8 -2 175.25 -0.5Q171.7 1 167.9 1ZM206.1 0V-52.7H218L218.2 -41.9L215.9 -40.7Q217 -44.2 219.85 -47.15Q222.7 -50.1 226.7 -51.95Q230.7 -53.8 235 -53.8Q241 -53.8 245.05 -51.4Q249.1 -49 251.1 -44.2Q253.1 -39.4 253.1 -32.2V0H240.9V-31.3Q240.9 -35.4 239.8 -38.05Q238.7 -40.7 236.4 -41.95Q234.1 -43.2 230.8 -43Q228.1 -43 225.8 -42.15Q223.5 -41.3 221.85 -39.75Q220.2 -38.2 219.25 -36.15Q218.3 -34.1 218.3 -31.7V0H212.2Q210.5 0 208.95 0Q207.4 0 206.1 0ZM270.7 0V-57.5Q270.7 -62.2 272.8 -65.95Q274.9 -69.7 278.6 -71.85Q282.3 -74 287.1 -74Q290.5 -74 293.45 -72.8Q296.4 -71.6 298.3 -69.6L294.5 -60.5Q293.2 -61.5 291.75 -62.15Q290.3 -62.8 289 -62.8Q287 -62.8 285.65 -62.15Q284.3 -61.5 283.65 -60.2Q283 -58.9 283 -57V0H276.8Q275.1 0 273.55 0Q272 0 270.7 0ZM262.5 -40.8V-51.6H294.9V-40.8ZM326 1Q318.1 1 311.9 -2.55Q305.7 -6.1 302.15 -12.3Q298.6 -18.5 298.6 -26.4Q298.6 -34.3 302.15 -40.5Q305.7 -46.7 311.9 -50.25Q318.1 -53.8 326 -53.8Q333.8 -53.8 340 -50.25Q346.2 -46.7 349.75 -40.5Q353.3 -34.3 353.3 -26.4Q353.3 -18.5 349.75 -12.3Q346.2 -6.1 340 -2.55Q333.8 1 326 1ZM326 -9.9Q330.3 -9.9 333.7 -12.05Q337.1 -14.2 339.05 -17.95Q341 -21.7 340.9 -26.4Q341 -31.2 339.05 -34.95Q337.1 -38.7 333.7 -40.8Q330.3 -42.9 326 -42.9Q321.7 -42.9 318.25 -40.75Q314.8 -38.6 312.9 -34.85Q311 -31.1 311 -26.4Q311 -21.7 312.9 -17.95Q314.8 -14.2 318.25 -12.05Q321.7 -9.9 326 -9.9ZM363.2 0V-74H375.4V0ZM409.1 1Q402 1 396.45 -2.55Q390.9 -6.1 387.65 -12.25Q384.4 -18.4 384.4 -26.4Q384.4 -34.3 387.6 -40.5Q390.8 -46.7 396.35 -50.25Q401.9 -53.8 408.9 -53.8Q412.7 -53.8 416.25 -52.6Q419.8 -51.4 422.65 -49.35Q425.5 -47.3 427.15 -44.8Q428.8 -42.3 428.9 -39.6L425.6 -39.2V-74H437.9V0H426L425.7 -12.3L428.1 -12.1Q428 -9.7 426.4 -7.4Q424.8 -5.1 422.15 -3.2Q419.5 -1.3 416.1 -0.15Q412.7 1 409.1 1ZM411.4 -9.4Q415.7 -9.4 419 -11.55Q422.3 -13.7 424.15 -17.55Q426 -21.4 426 -26.4Q426 -31.4 424.15 -35.2Q422.3 -39 419 -41.2Q415.7 -43.4 411.4 -43.4Q407 -43.4 403.75 -41.2Q400.5 -39 398.6 -35.2Q396.7 -31.4 396.7 -26.4Q396.7 -21.4 398.6 -17.55Q400.5 -13.7 403.75 -11.55Q407 -9.4 411.4 -9.4Z"/></svg></div><span class="links"><a>Features</a><a>Pricing</a><a>Security</a><a>Open source</a></span><span class="lang">English · العربية</span></nav>
+    <div class="site-hero">
+      <div class="sh-copy">
+        <span class="beta">Public beta · open source</span>
+        <h3>Everything you keep, safely folded.</h3>
+        <p>Passwords, cards and notes, encrypted on your own devices before they go anywhere. Free on every device you own. Premium is $2.99 a month; Family is $4.99 for up to six people.</p>
+        <div class="btns"><button class="b seal" type="button">Get Amanfold free</button><button class="b secondary" type="button">Read how it works</button></div>
+      </div>
+      <div class="sh-art"><svg class="mk site-mk" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="g25"><path clip-rule="evenodd" d="M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"/></clipPath><g clip-path="url(#g25)"><path class="fl t" d="M12.54 9 51.46 9 32 28.46z"/><path class="fd r" d="M55 12.54 55 51.46 35.54 32z"/><path class="fl b" d="M51.46 55 12.54 55 32 35.54z"/><path class="fd l" d="M9 51.46 9 12.54 28.46 32z"/></g><circle class="seal" cx="32" cy="32" r="8.5"/></svg></div>
+    </div>
+  </div>
+  <figcaption>Website hero. The only saffron button on the page is the main call to action.</figcaption>
+</figure></div></section><section id="files" class="sec"><header class="sec-h"><p class="num">10</p><h2>Files</h2><p class="lede">Everything on this page is generated from code in the repository, so the logo, icons and colours can never drift apart.</p></header><div class="sec-b"><table class="tok files"><tbody>
+<tr><th><code>brand/logo/</code></th><td>Mark and lockups (Latin, Arabic, stacked) in colour, reversed, black and white, as SVG and PNG.</td></tr>
+<tr><th><code>brand/app-icon/</code></th><td>Store icon, rounded preview, Android adaptive and themed layers, favicon (SVG and ICO), PNG sizes 16 to 1024.</td></tr>
+<tr><th><code>brand/icons/</code></th><td>24 interface icons and a sprite sheet.</td></tr>
+<tr><th><code>brand/tokens/</code></th><td>Colours, type, spacing, radius and motion as CSS variables and JSON, for light and dark themes.</td></tr>
+<tr><th><code>brand/tools/</code></th><td>The scripts that build all of the above. Change <code>palette.py</code> and re-run to update every file.</td></tr>
+</tbody></table>
+<p class="note">Before launch: register the name and mark (trademark classes 9 and 42) and buy amanfold.com. Both are still open.</p></div></section>
+</main>
+<script>
+(function(){
+  var m=document.getElementById('heroMark'),b=document.getElementById('replay');
+  function run(){m.classList.remove('folding');void m.offsetWidth;m.classList.add('folding');}
+  run();
+  if(b)b.addEventListener('click',run);
+})();
+</script>
