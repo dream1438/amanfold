@@ -19,6 +19,7 @@ services:
       AMANFOLD_SMTP_URL: ${AMANFOLD_SMTP_URL:?set AMANFOLD_SMTP_URL in .env}
       AMANFOLD_MAIL_FROM: ${AMANFOLD_MAIL_FROM:?set AMANFOLD_MAIL_FROM in .env}
       AMANFOLD_ALLOWED_ORIGINS: ${AMANFOLD_ALLOWED_ORIGINS:-}
+      AMANFOLD_SITE_URL: ${AMANFOLD_SITE_URL:-https://amanfold.com}
       RUST_LOG: ${RUST_LOG:-info}
     secrets:
       - amanfold
