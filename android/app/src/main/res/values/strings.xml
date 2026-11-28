@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Interface text. Every string here has an Arabic version in
+     values-ar/strings.xml. Wording follows the browser extension. -->
+<resources>
+    <string name="app_name">Amanfold</string>
+    <string name="beta">Beta</string>
+    <string name="beta_note">Beta: not yet independently audited. Don\'t store real secrets in it yet.</string>
+    <string name="tagline">Everything you keep, safely folded.</string>
+
+    <string name="create_account">Create account</string>
+    <string name="sign_in">Sign in</string>
+    <string name="sign_out">Sign out</string>
+    <string name="sign_out_confirm">Sign out of this phone? Your vault stays on the server; you will need your Secret Key to sign in again.</string>
+    <string name="forgot_password">Forgot master password?</string>
+    <string name="server">Server</string>
+    <string name="email">Email</string>
+    <string name="email_code">Code from the email</string>
+    <string name="send_code">Send code</string>
+    <string name="code_sent">We sent an 8-digit code to %1$s.</string>
+    <string name="master_password">Master password</string>
+    <string name="new_master_password">New master password</string>
+    <string name="confirm_password">Repeat master password</string>
+    <string name="password_hint">At least 10 characters. A few random words work well.</string>
+    <string name="passwords_differ">The two passwords are different.</string>
+    <string name="password_short">Use at least 10 characters.</string>
+    <string name="no_reset">I understand that nobody, not even Amanfold, can reset my master password. My recovery kit is the only way back in.</string>
+    <string name="working">Working…</string>
+    <string name="creating_keys">Creating your keys. This takes a few seconds.</string>
+    <string name="secret_key_hint">Starts with A1-. It is in your recovery kit.</string>
+
+    <string name="kit_title">Save your recovery kit</string>
+    <string name="kit_intro">You need these to sign in on a new device or if you forget your master password. Store them offline, somewhere safe. They are shown only once.</string>
+    <string name="secret_key">Secret Key</string>
+    <string name="recovery_words">Recovery words</string>
+    <string name="print_kit">Print or save as PDF</string>
+    <string name="kit_saved_check">I saved my recovery kit</string>
+    <string name="kit_file_title">Amanfold recovery kit</string>
+    <string name="kit_file_warn">Keep this offline. Anyone with this kit and your email can reset your master password.</string>
+    <string name="continue_">Continue</string>
+
+    <string name="recover_title">Reset your master password</string>
+    <string name="recover_intro">You need the code we email you and your whole recovery kit: the 24 recovery words and the Secret Key. Every device will be signed out.</string>
+    <string name="recover_done">Your master password was changed.</string>
+
+    <string name="locked">Locked</string>
+    <string name="unlock">Unlock</string>
+    <string name="unlock_biometric">Unlock with fingerprint or face</string>
+    <string name="lock">Lock</string>
+    <string name="biometric_title">Unlock Amanfold</string>
+    <string name="biometric_enable_title">Turn on quick unlock</string>
+    <string name="biometric_offer">Unlock with your fingerprint or face next time?</string>
+    <string name="biometric_changed">Your fingerprints or face changed, so quick unlock was turned off. Unlock with your master password and turn it on again in Settings.</string>
+    <string name="use_password">Use master password</string>
+    <string name="turn_on">Turn on</string>
+    <string name="not_now">Not now</string>
+
+    <string name="search">Search</string>
+    <string name="all_items">All</string>
+    <string name="logins">Logins</string>
+    <string name="cards">Cards</string>
+    <string name="notes_filter">Notes</string>
+    <string name="trash">Trash</string>
+    <string name="empty">Your vault is empty. Add your first login or card.</string>
+    <string name="no_results">Nothing matches.</string>
+    <string name="trash_empty">The trash is empty.</string>
+    <string name="add">Add</string>
+    <string name="new_login">Login</string>
+    <string name="new_card">Card</string>
+    <string name="new_note">Note</string>
+    <string name="back">Back</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Move to trash</string>
+    <string name="delete_confirm">Move this item to the trash?</string>
+    <string name="restore">Restore</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied. Clears in 60 seconds.</string>
+    <string name="show">Show</string>
+    <string name="hide">Hide</string>
+    <string name="generate">Generate</string>
+    <string name="use">Use</string>
+    <string name="title">Title</string>
+    <string name="username">Username or email</string>
+    <string name="password">Password</string>
+    <string name="website">Website</string>
+    <string name="app">App</string>
+    <string name="totp">One-time code secret</string>
+    <string name="totp_hint">The setup key or otpauth:// link from the site\'s two-step verification.</string>
+    <string name="totp_invalid">This one-time code secret doesn\'t look right.</string>
+    <string name="one_time_code">One-time code</string>
+    <string name="seconds_left">%1$d s</string>
+    <string name="notes">Notes</string>
+    <string name="cardholder">Name on card</string>
+    <string name="card_number">Card number</string>
+    <string name="exp_month">Month (MM)</string>
+    <string name="exp_year">Year (YYYY)</string>
+    <string name="expires">Expires</string>
+    <string name="cvv">Security code</string>
+    <string name="pin">PIN</string>
+    <string name="card_invalid">This card number doesn\'t look right. Check the digits.</string>
+    <string name="untitled">Untitled</string>
+
+    <string name="generator">Password generator</string>
+    <string name="length">Length: %1$d</string>
+    <string name="lowercase">a–z</string>
+    <string name="uppercase">A–Z</string>
+    <string name="digits">0–9</string>
+    <string name="symbols">!@#</string>
+    <string name="passphrase">Use words</string>
+    <string name="words">Words: %1$d</string>
+
+    <string name="settings">Settings</string>
+    <string name="language">Language</string>
+    <string name="lang_system">Same as phone</string>
+    <string name="lang_en" translatable="false">English</string>
+    <string name="lang_ar" translatable="false">العربية</string>
+    <string name="auto_lock">Lock after</string>
+    <string name="immediately">Right away</string>
+    <string name="minutes">%1$d min</string>
+    <string name="hours">%1$d h</string>
+    <string name="quick_unlock">Unlock with fingerprint or face</string>
+    <string name="autofill">Autofill</string>
+    <string name="autofill_on">Amanfold fills logins and cards in apps and browsers.</string>
+    <string name="autofill_off">Turn on Amanfold as your autofill service to fill logins and cards in apps and browsers.</string>
+    <string name="autofill_turn_on">Turn on autofill</string>
+    <string name="account">Account</string>
+    <string name="sync_now">Sync now</string>
+    <string name="last_sync">Last synced %1$s</string>
+    <string name="never_synced">Not synced yet</string>
+    <string name="version">Version %1$s</string>
+    <string name="safety_number">Safety number</string>
+
+    <string name="fill_with">Fill with Amanfold</string>
+    <string name="fill_locked">Unlock Amanfold to fill</string>
+    <string name="for_this_site">Logins for %1$s</string>
+    <string name="for_this_app">Logins for this app</string>
+    <string name="none_for_site">No saved logins for this site.</string>
+    <string name="none_for_app">No saved logins for this app.</string>
+    <string name="search_all">Search all logins</string>
+    <string name="confirm_any_site">This login is saved for a different site. Fill it on %1$s anyway?</string>
+    <string name="confirm_any_app">This login is not linked to %1$s. Fill it anyway?</string>
+    <string name="remember_app">Also link this login to the app</string>
+    <string name="fill_anyway">Fill anyway</string>
+    <string name="confirm_frame">The card fields are in a frame from %1$s, not from this site. Fill them there?</string>
+    <string name="lookalike">Careful: this site is not %1$s, but looks like it. Amanfold won\'t fill your %1$s login here.</string>
+    <string name="punycode">Real address: %1$s</string>
+    <string name="insecure">This page is not encrypted (http).</string>
+    <string name="app_is">App: %1$s</string>
+    <string name="fill">Fill</string>
+    <string name="otp_for">Fill the one-time code</string>
+
+    <string name="save_prompt">Save the login for %1$s?</string>
+    <string name="update_prompt">Update the saved password for %1$s?</string>
+    <string name="save_card_prompt">Save this card?</string>
+    <string name="update">Update</string>
+    <string name="saved">Saved.</string>
+
+    <string name="err_wrong_password">Wrong password or Secret Key.</string>
+    <string name="err_secret_key">That Secret Key doesn\'t look right. Check it against your recovery kit.</string>
+    <string name="err_recovery_words">Those recovery words don\'t look right. Check them against your recovery kit.</string>
+    <string name="err_offline">Can\'t reach the server. Check your connection.</string>
+    <string name="err_server">The server refused: %1$s</string>
+    <string name="err_exists">An account with this email already exists. Sign in instead.</string>
+    <string name="err_bad_server">The server address must start with https://</string>
+    <string name="err_server_key">This server\'s identity is not the one Amanfold trusts. Nothing was sent.</string>
+    <string name="err_rollback">The server sent old or incomplete data. Amanfold didn\'t use it. If this keeps happening, contact support.</string>
+    <string name="err_signed_out">This phone was signed out. Sign in again.</string>
+    <string name="err_verification">Email, password or Secret Key is wrong.</string>
+    <string name="err_code">That code is wrong or expired.</string>
+    <string name="err_rate_limited">Too many tries. Wait a few minutes and try again.</string>
+    <string name="err_locked">The vault locked. Unlock it again.</string>
+    <string name="err_generic">Something went wrong: %1$s</string>
+    <string name="sync_offline">Offline. Changes are saved here and will sync later.</string>
+</resources>
