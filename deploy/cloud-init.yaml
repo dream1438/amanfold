@@ -1,6 +1,6 @@
 #cloud-config
 # Paste this into "Cloud config / User data" when creating the server
-# (Ubuntu 24.04). It hardens SSH, turns on the firewall and automatic
+# (Ubuntu 26.04 LTS or 24.04 LTS). It hardens SSH, turns on the firewall and automatic
 # security updates, installs Docker and fetches the deploy files to
 # /opt/amanfold. Log in afterwards with:  ssh root@<server IP>
 package_update: true
