@@ -76,7 +76,7 @@ website.
 "Amanfold" → Add server.
 
 * Location: Falkenstein or Nuremberg (Germany), or Helsinki.
-* Image: **Ubuntu 24.04**. Type: **Shared vCPU, x86, CX23**.
+* Image: **Ubuntu 26.04 LTS** (24.04 LTS also works). Type: **Shared vCPU, x86, CX23**.
 * Networking: public IPv4 and IPv6.
 * SSH keys: add the public key from step 1.
 * Backups: optional (+20%); our own off-site backups already cover the data.
@@ -86,7 +86,7 @@ website.
 Also add a Hetzner **Firewall** allowing inbound TCP 22, 80, 443 and UDP 443
 only, applied to the server.
 
-**DigitalOcean**: the same, with a Basic $6 Droplet, Ubuntu 24.04, your SSH
+**DigitalOcean**: the same, with a Basic $6 Droplet, Ubuntu 26.04 LTS, your SSH
 key, and `cloud-init.yaml` under *Advanced options → Add initialization scripts*.
 
 **Hostinger VPS** (same account as the domain):
@@ -100,7 +100,7 @@ key, and `cloud-init.yaml` under *Advanced options → Add initialization script
      Lithuania or the UK, whichever is offered). Europe is a good middle
      point for users in the Middle East, Africa and Europe, and EU privacy
      law suits a password manager.
-   * **Operating system**: *Plain OS* → **Ubuntu 24.04**. Not a control
+   * **Operating system**: *Plain OS* → **Ubuntu 26.04 LTS** (24.04 LTS also works). Not a control
      panel, not "Docker" or "Coolify" templates, and no "application".
    * **Root password**: let your password manager generate a long one and
      save it there. You will rarely need it.
