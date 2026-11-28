@@ -55,6 +55,9 @@ extension at all.
 * `chrome.storage.session` (memory, cleared when the browser quits, not
   readable by content scripts): the quick-unlock device key, so the vault
   survives the browser stopping the service worker. Locking deletes it.
+  Not used in Safari, which can't confirm content scripts are kept out: there
+  the vault stays in memory and asks for the master password again after
+  Safari unloads the background page.
 * Save prompts are kept in memory for 5 minutes, never on disk.
 
 ## Build

@@ -15,12 +15,6 @@ import type { ContentEvent, ItemView, PendingSave, Reply, Req, Status, TabInfo }
 
 const EXT = chrome.runtime.getURL("");
 
-try {
-  // Chrome: keep the device key away from content scripts (the default, made explicit).
-  void chrome.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
-} catch {
-  /* Firefox: session storage is never exposed to content scripts */
-}
 
 // ---------------------------------------------------------------------------
 // Save prompts: kept in memory only, per tab, for a few minutes.

@@ -8,7 +8,9 @@
 //
 // storage.session (memory only, cleared when the browser quits, not readable
 // by content scripts): the quick-unlock device key, so the vault survives the
-// service worker being stopped. Locking deletes it.
+// service worker being stopped. Locking deletes it. Only where the browser
+// confirms content scripts can't read it (see `sessionTrusted`); elsewhere,
+// Safari included, nothing is put there.
 
 import type { Role, Settings } from "../shared/types.ts";
 
@@ -71,6 +73,7 @@ export const DEFAULT_SERVER = __AMANFOLD_SERVER__;
 declare global {
   const __AMANFOLD_SERVER__: string;
   const __AMANFOLD_VERSION__: string;
+  const __AMANFOLD_TARGET__: "chrome" | "firefox" | "safari";
 }
 
 const defaults: Settings = { lang: null, autoLockMinutes: 15, server: DEFAULT_SERVER };
@@ -113,12 +116,33 @@ export async function clearAccount(): Promise<void> {
   await chrome.storage.session.clear();
 }
 
+/**
+ * Whether storage.session is out of reach of content scripts. Chrome: only
+ * once setAccessLevel(TRUSTED_CONTEXTS) has succeeded (the default, made
+ * explicit). Firefox never exposes it. Safari and anything else that can't
+ * confirm it: false, and quick unlock is off, so the keys stay in the
+ * background's memory only and the master password is asked again whenever
+ * the browser unloads the background.
+ */
+export const sessionTrusted: Promise<boolean> = (async () => {
+  if (__AMANFOLD_TARGET__ === "firefox") return true;
+  if (__AMANFOLD_TARGET__ !== "chrome" || typeof chrome.storage.session?.setAccessLevel !== "function") return false;
+  try {
+    await chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
 export async function getQuick(): Promise<QuickUnlockState | undefined> {
+  if (!(await sessionTrusted)) return undefined;
   const { quick } = await chrome.storage.session.get("quick");
   return quick as QuickUnlockState | undefined;
 }
 
 export async function putQuick(q: QuickUnlockState | undefined): Promise<void> {
+  if (q && !(await sessionTrusted)) return;
   if (q) await chrome.storage.session.set({ quick: q });
   else await chrome.storage.session.remove("quick");
 }

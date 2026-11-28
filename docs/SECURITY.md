@@ -187,7 +187,12 @@ Security-relevant design:
   extension enables quick unlock at unlock time and keeps the device key in
   `chrome.storage.session` (memory only, trusted contexts only), so the vault
   can reopen without the password; locking, auto-lock and quitting the
-  browser delete it. This is the same trust as keeping the vault open.
+  browser delete it. This is the same trust as keeping the vault open. It is
+  done only where the browser confirms content scripts can't read session
+  storage: Chrome-based browsers once `setAccessLevel(TRUSTED_CONTEXTS)`
+  succeeds, and Firefox, which never exposes it. Safari can't confirm it, so
+  there the keys stay in the background page's memory and the master password
+  is asked again whenever Safari unloads it.
 * **Server key pinning** is trust-on-first-use from `GET /v1/server` at
   sign-up or first sign-in, then enforced on every login. Production builds
   must ship the production key pinned (`PINNED` in `session.ts`); see E6.

@@ -107,12 +107,17 @@ const canManage = (r: Role) => r === "owner" || r === "manager";
 // Locking
 // ---------------------------------------------------------------------------
 
+// Last use, kept here too for browsers where quick unlock is off (Safari).
+let lastActiveMs = 0;
+
 async function touch() {
+  lastActiveMs = Date.now();
   const q = await getQuick();
   if (q) await putQuick({ ...q, lastActiveMs: Date.now() });
 }
 
 async function rememberUnlock(account: Account) {
+  lastActiveMs = Date.now();
   const q = account.enableQuickUnlock();
   await putQuick({ deviceKey: toB64(q.deviceKey), wrappedKeys: toB64(q.wrappedKeys), lastActiveMs: Date.now() });
   q.free();
@@ -121,6 +126,11 @@ async function rememberUnlock(account: Account) {
 /** The open vaults, reopening them after a service worker restart. */
 export async function unlocked(): Promise<Open | undefined> {
   if (open) {
+    const settings = await getSettings();
+    if (expired(lastActiveMs, settings.autoLockMinutes)) {
+      await lock();
+      return undefined;
+    }
     await touch();
     return open;
   }
@@ -148,7 +158,8 @@ function expired(lastActiveMs: number, minutes: number): boolean {
 
 export async function autoLockCheck() {
   const [quick, settings] = await Promise.all([getQuick(), getSettings()]);
-  if (quick && expired(quick.lastActiveMs, settings.autoLockMinutes)) await lock();
+  const last = quick?.lastActiveMs ?? (open ? lastActiveMs : undefined);
+  if (last !== undefined && expired(last, settings.autoLockMinutes)) await lock();
 }
 
 export async function lock() {

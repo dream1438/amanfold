@@ -102,6 +102,7 @@ for (const target of ["chrome", "firefox", "safari"]) {
     define: {
       __AMANFOLD_SERVER__: JSON.stringify(server),
       __AMANFOLD_VERSION__: JSON.stringify(pkg.version),
+      __AMANFOLD_TARGET__: JSON.stringify(target),
       "import.meta.url": '""',
     },
   });
