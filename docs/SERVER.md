@@ -185,6 +185,8 @@ endpoint is for checks and for self-hosted servers.
 
 ## Running it
 
+For production (TLS, backups, monitoring, DNS) see [DEPLOY.md](DEPLOY.md).
+
 ```sh
 cargo build -p amanfold-server --release
 target/release/amanfold-server keygen > /secure/amanfold-secrets.json
