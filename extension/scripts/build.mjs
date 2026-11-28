@@ -1,5 +1,7 @@
-// Bundle the extension for Chrome/Edge (dist/chrome) and Firefox
-// (dist/firefox), and zip each for the stores.
+// Bundle the extension for Chrome and every other Chromium-based browser
+// (Edge, Brave, Opera, Vivaldi, Arc: dist/chrome), Firefox (dist/firefox) and
+// Safari (dist/safari, turned into an Xcode project by scripts/safari.sh),
+// and zip each for the stores.
 //
 //   node scripts/build.mjs [--server https://api.example.com]
 //
@@ -61,6 +63,11 @@ const manifest = (target) => {
     m.background = { service_worker: "background.js" };
     m.minimum_chrome_version = "116";
     m.version_name = `${pkg.version} beta`;
+  } else if (target === "safari") {
+    // Safari (macOS and iOS): a non-persistent background page, wrapped in a
+    // native app by Xcode (see scripts/safari.sh).
+    m.background = { scripts: ["background.js"], persistent: false };
+    m.browser_specific_settings = { safari: { strict_min_version: "17.0" } };
   } else {
     m.background = { scripts: ["background.js"] };
     m.browser_specific_settings = {
@@ -74,7 +81,7 @@ const manifest = (target) => {
   return m;
 };
 
-for (const target of ["chrome", "firefox"]) {
+for (const target of ["chrome", "firefox", "safari"]) {
   const out = path.join(here, "dist", target);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
@@ -87,7 +94,7 @@ for (const target of ["chrome", "firefox"]) {
     outdir: out,
     bundle: true,
     format: "iife",
-    target: target === "chrome" ? "chrome116" : "firefox128",
+    target: { chrome: "chrome116", firefox: "firefox128", safari: "safari17" }[target],
     minify: false,
     sourcemap: false,
     legalComments: "none",

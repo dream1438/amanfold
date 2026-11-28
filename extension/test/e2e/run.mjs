@@ -9,84 +9,24 @@
 //   E2E_SKIP_BUILD=1 node test/e2e/run.mjs
 //
 // Needs: cargo, wasm-bindgen 0.2.130, Playwright's Chromium.
+//   E2E_BROWSER=/usr/bin/brave-browser node test/e2e/run.mjs   (another Chromium-based browser)
 
 import { chromium } from "playwright";
 import { build } from "esbuild";
-import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:http";
-import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
+import { currentStep, ext, log, start } from "./harness.mjs";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const ext = path.resolve(here, "../..");
-const repo = path.resolve(ext, "..");
-const SERVER_PORT = 18080 + Math.floor(Math.random() * 1000);
-const FIX_PORT = SERVER_PORT + 1000;
-const tmp = mkdtempSync(path.join(tmpdir(), "amanfold-e2e-"));
 const headless = process.env.HEADED !== "1";
-
-let step = 0;
-const log = (s) => console.log(`  ${++step}. ${s}`);
-
-function sh(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { cwd: repo, stdio: ["ignore", "pipe", "inherit"], ...opts });
-}
-
-// ---------------------------------------------------------------------------
-// Server, extension, fixture pages
-// ---------------------------------------------------------------------------
-
-if (!process.env.E2E_SKIP_BUILD) {
-  sh("cargo", ["build", "-q", "-p", "amanfold-server"], { stdio: "inherit" });
-  sh("node", ["scripts/wasm.mjs"], { cwd: ext, stdio: "inherit" });
-}
-sh("node", ["scripts/build.mjs", "--server", `http://127.0.0.1:${SERVER_PORT}`], { cwd: ext, stdio: "inherit" });
-
-const bin = path.join(repo, "target/debug/amanfold-server");
-writeFileSync(path.join(tmp, "secrets.json"), sh(bin, ["keygen"], { stdio: ["ignore", "pipe", "ignore"] }));
-const server = spawn(bin, ["serve"], {
-  env: {
-    ...process.env,
-    AMANFOLD_SECRETS_FILE: path.join(tmp, "secrets.json"),
-    AMANFOLD_DB: path.join(tmp, "amanfold.db"),
-    AMANFOLD_LISTEN: `127.0.0.1:${SERVER_PORT}`,
-    AMANFOLD_DEV: "1",
-    AMANFOLD_NO_EMAIL_VERIFICATION: "1",
-    RUST_LOG: "warn",
-  },
-  stdio: ["ignore", "inherit", "inherit"],
-});
-
-const fixtures = createServer((req, res) => {
-  const name = path.basename(new URL(req.url, "http://x").pathname) || "login.html";
-  try {
-    const body = readFileSync(path.join(here, "fixtures", name), "utf8").replaceAll("__PORT__", String(FIX_PORT));
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(body);
-  } catch {
-    res.writeHead(404);
-    res.end();
-  }
-});
-await new Promise((r) => fixtures.listen(FIX_PORT, "127.0.0.1", r));
-
-for (let i = 0; ; i++) {
-  try {
-    const r = await fetch(`http://127.0.0.1:${SERVER_PORT}/v1/server`);
-    if (r.ok) break;
-  } catch {}
-  if (i > 100) throw new Error("server did not start");
-  await new Promise((r) => setTimeout(r, 100));
-}
-
-const url = (host, page) => `http://${host}:${FIX_PORT}/${page}`;
+// E2E_BROWSER=/path/to/brave (or Edge, Opera, Vivaldi) runs the same test in
+// another Chromium-based browser instead of Playwright's Chromium.
+const browserPath = process.env.E2E_BROWSER;
+const env = await start();
+const { tmp, url } = env;
 
 async function launch(dir) {
   const ctx = await chromium.launchPersistentContext(dir, {
-    channel: "chromium",
+    ...(browserPath ? { executablePath: browserPath } : { channel: "chromium" }),
     headless,
     args: [
       `--disable-extensions-except=${path.join(ext, "dist/chrome")}`,
@@ -94,6 +34,8 @@ async function launch(dir) {
       // Every made-up domain goes to the fixture server.
       "--host-resolver-rules=MAP * 127.0.0.1, EXCLUDE 127.0.0.1",
       "--lang=en-US",
+      // Branded builds (Chrome 137+, and some others) ignore --load-extension without this.
+      "--disable-features=DisableLoadExtensionCommandLineSwitch",
     ],
     viewport: { width: 1000, height: 800 },
   });
@@ -138,7 +80,7 @@ const value = (page, sel, frame) => (frame ?? page).locator(sel).inputValue();
 let failed = false;
 const browsers = [];
 try {
-  console.log("e2e: extension in Chromium against a local amanfold-server");
+  console.log(`e2e: extension in ${browserPath ? path.basename(browserPath) : "Chromium"} against a local amanfold-server`);
   const a = await launch(path.join(tmp, "profile-a"));
   browsers.push(a);
 
@@ -190,7 +132,7 @@ try {
   p = await popup(a, site);
   await click(p, "+ Add");
   await p.getByRole("menuitem", { name: "Login" }).click();
-  assert.equal(await p.inputValue("#f-url"), `http://bank.com:${FIX_PORT}`);
+  assert.equal(await p.inputValue("#f-url"), new URL(url("bank.com", "")).origin);
   await p.fill("#f-title", "Bank");
   await p.fill("#f-username", "eslam@example.com");
   await p.fill("#f-password", "s3cret-Pass!");
@@ -368,7 +310,7 @@ try {
   console.log("e2e: all passed");
 } catch (e) {
   failed = true;
-  console.error("e2e FAILED at step", step + 1, e);
+  console.error("e2e FAILED at step", currentStep(), e);
   for (const b of browsers) {
     for (const [i, pg] of b.ctx.pages().entries()) {
       await pg.screenshot({ path: path.join(ext, `test-results/fail-${browsers.indexOf(b)}-${i}.png`) }).catch(() => {});
@@ -376,8 +318,6 @@ try {
   }
 } finally {
   for (const b of browsers) await b.ctx.close().catch(() => {});
-  server.kill();
-  fixtures.close();
-  rmSync(tmp, { recursive: true, force: true });
+  env.stop();
 }
 process.exit(failed ? 1 : 0);
