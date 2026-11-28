@@ -75,6 +75,9 @@ export class Api {
   post<T = any>(path: string, body: unknown = {}) {
     return this.call<T>("POST", path, body);
   }
+  put<T = any>(path: string, body: unknown = {}) {
+    return this.call<T>("PUT", path, body);
+  }
   del<T = any>(path: string) {
     return this.call<T>("DELETE", path);
   }

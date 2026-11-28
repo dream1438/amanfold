@@ -143,6 +143,126 @@ jobs:
           name: e2e-screenshots
           path: extension/test-results/
 
+  # The end-to-end test in a real Firefox (preinstalled on the runner, with
+  # geckodriver), driven by selenium-webdriver.
+  extension-firefox:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install wasm-bindgen (same version as the crate pins)
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - run: npm ci
+      - run: npm run wasm
+      - run: firefox --version && geckodriver --version
+      - run: FIREFOX="$(command -v firefox)" npm run e2e:firefox
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots-firefox
+          path: extension/test-results/
+
+  # The Chrome build in other Chromium-based browsers. Edge is preinstalled on
+  # the runner; the others come from their makers' package repositories.
+  extension-browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [edge, brave, vivaldi, opera]
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install wasm-bindgen (same version as the crate pins)
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Install ${{ matrix.browser }}
+        run: |
+          set -eu
+          key() { curl -fsSL "$1" | gpg --dearmor | sudo tee "/usr/share/keyrings/$2.gpg" >/dev/null; }
+          case "${{ matrix.browser }}" in
+            edge)
+              bin="$(command -v microsoft-edge || command -v microsoft-edge-stable)" ;;
+            brave)
+              sudo curl -fsSLo /usr/share/keyrings/brave.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+              echo "deb [signed-by=/usr/share/keyrings/brave.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave.list
+              sudo apt-get update -q && sudo apt-get install -yq brave-browser
+              bin=/usr/bin/brave-browser ;;
+            vivaldi)
+              key https://repo.vivaldi.com/archive/linux_signing_key.pub vivaldi
+              echo "deb [signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main" | sudo tee /etc/apt/sources.list.d/vivaldi.list
+              sudo apt-get update -q && sudo apt-get install -yq vivaldi-stable
+              bin=/usr/bin/vivaldi-stable
+              # Vivaldi's own interface is extension pages, which Playwright
+              # can't attach to: the shorter raw-DevTools test, with a window
+              # on a virtual display.
+              echo "E2E_SCRIPT=e2e:smoke" >> "$GITHUB_ENV"
+              echo "HEADED=1" >> "$GITHUB_ENV" ;;
+            opera)
+              key https://deb.opera.com/archive.key opera
+              echo "deb [signed-by=/usr/share/keyrings/opera.gpg] https://deb.opera.com/opera-stable/ stable non-free" | sudo tee /etc/apt/sources.list.d/opera.list
+              sudo apt-get update -q && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq opera-stable
+              bin=/usr/bin/opera
+              echo "E2E_CDP=1" >> "$GITHUB_ENV"
+              echo "HEADED=1" >> "$GITHUB_ENV" ;;
+          esac
+          "$bin" --version || true
+          echo "E2E_BROWSER=$bin" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run wasm
+      # Opera aborts without the GNOME settings schemas; both want a D-Bus session.
+      - run: sudo apt-get install -yq gsettings-desktop-schemas dbus-x11
+      - run: xvfb-run -a dbus-run-session -- npm run "${E2E_SCRIPT:-e2e}"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots-${{ matrix.browser }}
+          path: extension/test-results/
+
+  # Safari on macOS and iOS: wrap the Safari build in its native app and
+  # compile it (unsigned; the App Store needs an Apple Developer account).
+  extension-safari:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install wasm-bindgen (same version as the crate pins)
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - run: npm ci
+      - run: npm run wasm
+      - run: node scripts/build.mjs
+      - run: sh scripts/safari.sh
+
   audit:
     runs-on: ubuntu-latest
     steps:

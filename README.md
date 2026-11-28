@@ -34,7 +34,7 @@ browser extension, desktop and web).
 | `crates/uniffi-bindgen` | Generates the Swift, Kotlin and Python bindings |
 | `crates/amanfold-server` | The sync server: accounts, OPAQUE login, encrypted vault sync, family and team sharing. Stores ciphertext only. |
 
-The browser extension (Chrome, Edge, Firefox) is in [`extension/`](extension/README.md).
+The browser extension (Chrome, Edge, Brave, Opera, Vivaldi, Arc, Firefox and Safari) is in [`extension/`](extension/README.md).
 
 How the apps use it: [docs/BINDINGS.md](docs/BINDINGS.md). The server and
 its API: [docs/SERVER.md](docs/SERVER.md). To put it live, see [docs/DEPLOY.md](docs/DEPLOY.md).
@@ -74,7 +74,7 @@ let rec = personal.save(Item::login("Email", "me@example.com", "pw", "https://ma
 2. ✅ Server authentication with OPAQUE; signed vault manifests (rollback protection)
 3. ✅ App bindings: Swift/Kotlin (UniFFI), WebAssembly for the browser; quick unlock, encrypted local cache
 4. ✅ Sync server: sign-up with email codes, OPAQUE login, sessions, recovery, verified sync, sharing with roles, key rotation
-5. ✅ Browser extension (beta): safe autofill, cards, one-time codes, English and Arabic
+5. ✅ Browser extension (beta): safe autofill, cards, one-time codes, shared family and team vaults, every major browser, English and Arabic
 6. Import/export (CSV, Bitwarden, 1Password, FIDO CXF), fuzzing harness
 7. Trusted-contact recovery (Shamir), attachments
 
