@@ -33,8 +33,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 website/build.py
-      - run: git diff --exit-code -- site || (echo "site/ is out of date: run python3 website/build.py and commit" && exit 1)
-      - run: test -z "$(git status --porcelain -- site)"
+      - name: Check site/ is up to date
+        run: |
+          if [ -n "$(git status --porcelain -- site)" ]; then
+            git status --short -- site
+            echo "site/ is out of date. Run python3 website/build.py and commit the result."
+            exit 1
+          fi
 
   # Generated Python and Kotlin bindings, driven end to end against the
   # test server (the Android app uses the Kotlin bindings).
