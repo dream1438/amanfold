@@ -269,6 +269,63 @@ pub fn is_lookalike(saved: &SiteInfo, page: &SiteInfo) -> bool {
         && pb.contains('-')
 }
 
+// ---------------------------------------------------------------------------
+// Android apps
+// ---------------------------------------------------------------------------
+
+/// Scheme of logins saved for an Android app instead of a website.
+pub const ANDROID_APP_SCHEME: &str = "androidapp://";
+
+fn valid_package(p: &str) -> bool {
+    // Java package rules as Android enforces them: two or more segments,
+    // each starting with a letter, then letters, digits or `_`.
+    let segs: Vec<&str> = p.split('.').collect();
+    p.len() <= 255
+        && segs.len() >= 2
+        && segs.iter().all(|s| {
+            let mut c = s.chars();
+            c.next().is_some_and(|f| f.is_ascii_alphabetic())
+                && c.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+}
+
+/// Address of an Android app as a login stores it:
+/// `androidapp://<package>?cert=<base64url SHA-256 of the signing certificate>`.
+///
+/// An app is its package name **and** its signing certificate. A package
+/// name alone can be reused by any sideloaded app, so a login saved for an
+/// app matches only the same package signed with the same key. `None` for
+/// an invalid package name or a digest that is not 32 bytes.
+pub fn android_app_url(package: &str, signing_cert_sha256: &[u8]) -> Option<String> {
+    if !valid_package(package) || signing_cert_sha256.len() != 32 {
+        return None;
+    }
+    Some(format!(
+        "{ANDROID_APP_SCHEME}{package}?cert={}",
+        data_encoding::BASE64URL_NOPAD.encode(signing_cert_sha256)
+    ))
+}
+
+/// The package name of a saved app address, for display. `None` when the
+/// address is not a valid [`android_app_url`].
+pub fn android_app_package(saved: &str) -> Option<&str> {
+    let rest = saved.trim().strip_prefix(ANDROID_APP_SCHEME)?;
+    let (pkg, cert) = rest.split_once("?cert=")?;
+    let digest = data_encoding::BASE64URL_NOPAD
+        .decode(cert.as_bytes())
+        .ok()?;
+    (valid_package(pkg) && digest.len() == 32).then_some(pkg)
+}
+
+/// `true` when a login saved for `saved` belongs to the app `app_url` (from
+/// [`android_app_url`]): same package and same signing certificate. Never
+/// matches a website, and a website login never matches an app.
+pub fn app_matches(saved: &str, app_url: &str) -> bool {
+    android_app_package(saved).is_some()
+        && android_app_package(app_url).is_some()
+        && saved.trim() == app_url.trim()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -476,5 +533,44 @@ mod tests {
         assert!(!edit_distance_at_most_one("paypal", "pypla"));
         assert!(!edit_distance_at_most_one("paypal", "google"));
         assert!(edit_distance_at_most_one("", "a"));
+    }
+
+    #[test]
+    fn android_apps_need_package_and_certificate() {
+        let cert = [7u8; 32];
+        let url = android_app_url("com.bank.app", &cert).unwrap();
+        assert!(url.starts_with("androidapp://com.bank.app?cert="));
+        assert_eq!(android_app_package(&url), Some("com.bank.app"));
+        assert!(app_matches(&url, &url));
+        // Same package, other signing key: a sideloaded impostor.
+        let other = android_app_url("com.bank.app", &[8u8; 32]).unwrap();
+        assert!(!app_matches(&url, &other));
+        // Other package, same key.
+        let pkg = android_app_url("com.bank.app2", &cert).unwrap();
+        assert!(!app_matches(&url, &pkg));
+        // A saved address without a certificate never matches.
+        assert!(!app_matches("androidapp://com.bank.app", &url));
+        // Websites and apps never match each other.
+        assert!(!app_matches("https://bank.com", &url));
+        assert_eq!(match_url(&url, "https://com.bank.app"), SiteMatch::None);
+        assert!(saved_site(&url).is_none());
+    }
+
+    #[test]
+    fn android_app_urls_reject_bad_input() {
+        let cert = [1u8; 32];
+        for bad in [
+            "",
+            "bank",
+            ".bank.app",
+            "com..app",
+            "com.1bank",
+            "com.bank/evil",
+            "com.bank?cert=x",
+        ] {
+            assert!(android_app_url(bad, &cert).is_none(), "{bad}");
+        }
+        assert!(android_app_url("com.bank.app", &[1u8; 31]).is_none());
+        assert!(android_app_package("androidapp://com.bank.app?cert=short").is_none());
     }
 }

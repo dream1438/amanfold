@@ -1,0 +1,7 @@
+AmanfoldKit/Frameworks/
+AmanfoldKit/Sources/Amanfold/
+AmanfoldKit/.build/
+AmanfoldKit/.swiftpm/
+Amanfold.xcodeproj/
+build/
+DerivedData/

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brand colours (brand/tokens/tokens.json). -->
+<resources>
+    <color name="aman_green">#0B6E4F</color>
+    <color name="mint">#9BE4C4</color>
+    <color name="ink">#0C1F1A</color>
+    <color name="paper">#F4F6F3</color>
+    <color name="icon_top">#128760</color>
+    <color name="icon_bottom">#085A40</color>
+    <color name="window_bg">#F4F6F3</color>
+</resources>
