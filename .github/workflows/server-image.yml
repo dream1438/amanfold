@@ -31,7 +31,8 @@ jobs:
           ACME_EMAIL=ci@example.org
           AMANFOLD_SMTP_URL=smtps://user:pass@smtp.invalid:465
           AMANFOLD_MAIL_FROM=Amanfold <no-reply@amanfold.com>
-          RESTIC_REPOSITORY=/tmp/restic-repo
+          # Inside the data volume so one-off restore containers see it too.
+          RESTIC_REPOSITORY=/data/ci-restic-repo
           AMANFOLD_IMAGE=amanfold-server:ci
           ENV
           mkdir -p ../site && echo '<h1>ok</h1>' > ../site/index.html
