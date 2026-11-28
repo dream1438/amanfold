@@ -26,7 +26,7 @@ FONT_URLS = {
 }
 
 WORD_LATIN = "amanfold"
-WORD_ARABIC = "أمانفولد"
+WORD_ARABIC = "أمان فولد"
 LATIN = dict(wght=600, tracking=-12, single_storey_a=True, kern={"nf": -6, "fo": -10, "ld": 4})
 ARABIC = dict(wght=540)           # a little lighter, so it matches the Latin optically
 ARABIC_SCALE = 0.9
@@ -253,13 +253,13 @@ def main():
     for suffix, colors in variants.items():
         write(f"brand/logo/amanfold-mark{suffix}.svg", svg(*mark(colors), "Amanfold"))
         write(f"brand/logo/amanfold-logo{suffix}.svg", svg(*lockup(colors), "Amanfold"))
-        write(f"brand/logo/amanfold-logo-arabic{suffix}.svg", svg(*lockup(colors, arabic=True), "أمانفولد"))
-        write(f"brand/logo/amanfold-logo-stacked{suffix}.svg", svg(*stacked(colors), "Amanfold أمانفولد"))
+        write(f"brand/logo/amanfold-logo-arabic{suffix}.svg", svg(*lockup(colors, arabic=True), "أمان فولد"))
+        write(f"brand/logo/amanfold-logo-stacked{suffix}.svg", svg(*stacked(colors), "Amanfold أمان فولد"))
     # small drawing, for 24 px and below
     write("brand/logo/amanfold-mark-small.svg", svg(*mark(dict(body=AMAN_GREEN, flap=None), "small"), "Amanfold"))
     write("brand/logo/amanfold-mark-small-white.svg", svg(*mark(dict(body="#FFFFFF", flap=None), "small"), "Amanfold"))
     write("brand/logo/amanfold-wordmark-latin.svg", svg(*wordmark_only(False, INK), "Amanfold"))
-    write("brand/logo/amanfold-wordmark-arabic.svg", svg(*wordmark_only(True, INK), "أمانفولد"))
+    write("brand/logo/amanfold-wordmark-arabic.svg", svg(*wordmark_only(True, INK), "أمان فولد"))
 
     write("brand/app-icon/app-icon-1024.svg", app_icon(1024))
     write("brand/app-icon/app-icon-rounded.svg", app_icon(512, rounded=True))

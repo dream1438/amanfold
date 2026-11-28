@@ -29,7 +29,7 @@ def icon(name, cls="ic"):
 
 def lockup(rtl=False, cls="", one=False):
     colors = dict(X, flap=None) if one else X
-    return inline(build.lockup(colors, arabic=rtl, classes=True), f'lockup {"ar " if rtl else ""}{cls}', "أمانفولد" if rtl else "Amanfold")
+    return inline(build.lockup(colors, arabic=rtl, classes=True), f'lockup {"ar " if rtl else ""}{cls}', "أمان فولد" if rtl else "Amanfold")
 
 
 def wordmark(cls="wm"):
@@ -234,7 +234,7 @@ def page():
   <div class="line"><p class="ctx">Empty vault</p><p>Nothing here yet. Add your first login, or bring everything over from another password manager.</p><p lang="ar" dir="rtl">لا شيء هنا بعد. أضف أول حساب، أو انقل كل بياناتك من مدير كلمات مرور آخر.</p></div>
   <div class="line"><p class="ctx">Lookalike site</p><p>This site is paypa1.com, not paypal.com. We did not fill your password.</p><p lang="ar" dir="rtl">هذا الموقع هو paypa1.com وليس paypal.com، لذلك لم نُدخل كلمة مرورك.</p></div>
   <div class="line"><p class="ctx">Recovery kit</p><p>Print your recovery kit and keep it somewhere safe. It is the only way back in if you forget your master password, because we cannot reset it for you.</p><p lang="ar" dir="rtl">اطبع مجموعة الاسترداد واحفظها في مكان آمن. إنها طريقك الوحيد للعودة إذا نسيت كلمة المرور الرئيسية، لأننا لا نستطيع إعادة تعيينها نيابةً عنك.</p></div>
-  <div class="line"><p class="ctx">Beta label</p><p>Amanfold is in public beta. Our code is open and reviewed; an independent audit comes next.</p><p lang="ar" dir="rtl">أمانفولد في مرحلة تجريبية عامة. شيفرتنا مفتوحة وخضعت للمراجعة، والتدقيق المستقل هو الخطوة التالية.</p></div>
+  <div class="line"><p class="ctx">Beta label</p><p>Amanfold is in public beta. Our code is open and reviewed; an independent audit comes next.</p><p lang="ar" dir="rtl">أمان فولد في مرحلة تجريبية عامة. شيفرتنا مفتوحة وخضعت للمراجعة، والتدقيق المستقل هو الخطوة التالية.</p></div>
 </div>
 <div class="taglines">
   <h4>Tagline</h4>
