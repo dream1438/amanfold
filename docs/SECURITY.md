@@ -209,7 +209,7 @@ Open (extension):
 | --- | --- | --- | --- |
 | E1 | **Firefox not yet run.** Built from the same code with a Firefox manifest; Firefox has no IntersectionObserver v2, so frame visibility is not checked there beyond the in-frame checks. | Medium | Test in Firefox; Playwright-driven Firefox run in CI. |
 | E2 | **Clipboard** is cleared after 30 s only while the popup stays open. | Low | Offscreen document (Chrome) to clear it later. |
-| E3 | **Secret Key and session token on disk** in `storage.local`, like other managers keep their device secrets. Malware with access to the browser profile can copy them, but still needs the master password. | Low | OS keychain via native messaging (desktop app). |
+| E3 | **Secret Key and session token on disk** in the extension's IndexedDB (was `storage.local` until R2), like other managers keep their device secrets. Malware with access to the browser profile can copy them, but still needs the master password. | Low | OS keychain via native messaging (desktop app). |
 | E4 | **Only the personal vault** is opened; shared vaults wait for the sharing UI with safety-number checks. | — | Next milestone. |
 | E5 | **Field detection is heuristic** beyond `autocomplete` attributes; a miss means no fill, never a fill elsewhere. | Low | Grow the detection test page from real sites. |
 | E6 | **Server key pinned on first use** until a production server exists. | Medium | Pin the production key in release builds. |
@@ -294,6 +294,44 @@ checks are a second line of defence; clients never rely on them.
 | Member drops items, uploads records that do not match, or writes as a reader | Server checks against the signed manifest and roles; clients check again | server `server_rejects_inconsistent_or_unauthorised_uploads`, `family_sharing_roles_removal_and_rotation` |
 | Removed member keeps access | Access ends at the server at once; rotation must re-grant only remaining members | server `family_sharing_roles_removal_and_rotation` |
 | Accidental change to derivation | Known-answer test, cross-checked against an independent Python implementation (argon2-cffi + cryptography) | `kdf::derivation_known_answer` |
+
+## Whole-codebase security review (2026-11-28)
+
+An internal review of the whole codebase (core, bindings, server, extension,
+and the open deployment and website pull requests), done independently of the
+milestone reviews below, with a threat model of a malicious server, a
+malicious or removed vault member, a hostile web page or compromised page
+renderer, and a stolen database. Tools: `cargo audit`, `cargo deny`,
+`npm audit`, semgrep, clippy, property-based fuzzing of decoders, and a
+proof-of-concept test for every confirmed issue.
+
+Fixed in this change:
+
+| # | Issue | Severity | Fix |
+| --- | --- | --- | --- |
+| R1 | **Extension auto-lock never fired** for 5 minutes or more: the 5-minute sync alarm, toolbar badge refreshes, tab events and page submit events all counted as activity. | High | Only requests the person makes (popup, shortcut) count. Regression test `test/unit/autolock.test.ts`. |
+| R2 | **Extension secrets in `storage.local`**, which content scripts (so a compromised page renderer) can read and write: Secret Key, bundle, API token, cache, server URL, auto-lock setting. | Medium | Moved to the extension origin's IndexedDB; existing data migrates once. |
+| R3 | **Forged save and update prompts**: page scripts could fire synthetic submits, swap the capture while the popup was open, and a same-site subdomain could offer to overwrite the parent site's password. | Low-Medium | Only trusted (person-made) events are captured; the popup's save names the capture it showed; updates only for an exact host match. |
+| R4 | **Recovery kit shown after lock.** | Low | Cleared on lock; returned only while unlocked. |
+| R5 | **Sign-up code guesses were never counted** on `/v1/signup/finish` (the counter ran inside a transaction that rolled back). | Medium | Checked and counted before the transaction. |
+| R6 | **Rate-limiter lock-out**: 200k distinct addresses (one IPv6 /64) filled the map and every new client got 429 for up to a day. | Medium | IPv6 counted per /64; windows expire by their own rule; a full map forgets unblocked keys instead of refusing everyone. |
+| R7 | **Challenge map exhaustion**: one account could fill the shared challenge map and block password change, recovery and deletion for everyone. | Medium-Low | At most 5 outstanding challenges per account. |
+| R8 | **A manager could overwrite the owner's grant** for the current epoch. | Low | Existing grants are never replaced (an identical resend is accepted). |
+| R9 | **Email display-name smuggling**: `"victim@corp.com"<me@evil.com>` was stored as one address and delivered to another. | Low-Medium | Plain addr-spec only. |
+| R10 | **Manifest sequence and epoch overflow** from a hostile server plus member: panic in debug, permanently stuck in release. | Low | Last values refused. |
+
+Open, need design work (tracked with O2/O11/O17):
+
+| # | Issue | Severity | Plan |
+| --- | --- | --- | --- |
+| R11 | **Rotation trust.** `rekey`/`accept_rotation` accept any higher epoch from any member's signature, so a member, with a misbehaving server, can pre-plant a far-future key and keep reading after removal. | Medium (shared vaults) | Accept rotations only from the owner or verified managers (signed membership log, O11/O17); bound epoch jumps by the signed manifest. |
+| R12 | **Future timestamps pin fields**: merge trusts remote HLC timestamps, so a member (or a badly wrong clock) can make a field or the trash flag win forever, even after removal. | Medium (shared vaults) | Reject or clamp remote timestamps beyond the drift limit when merging; local edits always order after the stored version. |
+| R13 | **One bad record blocks sync** for every member (for example an item id reused with another kind). | Medium (availability) | Validate all records before applying; quarantine unmergeable records instead of failing the sync. |
+| R14 | **Manifests do not prove the signer holds the current vault key.** | Low | MAC the manifest body with a key derived from the vault key. |
+| R15 | **KDF ceiling (1 GiB, 32 passes) is too high for phones and the browser**; an unauthenticated pre-login answer can force it. | Low | Per-platform ceilings. |
+| R16 | **Phishing check misses brand-in-subdomain** (`paypal.com.evil.io`) before "fill anyway". | Low | Check every label and full-host skeletons; stronger confirmation. |
+| R17 | **Server load**: one database lock held while parsing large commits; `sync` from zero builds the whole vault in memory; no per-account storage quota. Targeted login lock-out through the per-email limit at login start. | Low | Parse before locking, page `sync`, quotas; count only failed logins per email. |
+| R18 | **Copied secrets are rarely cleared** (only if the popup stays open 30 s). Card frame confirmation is bound only to the frame id. | Low | Clear from the background (offscreen document); bind confirmation to the document. |
 
 ## Internal review findings (milestone 4, sync server, 2026-11-27)
 

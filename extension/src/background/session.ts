@@ -77,10 +77,19 @@ async function rememberUnlock(account: Account) {
   q.free();
 }
 
-/** The open vault, reopening it after a service worker restart. */
+/**
+ * The open vault, reopening it after a service worker restart. Reading the
+ * vault is not activity: only `active()` and `need()`, which serve requests
+ * the person made, push the auto-lock deadline back. Alarms, badges, tab
+ * events and pages must never keep the vault open.
+ */
 export async function unlocked(): Promise<Open | undefined> {
   if (open) {
-    await touch();
+    const [quick, settings] = await Promise.all([getQuick(), getSettings()]);
+    if (!quick || expired(quick.lastActiveMs, settings.autoLockMinutes)) {
+      await lock();
+      return undefined;
+    }
     return open;
   }
   const [stored, quick, settings] = await Promise.all([getAccount(), getQuick(), getSettings()]);
@@ -97,8 +106,14 @@ export async function unlocked(): Promise<Open | undefined> {
     await lock();
     return undefined;
   }
-  await touch();
   return open;
+}
+
+/** The open vault for a request the person made (popup, shortcut). */
+export async function active(): Promise<Open | undefined> {
+  const o = await unlocked();
+  if (o) await touch();
+  return o;
 }
 
 function expired(lastActiveMs: number, minutes: number): boolean {
@@ -116,11 +131,13 @@ export async function lock() {
     open.account.free();
   }
   open = undefined;
+  // The recovery kit opens the account: never show it once locked.
+  kit = undefined;
   await putQuick(undefined);
 }
 
 export async function need(): Promise<Open> {
-  return (await unlocked()) ?? fail("Locked", "the vault is locked");
+  return (await active()) ?? fail("Locked", "the vault is locked");
 }
 
 function openVault(account: Account, s: StoredAccount): Open {
@@ -201,10 +218,11 @@ export async function signup(server: string, email: string, password: string, co
     seq: 0,
     pending: {},
   };
-  kit = { secretKey: created.secretKey, recoveryWords: created.recoveryWords, email };
+  const newKit = { secretKey: created.secretKey, recoveryWords: created.recoveryWords, email };
   created.free();
   await putAccount(stored);
   await lock();
+  kit = newKit;
   open = { account, vault, me: account.publicKeys() };
   await rememberUnlock(account);
 }

@@ -41,7 +41,7 @@ extension at all.
 
 ## What is stored where
 
-* `chrome.storage.local` (disk): account bundle (private keys wrapped under
+* IndexedDB of the extension origin (disk, not readable by content scripts): account bundle (private keys wrapped under
   your master password and Secret Key), the Secret Key, the vault grant, the
   encrypted vault cache, and encrypted records waiting to upload. Nothing in
   it opens without the master password. The session token lets someone with

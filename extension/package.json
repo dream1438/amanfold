@@ -9,7 +9,7 @@
     "wasm": "node scripts/wasm.mjs",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"test/unit/*.test.ts\"",
+    "test": "node --experimental-transform-types --no-warnings --test \"test/unit/*.test.ts\"",
     "e2e": "node test/e2e/run.mjs"
   },
   "devDependencies": {
