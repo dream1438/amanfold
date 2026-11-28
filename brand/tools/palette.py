@@ -1,16 +1,35 @@
 """Amanfold colour palette. Single source of truth for tokens, logos and icons."""
-OASIS = {50: "#EEF6F4", 100: "#D5E9E4", 200: "#B0D3CA", 300: "#8DBAB0", 400: "#5E9A8E",
-         500: "#3B7D71", 600: "#26665B", 700: "#18514A", 800: "#0F3B3A", 900: "#0A2B2A", 950: "#061B1A"}
-SAFFRON = {50: "#FDF6E9", 100: "#FBEACB", 200: "#F6D395", 300: "#F0BB62", 400: "#EDAE4C",
-           500: "#E9A23B", 600: "#CC8420", 700: "#A2661A", 800: "#7B4D17", 900: "#573813"}
-MIST = {0: "#FFFFFF", 50: "#F6F8F7", 100: "#EDF2F0", 200: "#DCE4E1", 300: "#C3CFCB", 400: "#96A6A1",
-        500: "#6A7D78", 600: "#4F625E", 700: "#374845", 800: "#1F2F2D", 900: "#13211F", 950: "#0B1716"}
+GREEN = {50: "#EAF7F1", 100: "#CFEFE0", 200: "#9BE4C4", 300: "#5FCFA3", 400: "#2CB183",
+         500: "#13906A", 600: "#0B6E4F", 700: "#09593F", 800: "#084632", 900: "#0A3326"}
+AMBER = {50: "#FEF7E8", 100: "#FCEBC5", 200: "#FADB96", 300: "#F7C768", 400: "#F5B544",
+         500: "#E39A1F", 600: "#B87610", 700: "#8F590D", 800: "#6B430E", 900: "#4A2F0D"}
+NEUTRAL = {0: "#FFFFFF", 50: "#F4F6F3", 100: "#EAEEEA", 200: "#DDE3DE", 300: "#C2CCC6", 400: "#93A29B",
+           500: "#6E7F78", 600: "#55655F", 700: "#3A4A44", 800: "#1F302A", 900: "#0C1F1A", 950: "#081410"}
 SEMANTIC = {
-    "success": {"light": "#1E7A50", "dark": "#5CC495"},
-    "warning": {"light": "#A35F00", "dark": "#F0BB62"},
-    "danger":  {"light": "#B93A27", "dark": "#F08A78"},
-    "info":    {"light": "#2D64A3", "dark": "#8DB8EA"},
+    "success": {"light": "#0B6E4F", "dark": "#5FCFA3"},
+    "warning": {"light": "#8F590D", "dark": "#F7C768"},
+    "danger":  {"light": "#B3261E", "dark": "#F2877B"},
+    "info":    {"light": "#1F5FA8", "dark": "#8DB8EA"},
 }
-# Mark colours per background
-MARK_ON_LIGHT = dict(L=OASIS[300], D=OASIS[800], S=SAFFRON[500])
-MARK_ON_DARK = dict(L=OASIS[50], D=OASIS[400], S=SAFFRON[500])
+# Named brand colours
+AMAN_GREEN = GREEN[600]   # logo, buttons, links
+MINT = GREEN[200]         # the fold; links on dark
+INK = NEUTRAL[900]        # text, dark surfaces
+PAPER = NEUTRAL[50]       # backgrounds
+HIGHLIGHT = AMBER[400]    # one highlight per screen
+ICON_GRADIENT = ("#128760", "#085A40")   # app icon tile, top left to bottom right
+
+# Logo colours per background: body of the letter, the folded corner, the name
+LOGO_ON_LIGHT = dict(body=AMAN_GREEN, flap=MINT, text=INK)
+LOGO_ON_DARK = dict(body="#FFFFFF", flap=MINT, text="#FFFFFF")
+
+
+def luminance(hex_):
+    c = [int(hex_[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    c = [v / 12.92 if v <= .03928 else ((v + .055) / 1.055) ** 2.4 for v in c]
+    return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]
+
+
+def contrast(a, b):
+    la, lb = sorted([luminance(a), luminance(b)], reverse=True)
+    return (la + .05) / (lb + .05)

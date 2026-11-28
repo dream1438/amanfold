@@ -34,5 +34,39 @@ def outline(fontpath, text, wght=None, size=100, tracking=0, rtl=False):
     x0, y0, x1, y1 = bp.bounds  # y is already flipped: y0 = top (negative), y1 = bottom
     return {"d": pen.getCommands(), "bbox": (x0, y0, x1, y1), "width": x * s, "ascent": asc, "descent": desc, "xheight": xh, "cap": cap}
 
-if __name__ == '__main__':
-    print(json.dumps(outline(sys.argv[1], sys.argv[2], float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5]))))
+
+def word(fontpath, text, wght=600, tracking=0, single_storey_a=False, kern=None):
+    """Outline a word in font units (y down, baseline at 0).
+
+    single_storey_a redraws every Latin "a" as the font's "d" cropped at the x-height, which gives a round
+    one-storey "a" with exactly the font's own weight and curves, matching the symbol.
+    tracking and kern (a dict of letter pairs) are in font units, 1000 to the em.
+    """
+    from fontTools.pens.recordingPen import RecordingPen
+    tt = TTFont(fontpath)
+    if 'fvar' in tt:
+        axes = {a.axisTag: a.defaultValue for a in tt['fvar'].axes}
+        axes['wght'] = wght
+        tt = instantiateVariableFont(tt, axes, inplace=False)
+    buf = io.BytesIO(); tt.save(buf); data = buf.getvalue()
+    tt = TTFont(io.BytesIO(data))
+    top = max(y for _, y in tt['glyf']['d'].coordinates)
+    xh = tt['OS/2'].sxHeight
+    custom = [single_storey_a and ch == 'a' for ch in text]
+    shaped = ''.join('d' if c else ch for ch, c in zip(text, custom))
+    font = hb.Font(hb.Face(data)); b = hb.Buffer(); b.add_str(shaped); b.guess_segment_properties()
+    hb.shape(font, b, {"kern": True, "liga": True})
+    gs = tt.getGlyphSet(); order = tt.getGlyphOrder()
+    pen = SVGPathPen(gs, ntos=lambda v: ('%.1f' % v).rstrip('0').rstrip('.')); bp = BoundsPen(gs)
+    x = 0; kern = kern or {}; infos = b.glyph_infos
+    for i, (inf, pos) in enumerate(zip(infos, b.glyph_positions)):
+        rec = RecordingPen(); gs[order[inf.codepoint]].draw(rec)
+        if single_storey_a and inf.cluster < len(custom) and custom[inf.cluster]:
+            rec.value = [(op, tuple((px, xh) if py == top else (px, py) for px, py in args)) for op, args in rec.value]
+        for p in (pen, bp):
+            rec.replay(TransformPen(p, (1, 0, 0, -1, x + pos.x_offset, -pos.y_offset)))
+        x += pos.x_advance
+        if i < len(infos) - 1:
+            x += tracking + kern.get(shaped[i:i + 2], 0)
+    return {"d": pen.getCommands(), "bbox": bp.bounds, "ascender": top, "xheight": xh}
+

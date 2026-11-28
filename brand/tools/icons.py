@@ -1,5 +1,5 @@
 """Amanfold UI icon set: 24 unit grid, 1.75 stroke, round caps and joins.
-Containers (cards, notes, identities) carry the brand's folded top-right corner.
+Containers (cards, notes, identities) carry the brand's folded top-right corner; "locked" uses the logo's keyhole.
 Run from the repository root: python brand/tools/icons.py"""
 from pathlib import Path
 
@@ -28,7 +28,7 @@ ICONS = {
     "website": ["c12 12 9", "M3 12h18", "M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"],
     "one-time-code": ["c12 13 8", "M12 9v4l2.5 2.5", "M9.5 2.5h5"],
     "recovery-kit": ["c12 12 9", "c12 12 3.5", "M5.6 5.6l3.9 3.9", "M14.5 14.5l3.9 3.9", "M18.4 5.6l-3.9 3.9", "M9.5 14.5l-3.9 3.9"],
-    "sealed": ["M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z", "M4.6 4.6l4.8 4.8", "M19.4 4.6l-4.8 4.8", "M4.6 19.4l4.8-4.8", "M19.4 19.4l-4.8-4.8", "c12 12 2.6"],
+    "locked": ["c12 12 9", "c12 10 2.5", "M10.9 12.3L10 16.5h4l-.9-4.2"],
     "lookalike": ["c10.5 10.5 7", "M3.5 10.5h14", "M10.5 3.5c1.9 1.9 2.9 4.3 2.9 7", "M10.5 3.5c-1.9 1.9-2.9 4.3-2.9 7s1 5.1 2.9 7", "M18.5 15v3", "M18.5 21h.01"],
 }
 

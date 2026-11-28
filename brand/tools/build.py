@@ -14,8 +14,10 @@ import os
 import urllib.request
 from pathlib import Path
 
-from outline import outline
-from palette import OASIS, SAFFRON, MIST, SEMANTIC, MARK_ON_LIGHT, MARK_ON_DARK
+from mark import symbol_group, paint, BOX, STEM_W, TOP, BOTTOM, f as fmt
+from outline import word
+from palette import (GREEN, AMBER, NEUTRAL, SEMANTIC, AMAN_GREEN, MINT, INK, PAPER, HIGHLIGHT,
+                     ICON_GRADIENT, LOGO_ON_LIGHT, LOGO_ON_DARK)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 FONTS = Path(__file__).resolve().parent / ".fonts"
@@ -25,8 +27,12 @@ FONT_URLS = {
 
 WORD_LATIN = "amanfold"
 WORD_ARABIC = "أمانفولد"
-WORD_WEIGHT = 500
-WORD_TRACKING = -12  # thousandths of an em
+LATIN = dict(wght=600, tracking=-12, single_storey_a=True, kern={"nf": -6, "fo": -10, "ld": 4})
+ARABIC = dict(wght=540)           # a little lighter, so it matches the Latin optically
+ARABIC_SCALE = 0.9
+GAP = STEM_W                      # space between symbol and name: one stem width
+STEM_H = BOTTOM - TOP             # the symbol's stem is as tall as the ascenders of f, l and d
+ONE = lambda c: dict(body=c, flap=None, text=c)
 
 
 def font(name):
@@ -44,159 +50,158 @@ def write(rel, text):
     return p
 
 
-# ---------------------------------------------------------------- the mark
-# 64-unit grid. A square sheet with its four corners folded to the centre,
-# held shut by a round seal. A 3-unit ring separates the seal from the folds.
-def _flaps():
-    """Four triangles with a 3-unit gap along each fold line and softly rounded corners
-    (drawn as an inset polygon with a 2-unit round-joined stroke)."""
-    g = 1.5 * 2 ** 0.5 + 2 ** 0.5          # half-gap plus stroke radius, measured along x
-    top = [(9 + g, 9), (55 - g, 9), (32, 32 - g)]
-    rot = lambda pts, k: [(pts_x, pts_y) for pts_x, pts_y in pts] if k == 0 else rot([(64 - y, x) for x, y in pts], k - 1)
-    names = ["top", "right", "bottom", "left"]
-    return {n: "M" + " ".join(f"{fmt(x)} {fmt(y)}" for x, y in rot(top, i)) + "z" for i, n in enumerate(names)}
-
-
-RING_CLIP = "M0 0h64v64H0zM32 20.5a11.5 11.5 0 1 0 0 23 11.5 11.5 0 1 0 0-23z"
-SEAL = (32, 32, 8.5)
-
-
-def mark_group(L, D, S, uid="m"):
-    """SVG fragment for the mark on the 64 grid (no outer <svg>)."""
-    cx, cy, r = SEAL
-    F = _flaps()
-    flap = lambda n, c: f'<path fill="{c}" stroke="{c}" stroke-width="2" stroke-linejoin="round" d="{F[n]}"/>'
-    return (
-        f'<clipPath id="{uid}-ring"><path clip-rule="evenodd" d="{RING_CLIP}"/></clipPath>'
-        f'<g clip-path="url(#{uid}-ring)">{flap("top", L)}{flap("right", D)}{flap("bottom", L)}{flap("left", D)}</g>'
-        f'<circle fill="{S}" cx="{cx}" cy="{cy}" r="{r}"/>'
-    )
-
-
 def svg(w, h, body, title, vb=None):
     vb = vb or f"0 0 {fmt(w)} {fmt(h)}"
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{fmt(w)}" height="{fmt(h)}" '
             f'viewBox="{vb}" role="img" aria-label="{title}"><title>{title}</title>{body}</svg>\n')
 
 
-def fmt(v):
-    return ("%.2f" % v).rstrip("0").rstrip(".")
+_words = {}
 
 
-# ---------------------------------------------------------------- lockups
 def words():
-    f = font("ReadexPro.ttf")
-    lat = outline(f, WORD_LATIN, WORD_WEIGHT, 100, WORD_TRACKING)
-    ara = outline(f, WORD_ARABIC, WORD_WEIGHT, 100, 0)
-    return lat, ara
+    if not _words:
+        fp = font("ReadexPro.ttf")
+        _words["lat"] = word(fp, WORD_LATIN, **LATIN)
+        _words["ara"] = word(fp, WORD_ARABIC, **ARABIC)
+    return _words["lat"], _words["ara"]
 
 
-def lockup(word, colors, text_color, rtl=False, uid="lk", arabic=False):
-    """Mark + wordmark on one line. The mark's art is 48 units tall; Latin cap height is 62% of it.
-    Arabic is set 12% smaller so its letter bodies match the Latin x-height optically."""
-    M = 48
-    scale = (M * 0.62) / word["cap"] * (0.88 if arabic else 1)
-    gap = M * 0.28
-    x0, top, x1, bottom = (v * scale for v in word["bbox"])
-    tw = x1 - x0
-    base = M / 2 + M * 0.31                   # Latin cap height centred on the seal
-    y_min = min(0, base + top)
-    y_max = max(M, base + bottom)
-    W, H = M + gap + tw, y_max - y_min
-    mx, tx = (0, M + gap - x0) if not rtl else (tw + gap, -x0)
-    body = (f'<g transform="translate(0 {fmt(-y_min)})">'
-            f'<g transform="translate({fmt(mx - 8)} -8)">{mark_group(**colors, uid=uid)}</g>'
-            f'<path fill="{text_color}" transform="translate({fmt(tx)} {fmt(base)}) scale({scale:.4f})" d="{word["d"]}"/></g>')
-    return W, H, body
+# ---------------------------------------------------------------- symbol and lockups
+def mark(colors, kind=None, classes=False):
+    """The symbol cropped to its own bounding box, 50 x 48 units."""
+    x0, y0, x1, y1 = BOX
+    return x1 - x0, y1 - y0, f'<g transform="translate({-x0} {-y0})">{symbol_group(colors["body"], colors["flap"], kind, classes)}</g>'
 
 
-def wordmark_only(word, color):
-    scale = 32 / word["cap"]
-    x0, top, x1, bottom = (v * scale for v in word["bbox"])
-    W, H = x1 - x0, bottom - top
-    body = f'<path fill="{color}" transform="translate({fmt(-x0)} {fmt(-top)}) scale({scale:.4f})" d="{word["d"]}"/>'
-    return W, H, body
+def lockup(colors, arabic=False, classes=False):
+    """Symbol and name on one line. Latin: symbol on the left. Arabic: symbol on the right, never mirrored."""
+    lat, ara = words()
+    w = ara if arabic else lat
+    s = STEM_H / lat["ascender"] * (ARABIC_SCALE if arabic else 1)
+    bx0, by0, bx1, by1 = (v * s for v in w["bbox"])
+    tw = bx1 - bx0
+    x0, y0, x1, y1 = BOX
+    top, bottom = min(y0, BOTTOM + by0), max(y1, BOTTOM + by1)
+    sym = symbol_group(colors["body"], colors["flap"], None, classes)
+    t = paint(colors["text"], "mt" if classes else None)
+    if arabic:
+        W = tw + GAP + (x1 - x0)
+        body = (f'<path {t} transform="translate({fmt(-bx0)} {fmt(BOTTOM - top)}) scale({s:.5f})" d="{w["d"]}"/>'
+                f'<g transform="translate({fmt(tw + GAP - x0)} {fmt(-top)})">{sym}</g>')
+    else:
+        W = (x1 - x0) + GAP + tw
+        body = (f'<g transform="translate({-x0} {fmt(-top)})">{sym}</g>'
+                f'<path {t} transform="translate({fmt(x1 - x0 + GAP - bx0)} {fmt(BOTTOM - top)}) scale({s:.5f})" d="{w["d"]}"/>')
+    return W, bottom - top, body
 
 
-def stacked(lat, ara, colors, text_color, uid="st"):
-    """Mark centred above the Latin and Arabic names: for splash screens and stickers."""
-    M = 150                                   # visual mark size
-    s = 34 / lat["cap"]
-    sa = s * 0.88
+def wordmark_only(arabic, color, classes=False):
+    lat, ara = words()
+    w = ara if arabic else lat
+    s = STEM_H / lat["ascender"] * (ARABIC_SCALE if arabic else 1)
+    x0, top, x1, bottom = (v * s for v in w["bbox"])
+    t = paint(color, "mt" if classes else None)
+    return x1 - x0, bottom - top, f'<path {t} transform="translate({fmt(-x0)} {fmt(-top)}) scale({s:.5f})" d="{w["d"]}"/>'
+
+
+def stacked(colors, classes=False):
+    """Symbol centred above the Latin and Arabic names: for splash screens and stickers."""
+    lat, ara = words()
+    k = 3                                      # symbol scale
+    s = STEM_H / lat["ascender"] * 1.15
+    sa = s * ARABIC_SCALE
     lx0, lt, lx1, lb = (v * s for v in lat["bbox"])
     ax0, at, ax1, ab = (v * sa for v in ara["bbox"])
+    x0, y0, x1, y1 = BOX
+    mw, mh = (x1 - x0) * k, (y1 - y0) * k
     lw, aw = lx1 - lx0, ax1 - ax0
-    W = max(M, lw, aw)
-    y1 = M + 26 - lt                          # Latin baseline: 26 below the mark
-    y2 = y1 + lb + 20 - at                    # Arabic baseline: 20 below the Latin
-    H = y2 + ab
-    k = M / 48
-    body = (f'<g transform="translate({fmt((W - M) / 2 - 8 * k)} {fmt(-8 * k)}) scale({fmt(k)})">{mark_group(**colors, uid=uid)}</g>'
-            f'<path fill="{text_color}" transform="translate({fmt((W - lw) / 2 - lx0)} {fmt(y1)}) scale({s:.4f})" d="{lat["d"]}"/>'
-            f'<path fill="{text_color}" transform="translate({fmt((W - aw) / 2 - ax0)} {fmt(y2)}) scale({sa:.4f})" d="{ara["d"]}"/>')
-    return W, H, body
+    W = max(mw, lw, aw)
+    yl = mh + 22 - lt
+    ya = yl + lb + 16 - at
+    t = paint(colors["text"], "mt" if classes else None)
+    body = (f'<g transform="translate({fmt((W - mw) / 2 - x0 * k)} {fmt(-y0 * k)}) scale({k})">{symbol_group(colors["body"], colors["flap"], None, classes)}</g>'
+            f'<path {t} transform="translate({fmt((W - lw) / 2 - lx0)} {fmt(yl)}) scale({s:.5f})" d="{lat["d"]}"/>'
+            f'<path {t} transform="translate({fmt((W - aw) / 2 - ax0)} {fmt(ya)}) scale({sa:.5f})" d="{ara["d"]}"/>')
+    return W, ya + ab, body
 
 
 # ---------------------------------------------------------------- app icons
-def app_icon(size=1024, rounded=False, uid="ai"):
-    """Full-bleed square (stores apply their own mask) or a rounded preview."""
-    bg = OASIS[800]
-    rect = f'<rect width="64" height="64" rx="{14.2 if rounded else 0}" fill="{bg}"/>'
-    # subtle top light so the tile is not flat
-    grad = (f'<linearGradient id="{uid}-g" x1="0" y1="0" x2="0" y2="1">'
-            f'<stop offset="0" stop-color="#FFFFFF" stop-opacity=".07"/><stop offset="1" stop-color="#000000" stop-opacity=".10"/></linearGradient>'
-            f'<rect width="64" height="64" rx="{14.2 if rounded else 0}" fill="url(#{uid}-g)"/>')
-    inner = f'<g transform="translate(13.44 13.44) scale(.58)">{mark_group(**MARK_ON_DARK, uid=uid)}</g>'
-    return svg(size, size, rect + grad + inner, "Amanfold app icon", "0 0 64 64")
+# The symbol sits at 62% of the tile and 1.6 units right of centre: the heavy stem makes a
+# mathematically centred symbol look as if it leans left.
+ICON_PLACE = "translate(32.6 32) scale(.62) translate(-31 -32)"
+
+
+def tile(uid, rounded):
+    rx = 14.4 if rounded else 0
+    a, b = ICON_GRADIENT
+    return (f'<linearGradient id="{uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{a}"/>'
+            f'<stop offset="1" stop-color="{b}"/></linearGradient><rect width="64" height="64" rx="{rx}" fill="url(#{uid})"/>')
+
+
+def app_icon(size=1024, rounded=False, small=False, uid="ai"):
+    """Full-bleed square (stores apply their own mask) or a rounded preview. small=True uses the small drawing."""
+    sym = symbol_group("#FFFFFF", None, "small") if small else symbol_group("#FFFFFF", MINT)
+    return svg(size, size, tile(uid, rounded) + f'<g transform="{ICON_PLACE}">{sym}</g>', "Amanfold app icon", "0 0 64 64")
+
+
+def android_layer(inner, title):
+    # 108 x 108 canvas; the symbol stays inside the 66 unit safe zone
+    return svg(108, 108, inner, title, "0 0 108 108")
 
 
 def android_foreground():
-    # 108x108 canvas, mark kept inside the 66 unit safe zone
-    s = 50 / 64
-    inner = f'<g transform="translate({fmt((108 - 50) / 2)} {fmt((108 - 50) / 2)}) scale({s:.4f})">{mark_group(**MARK_ON_DARK, uid="af")}</g>'
-    return svg(108, 108, inner, "Amanfold adaptive icon foreground", "0 0 108 108")
+    return android_layer(f'<g transform="translate(55 54) scale(.9) translate(-31 -32)">{symbol_group("#FFFFFF", MINT)}</g>',
+                         "Amanfold adaptive icon foreground")
 
 
 def android_background():
-    return svg(108, 108, f'<rect width="108" height="108" fill="{OASIS[800]}"/>', "Amanfold adaptive icon background", "0 0 108 108")
+    a, b = ICON_GRADIENT
+    return android_layer(f'<linearGradient id="ab" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{a}"/>'
+                         f'<stop offset="1" stop-color="{b}"/></linearGradient><rect width="108" height="108" fill="url(#ab)"/>',
+                         "Amanfold adaptive icon background")
 
 
 def android_monochrome():
-    s = 50 / 64
-    inner = f'<g transform="translate(29 29) scale({s:.4f})">{mark_group("#000", "#000", "#000", uid="am")}</g>'
-    return svg(108, 108, inner, "Amanfold themed icon", "0 0 108 108")
+    return android_layer(f'<g transform="translate(55 54) scale(.9) translate(-31 -32)">{symbol_group("#000000", None)}</g>',
+                         "Amanfold themed icon")
 
 
 def favicon():
-    # Rounded tile so it reads on light and dark browser tabs alike
-    return app_icon(32, rounded=True, uid="fv")
+    """Bare symbol, small drawing. Aman Green on light browser themes, white on dark ones."""
+    from mark import symbol
+    b, _ = symbol("small")
+    x0, y0, x1, y1 = BOX
+    style = f'<style>path{{fill:{AMAN_GREEN}}}@media (prefers-color-scheme:dark){{path{{fill:#FFFFFF}}}}</style>'
+    return svg(64, 64, style + f'<path fill-rule="evenodd" d="{b}"/>', "Amanfold", "1 2 60 60")
 
 
 def safari_pinned():
-    return svg(64, 64, mark_group("#000", "#000", "#000", uid="sp"), "Amanfold")
+    return svg(64, 64, symbol_group("#000000", None, "small"), "Amanfold", "1 2 60 60")
 
 
 # ---------------------------------------------------------------- tokens
 def tokens():
     t = {
         "color": {
-            "oasis": {str(k): v for k, v in OASIS.items()},
-            "saffron": {str(k): v for k, v in SAFFRON.items()},
-            "mist": {str(k): v for k, v in MIST.items()},
+            "green": {str(k): v for k, v in GREEN.items()},
+            "amber": {str(k): v for k, v in AMBER.items()},
+            "neutral": {str(k): v for k, v in NEUTRAL.items()},
+            "brand": {"aman-green": AMAN_GREEN, "mint": MINT, "ink": INK, "paper": PAPER, "highlight": HIGHLIGHT},
             "semantic": SEMANTIC,
         },
         "theme": {
             "light": {
-                "bg": MIST[50], "surface": MIST[0], "surface-sunken": MIST[100], "border": MIST[200],
-                "text": MIST[900], "text-muted": MIST[600], "primary": OASIS[800], "primary-hover": OASIS[700],
-                "on-primary": MIST[0], "accent": SAFFRON[500], "on-accent": MIST[950], "focus": OASIS[500],
+                "bg": PAPER, "surface": NEUTRAL[0], "surface-sunken": NEUTRAL[100], "border": NEUTRAL[200],
+                "text": INK, "text-muted": NEUTRAL[600], "primary": AMAN_GREEN, "primary-hover": GREEN[700],
+                "on-primary": NEUTRAL[0], "link": AMAN_GREEN, "accent": HIGHLIGHT, "on-accent": INK, "focus": GREEN[500],
                 "success": SEMANTIC["success"]["light"], "warning": SEMANTIC["warning"]["light"],
                 "danger": SEMANTIC["danger"]["light"], "info": SEMANTIC["info"]["light"],
             },
             "dark": {
-                "bg": MIST[950], "surface": "#112220", "surface-sunken": "#081210", "border": "#22403C",
-                "text": "#E6EFEC", "text-muted": "#9DB2AD", "primary": OASIS[300], "primary-hover": OASIS[200],
-                "on-primary": OASIS[950], "accent": SAFFRON[400], "on-accent": MIST[950], "focus": OASIS[300],
+                "bg": NEUTRAL[950], "surface": "#0F231D", "surface-sunken": "#06100D", "border": "#1E3A31",
+                "text": "#EAF2EE", "text-muted": "#A3B5AE", "primary": GREEN[400], "primary-hover": GREEN[300],
+                "on-primary": INK, "link": MINT, "accent": HIGHLIGHT, "on-accent": INK, "focus": GREEN[300],
                 "success": SEMANTIC["success"]["dark"], "warning": SEMANTIC["warning"]["dark"],
                 "danger": SEMANTIC["danger"]["dark"], "info": SEMANTIC["info"]["dark"],
             },
@@ -210,12 +215,12 @@ def tokens():
                         "2xl": "28px", "3xl": "36px", "4xl": "48px"},
         "space": {str(i): f"{v}px" for i, v in enumerate([0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64])},
         "radius": {"sm": "6px", "md": "10px", "lg": "14px", "xl": "20px", "full": "999px"},
-        "shadow": {"card": "0 1px 2px rgb(6 27 26 / .06), 0 4px 16px rgb(6 27 26 / .06)",
-                   "pop": "0 8px 32px rgb(6 27 26 / .18)"},
+        "shadow": {"card": "0 1px 2px rgb(8 20 16 / .06), 0 4px 16px rgb(8 20 16 / .06)",
+                   "pop": "0 8px 32px rgb(8 20 16 / .18)"},
         "motion": {"fold": "cubic-bezier(.2,.8,.2,1)", "duration-fast": "120ms", "duration": "220ms"},
     }
     css = ["/* Amanfold design tokens. Generated by brand/tools/build.py; edit palette.py, not this file. */", ":root {"]
-    for fam in ("oasis", "saffron", "mist"):
+    for fam in ("green", "amber", "neutral", "brand"):
         for k, v in t["color"][fam].items():
             css.append(f"  --af-{fam}-{k}: {v};")
     for k, v in t["font"].items():
@@ -243,33 +248,22 @@ def tokens():
 
 # ---------------------------------------------------------------- main
 def main():
-    lat, ara = words()
-    ink, paper = MIST[900], MIST[0]
-
-    write("brand/logo/amanfold-mark.svg", svg(64, 64, mark_group(**MARK_ON_LIGHT), "Amanfold"))
-    write("brand/logo/amanfold-mark-reversed.svg", svg(64, 64, mark_group(**MARK_ON_DARK), "Amanfold"))
-    write("brand/logo/amanfold-mark-black.svg", svg(64, 64, mark_group("#000", "#000", "#000"), "Amanfold"))
-    write("brand/logo/amanfold-mark-white.svg", svg(64, 64, mark_group("#FFF", "#FFF", "#FFF"), "Amanfold"))
-
-    variants = {
-        "": (MARK_ON_LIGHT, ink),
-        "-reversed": (MARK_ON_DARK, paper),
-        "-black": (dict(L="#000", D="#000", S="#000"), "#000"),
-        "-white": (dict(L="#FFF", D="#FFF", S="#FFF"), "#FFF"),
-    }
-    for suffix, (colors, tc) in variants.items():
-        w, h, b = lockup(lat, colors, tc)
-        write(f"brand/logo/amanfold-logo{suffix}.svg", svg(w, h, b, "Amanfold"))
-        w, h, b = lockup(ara, colors, tc, rtl=True, arabic=True)
-        write(f"brand/logo/amanfold-logo-arabic{suffix}.svg", svg(w, h, b, "أمانفولد"))
-        w, h, b = stacked(lat, ara, colors, tc)
-        write(f"brand/logo/amanfold-logo-stacked{suffix}.svg", svg(w, h, b, "Amanfold أمانفولد"))
-    for name, word in (("latin", lat), ("arabic", ara)):
-        w, h, b = wordmark_only(word, ink)
-        write(f"brand/logo/amanfold-wordmark-{name}.svg", svg(w, h, b, "Amanfold"))
+    black, white = ONE("#000000"), ONE("#FFFFFF")
+    variants = {"": LOGO_ON_LIGHT, "-reversed": LOGO_ON_DARK, "-black": black, "-white": white}
+    for suffix, colors in variants.items():
+        write(f"brand/logo/amanfold-mark{suffix}.svg", svg(*mark(colors), "Amanfold"))
+        write(f"brand/logo/amanfold-logo{suffix}.svg", svg(*lockup(colors), "Amanfold"))
+        write(f"brand/logo/amanfold-logo-arabic{suffix}.svg", svg(*lockup(colors, arabic=True), "أمانفولد"))
+        write(f"brand/logo/amanfold-logo-stacked{suffix}.svg", svg(*stacked(colors), "Amanfold أمانفولد"))
+    # small drawing, for 24 px and below
+    write("brand/logo/amanfold-mark-small.svg", svg(*mark(dict(body=AMAN_GREEN, flap=None), "small"), "Amanfold"))
+    write("brand/logo/amanfold-mark-small-white.svg", svg(*mark(dict(body="#FFFFFF", flap=None), "small"), "Amanfold"))
+    write("brand/logo/amanfold-wordmark-latin.svg", svg(*wordmark_only(False, INK), "Amanfold"))
+    write("brand/logo/amanfold-wordmark-arabic.svg", svg(*wordmark_only(True, INK), "أمانفولد"))
 
     write("brand/app-icon/app-icon-1024.svg", app_icon(1024))
     write("brand/app-icon/app-icon-rounded.svg", app_icon(512, rounded=True))
+    write("brand/app-icon/app-icon-small.svg", app_icon(64, rounded=True, small=True, uid="as"))
     write("brand/app-icon/android-adaptive-foreground.svg", android_foreground())
     write("brand/app-icon/android-adaptive-background.svg", android_background())
     write("brand/app-icon/android-monochrome.svg", android_monochrome())

@@ -1,54 +1,53 @@
 """Generate the Amanfold brand guide (brand/guide/index.html) from the same sources as the assets.
 Run from the repository root after build.py and icons.py."""
 from pathlib import Path
-import html as H
 
-from build import _flaps, RING_CLIP, SEAL, words, fmt
-from palette import OASIS, SAFFRON, MIST, SEMANTIC
+import build
+from mark import symbol_group, f as fmt
+from palette import GREEN, AMBER, NEUTRAL, SEMANTIC, AMAN_GREEN, INK, MINT, PAPER, HIGHLIGHT, contrast
 from icons import ICONS, el
 
 ROOT = Path(__file__).resolve().parent.parent
-_uid = [0]
+X = dict(body="x", flap="x", text="x")      # placeholder colours: the guide paints through CSS classes
 
 
-def mk(cls="", label=None):
-    """Inline mark whose colours come from CSS custom properties (theme-aware)."""
-    _uid[0] += 1
-    u = f"g{_uid[0]}"
-    F = _flaps()
-    cx, cy, r = SEAL
+def mk(cls="", label=None, kind="full"):
+    """Inline symbol whose colours come from CSS custom properties (theme-aware)."""
     a = f'role="img" aria-label="{label}"' if label else 'aria-hidden="true"'
-    return (f'<svg class="mk {cls}" viewBox="0 0 64 64" {a}><clipPath id="{u}"><path clip-rule="evenodd" d="{RING_CLIP}"/></clipPath>'
-            f'<g clip-path="url(#{u})"><path class="fl t" d="{F["top"]}"/><path class="fd r" d="{F["right"]}"/>'
-            f'<path class="fl b" d="{F["bottom"]}"/><path class="fd l" d="{F["left"]}"/></g>'
-            f'<circle class="seal" cx="{cx}" cy="{cy}" r="{r}"/></svg>')
+    return f'<svg class="mk {cls}" viewBox="4 6 54 52" {a}>{symbol_group("x", "x" if kind == "full" else None, kind, classes=True)}</svg>'
+
+
+def inline(dims, cls, label=None):
+    w, h, body = dims
+    a = f'role="img" aria-label="{label}"' if label else 'aria-hidden="true"'
+    return f'<svg class="{cls}" viewBox="0 0 {fmt(w)} {fmt(h)}" style="aspect-ratio:{fmt(w)}/{fmt(h)}" {a}>{body}</svg>'
 
 
 def icon(name, cls="ic"):
     return f'<svg class="{cls}" viewBox="0 0 24 24" aria-hidden="true">{"".join(el(p) for p in ICONS[name])}</svg>'
 
 
-LAT, ARA = words()
+def lockup(rtl=False, cls="", one=False):
+    colors = dict(X, flap=None) if one else X
+    return inline(build.lockup(colors, arabic=rtl, classes=True), f'lockup {"ar " if rtl else ""}{cls}', "أمانفولد" if rtl else "Amanfold")
 
 
-def wordpath(word, height_cap, cls="wm"):
-    s = height_cap / word["cap"]
-    x0, top, x1, bottom = (v * s for v in word["bbox"])
-    w, h = x1 - x0, bottom - top
-    return (f'<svg class="{cls}" viewBox="0 0 {fmt(w)} {fmt(h)}" style="aspect-ratio:{fmt(w)}/{fmt(h)}" aria-hidden="true">'
-            f'<path transform="translate({fmt(-x0)} {fmt(-top)}) scale({s:.4f})" d="{word["d"]}"/></svg>')
+def wordmark(cls="wm"):
+    return inline(build.wordmark_only(False, "x", classes=True), cls)
 
 
-def lockup(rtl=False, cls=""):
-    word = ARA if rtl else LAT
-    return (f'<div class="lockup {cls}" dir="{"rtl" if rtl else "ltr"}" role="img" aria-label="{"أمانفولد" if rtl else "Amanfold"}">'
-            f'{mk()}{wordpath(word, 100)}</div>')
+def sized(px, kind="full"):
+    return f'<span style="width:{px}px;height:{px}px;display:block">{mk(kind=kind)}</span>'
+
+
+def cr(a, b):
+    return f"{contrast(a, b):.1f} : 1"
 
 
 def swatches(name, scale, brand_step, note):
     cells = []
     for k, v in scale.items():
-        dark_text = MIST[0] if (int(v[1:3], 16) * .299 + int(v[3:5], 16) * .587 + int(v[5:7], 16) * .114) < 150 else MIST[950]
+        dark_text = NEUTRAL[0] if (int(v[1:3], 16) * .299 + int(v[3:5], 16) * .587 + int(v[5:7], 16) * .114) < 150 else NEUTRAL[950]
         cls = ' class="brand" title="Brand colour"' if k == brand_step else ""
         cells.append(f'<li{cls} style="background:{v};color:{dark_text}"><b>{k}</b><code>{v}</code></li>')
     return (f'<div class="scale"><div class="scale-h"><h4>{name}</h4><p>{note}</p></div>'
@@ -66,10 +65,10 @@ def page():
     hero = f'''
 <section class="hero">
   <div class="hero-in">
-    <div class="hero-mark" id="heroMark">{mk("big", "Amanfold mark")}</div>
+    <div class="hero-mark" id="heroMark">{mk("big", "Amanfold symbol")}</div>
     <div class="hero-copy">
-      <p class="kicker">Brand guide · version 1.0 · November 2026</p>
-      <h1>{wordpath(LAT, 100, "wm hero-wm")}<span class="sr">Amanfold</span></h1>
+      <p class="kicker">Brand guide · version 2.0 · November 2026</p>
+      <h1>{wordmark("wm hero-wm")}<span class="sr">Amanfold</span></h1>
       <p class="tagline">Everything you keep, safely folded.</p>
       <p class="tagline ar" lang="ar" dir="rtl">كل ما تحفظه، مطويٌّ بأمان.</p>
       <button class="ghost" id="replay" type="button">{icon("sync")} Fold it again</button>
@@ -81,91 +80,100 @@ def page():
         "Amanfold joins two words. <em>Aman</em> (أمان) is Arabic for safety, trust and peace of mind. <em>Fold</em> is what you do to keep something private.",
         f'''<div class="two">
   <div class="prose">
-    <p>Before envelopes existed, people sealed letters by folding them in on themselves and closing the last flap with wax or a paper lock. If anyone opened the letter on the way, the folds showed it. Historians call this <strong>letterlocking</strong>. It was everyday, end-to-end privacy, centuries before computers.</p>
-    <p>The Amanfold mark is that letter: a square sheet with its four corners folded to the centre, held shut by a saffron seal. It says what the product does without a padlock or a shield. Your passwords, cards and notes are folded shut on your own device, and only you hold the seal.</p>
-    <p>The same idea runs through the brand. Light and dark faces show the two sides of each fold. Containers in the interface carry one folded corner. Saffron appears once per screen, like a seal.</p>
+    <p>The symbol is the first letter of the name, a lowercase <strong>a</strong>, and it carries both words. The opening of the letter is a <strong>keyhole</strong>: that is <em>aman</em>, the promise that what you keep here is locked and only you hold the key. The top corner of the letter is <strong>folded over</strong> like a private note: that is <em>fold</em>.</p>
+    <p>It can be described in one sentence, "an a with a keyhole and a folded corner", and it is drawn as one flat shape in one colour family so that it stays clear on a phone, in a browser toolbar and in print. Because it is built from the name itself, it can only be Amanfold.</p>
+    <p>The same two ideas run through the brand. Green is the colour every app already uses for "safe", so the brand colour and the good state agree. Cards, notes and other containers in the interface carry one folded corner.</p>
   </div>
-  <figure class="anatomy">
+  <figure class="anatomy onlight">
     {mk("anat")}
     <figcaption>
-      <ol>
-        <li><b>Four flaps.</b> The corners of one sheet, folded in. Light faces catch the light; dark faces turn away.</li>
-        <li><b>The fold lines.</b> A clean gap between flaps, so the mark reads even in one colour.</li>
-        <li><b>The seal.</b> Saffron, set apart by a ring. The one warm note in the brand.</li>
+      <ol class="anat-list">
+        <li><b>The letter a.</b> A round bowl and a straight stem, the same construction as the letters in the name.</li>
+        <li><b>The keyhole.</b> Centred in the bowl. Its round head is one third of the bowl's width.</li>
+        <li><b>The fold.</b> Exactly as wide as the stem, in Mint. In one colour it becomes a cut line.</li>
       </ol>
     </figcaption>
   </figure>
 </div>''')
 
     logo = section("logo", "02", "Logo",
-        "Use the full lockup wherever there is room, and the mark alone where the name is already present, such as an app icon or a browser toolbar.",
+        "Use the full logo wherever there is room, and the symbol alone where the name is already present, such as an app icon or a browser toolbar.",
         f'''<div class="logo-grid">
-  <figure class="tile light">{lockup()}<figcaption>Primary lockup · <code>amanfold-logo.svg</code></figcaption></figure>
-  <figure class="tile light">{lockup(rtl=True)}<figcaption>Arabic lockup, mark on the right · <code>amanfold-logo-arabic.svg</code></figcaption></figure>
-  <figure class="tile dark">{lockup(cls="rev")}<figcaption>Reversed, on Oasis 800 · <code>amanfold-logo-reversed.svg</code></figcaption></figure>
-  <figure class="tile light stack">{mk()}<span class="stk-lat">{wordpath(LAT, 100)}</span><span class="stk-ar">{wordpath(ARA, 88)}</span><figcaption>Stacked, for splash screens and stickers · <code>amanfold-logo-stacked.svg</code></figcaption></figure>
+  <figure class="tile light">{lockup()}<figcaption>Main logo · <code>amanfold-logo.svg</code></figcaption></figure>
+  <figure class="tile light">{lockup(rtl=True)}<figcaption>Arabic logo, symbol on the right, never mirrored · <code>amanfold-logo-arabic.svg</code></figcaption></figure>
+  <figure class="tile dark">{lockup(cls="rev")}<figcaption>Reversed, on Ink · <code>amanfold-logo-reversed.svg</code></figcaption></figure>
+  <figure class="tile light">{inline(build.stacked(X, classes=True), "stacked", "Amanfold")}<figcaption>Stacked, for splash screens and stickers · <code>amanfold-logo-stacked.svg</code></figcaption></figure>
+</div>
+<h3 class="sub">Three drawings for three jobs</h3>
+<div class="three-d">
+  <figure class="draw"><div class="row">{sized(64)}{sized(32)}</div><figcaption><b>Full colour</b>Aman Green with a Mint fold. The main symbol, for 32 px and above. <code>amanfold-mark.svg</code></figcaption></figure>
+  <figure class="draw oneink"><div class="row">{sized(64, "crease")}{sized(32, "crease")}</div><figcaption><b>One colour</b>The fold is a cut line, so it survives in black, white, stamps and engraving. <code>amanfold-mark-black.svg</code></figcaption></figure>
+  <figure class="draw"><div class="row">{sized(24, "small")}{sized(16, "small")}</div><figcaption><b>Small</b>For 24 px and below: a plain cut corner and a larger keyhole that stays open at 16 px. <code>amanfold-mark-small.svg</code></figcaption></figure>
 </div>
 <div class="rules">
   <figure class="rule">
-    <div class="clear">{lockup()}<span class="cz t"></span><span class="cz b"></span><span class="cz l"></span><span class="cz r"></span></div>
-    <figcaption><b>Clear space</b> equals the seal's diameter on every side. Keep text, edges and other logos outside it.</figcaption>
+    <div class="clear">{lockup()}</div>
+    <figcaption><b>Clear space</b> equals the width of the symbol's stem (a quarter of its height) on every side. Keep text, edges and other logos outside it.</figcaption>
   </figure>
   <figure class="rule">
-    <div class="minsz"><span>{mk()}<small>16 px</small></span><span>{lockup()}<small>96 px wide</small></span></div>
-    <figcaption><b>Minimum size.</b> The mark holds up at 16 px. Use the lockup only from 96 px wide; below that, use the mark alone.</figcaption>
+    <div class="minsz"><span>{sized(16, "small")}<small>16 px</small></span><span>{lockup()}<small>96 px wide</small></span></div>
+    <figcaption><b>Minimum size.</b> The small symbol holds up at 16 px. Use the full logo only from 96 px wide; below that, use the symbol alone.</figcaption>
   </figure>
 </div>
+<p class="note"><b>How the name is drawn.</b> The name is set in Readex Pro at weight 600 and then redrawn: both letters a are replaced by a round one-storey a that matches the symbol, spacing is 1.2% tighter, and the pairs n f, f o and l d are adjusted by hand. The symbol is as tall as the letters f, l and d, and the gap between symbol and name is one stem width. Always use the logo files, never type the name in a font.</p>
 <h3 class="sub">Please don't</h3>
-<ul class="donts">
-  <li><div class="dz">{mk("x-rot")}</div><span>Rotate it into a diamond. It stops reading as a folded letter.</span></li>
-  <li><div class="dz">{mk("x-col")}</div><span>Recolour the flaps or the seal outside the palette.</span></li>
-  <li><div class="dz">{mk("x-str")}</div><span>Stretch, squash or skew it.</span></li>
-  <li><div class="dz x-lock">{mk()}<svg viewBox="0 0 24 24" class="pad" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg></div><span>Add padlocks, shields or keys. The fold already says it.</span></li>
+<ul class="donts onlight">
+  <li><div class="dz">{mk("x-flip")}</div><span>Mirror it, including in Arabic and other right-to-left layouts.</span></li>
+  <li><div class="dz">{mk("x-col")}</div><span>Recolour the letter or the fold outside the palette.</span></li>
+  <li><div class="dz">{mk("x-str")}</div><span>Stretch, squash, rotate or outline it.</span></li>
+  <li><div class="dz x-lock">{mk()}<svg viewBox="0 0 24 24" class="pad" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg></div><span>Add padlocks, shields or keys. The keyhole already says it.</span></li>
 </ul>''')
 
     appicon = section("icon", "03", "App icon",
-        "One icon for every platform: the mark in its reversed colours on an Oasis 800 tile. Stores and launchers apply their own corner masks, so the source is a full-bleed square.",
+        "One icon for every platform: the white symbol with its Mint fold on an Aman Green tile with a soft light from the top left. Stores and launchers apply their own corner masks, so the source is a full-bleed square.",
         f'''<div class="icon-row">
   <div class="phone-row">
     <div class="homescreen">
       <span class="app"><i class="ph p1"></i><small>Photos</small></span>
       <span class="app"><i class="ph p2"></i><small>Mail</small></span>
-      <span class="app"><span class="appicon">{mk("rev")}</span><small>Amanfold</small></span>
+      <span class="app"><span class="appicon">{mk()}</span><small>Amanfold</small></span>
       <span class="app"><i class="ph p3"></i><small>Maps</small></span>
     </div>
-    <p class="cap">On a home screen beside other apps. The saffron seal is the brightest point in the row.</p>
+    <p class="cap">On a home screen beside other apps. The symbol sits slightly right of centre inside the tile, because its heavy stem makes a mathematically centred symbol look off-centre.</p>
   </div>
   <div class="sizes">
-    <span class="appicon s120">{mk("rev")}</span><span class="appicon s64">{mk("rev")}</span><span class="appicon s40">{mk("rev")}</span>
-    <span class="appicon s24">{mk("rev")}</span><span class="appicon s16">{mk("rev")}</span>
+    <span class="appicon s120">{mk()}</span><span class="appicon s64">{mk()}</span><span class="appicon s40">{mk()}</span>
+    <span class="appicon s24">{mk(kind="small")}</span><span class="appicon s16">{mk(kind="small")}</span>
   </div>
-  <div class="tabbar"><span class="tab">{'<span class="appicon s16">' + mk("rev") + '</span>'}Amanfold · Your vault</span><span class="tab dim">Inbox</span><span class="tab dim">Docs</span></div>
+  <div class="tabbar"><span class="tab onlight">{'<span class="s16" style="display:block;height:16px">' + mk(kind="small") + '</span>'}Amanfold · Your vault</span><span class="tab dim">Inbox</span><span class="tab dim">Docs</span></div>
 </div>
-<p class="note">Files: <code>app-icon/app-icon-1024.svg</code> (iOS, macOS, Windows, stores), <code>android-adaptive-foreground.svg</code> + <code>android-adaptive-background.svg</code> + <code>android-monochrome.svg</code> (Android 13 themed icons), <code>favicon.svg</code> and <code>favicon.ico</code>, plus PNGs from 16 to 1024 px in <code>app-icon/png/</code>.</p>''')
+<p class="note">Tiles of 48 px and below use the small drawing. The browser tab icon (<code>favicon.svg</code>) is the bare symbol with no tile; it is Aman Green on light browser themes and white on dark ones. Files: <code>app-icon/app-icon-1024.svg</code> (iOS, macOS, Windows, stores), <code>android-adaptive-foreground.svg</code> + <code>android-adaptive-background.svg</code> + <code>android-monochrome.svg</code> (Android 13 themed icons), <code>favicon.svg</code> and <code>favicon.ico</code>, plus PNGs from 16 to 1024 px in <code>app-icon/png/</code>.</p>''')
 
     colour = section("colour", "04", "Colour",
-        "Deep Oasis green carries the brand: calm, natural, and unlike the blues most security apps use. Saffron is the seal, used sparingly. Mist neutrals are tinted towards Oasis so greys never look accidental.",
-        f'''{swatches("Oasis", OASIS, 800, "Primary. Oasis 800 (outlined) is the brand colour, used for the app icon, primary buttons and headings on light.")}
-{swatches("Saffron", SAFFRON, 500, "The seal. Saffron 500 (outlined) is the seal colour. Never use Saffron 500 for text on light backgrounds; use Saffron 700 instead.")}
-{swatches("Mist", MIST, None, "Neutrals for text, surfaces and borders, with a slight green bias.")}
+        "Aman Green carries the brand. It is the green people already read as safe, and it is not the blue of most security apps. Mint is the fold. Amber is a single warm highlight. Neutrals are tinted towards green so greys never look accidental.",
+        f'''{swatches("Green", GREEN, 600, "Primary. Green 600 (outlined) is Aman Green: the logo, primary buttons and links on light. Green 200 is Mint. Green 400 is the button colour on dark screens.")}
+{swatches("Amber", AMBER, 400, "The highlight. Amber 400 (outlined) is used for badges and one call to action. Never use it for text on light backgrounds; use Amber 700 instead.")}
+{swatches("Neutral", NEUTRAL, None, "Text, surfaces and borders, with a slight green bias. Neutral 900 is Ink and Neutral 50 is Paper.")}
 <div class="sem">
   <h4>Status colours</h4>
   <ul>{"".join(f'<li><span class="dot" style="--c:{v["light"]};--cd:{v["dark"]}"></span><b>{k.title()}</b><code>{v["light"]} / {v["dark"]}</code></li>' for k, v in SEMANTIC.items())}</ul>
-  <p>Light / dark theme values. Status colours always come with an icon and words, never colour alone.</p>
+  <p>Light / dark theme values. Success is the brand green on purpose. Danger red is kept for weak or leaked passwords and destructive actions only, so it never competes with the brand. Status colours always come with an icon and words, never colour alone.</p>
 </div>
 <div class="seal-rule">
-  <div class="srv">{mk()}<span class="pill-s">Saved and sealed</span></div>
-  <div><h4>One seal per screen</h4><p>Apart from the seal in the logo itself, saffron appears at most once per screen, on its single most reassuring moment: a "sealed" confirmation, the folded corner of a payment card, the main button on a marketing page. If two things on a screen are saffron, one of them is wrong.</p></div>
+  <div class="srv"><span class="pill-s">Public beta</span></div>
+  <div><h4>One highlight per screen</h4><p>Amber appears at most once per screen, on the single thing that most deserves attention: the beta badge, the folded corner of a payment card, the main button on a marketing page. If two things on a screen are amber, one of them is wrong.</p></div>
 </div>
-<table class="contrast"><caption>Text contrast, checked against WCAG 2.2</caption>
+<table class="contrast"><caption>Text contrast, measured against WCAG 2.2 (4.5 : 1 passes for normal text)</caption>
 <thead><tr><th>Pairing</th><th>Light theme</th><th>Dark theme</th></tr></thead>
 <tbody>
-<tr><td>Body text on background</td><td>15.6 : 1</td><td>15.6 : 1</td></tr>
-<tr><td>Muted text on surface</td><td>6.5 : 1</td><td>7.4 : 1</td></tr>
-<tr><td>Text on primary button</td><td>12.3 : 1</td><td>8.3 : 1</td></tr>
-<tr><td>Ink text on saffron</td><td>8.4 : 1</td><td>9.4 : 1</td></tr>
-<tr><td>Danger text on surface</td><td>5.7 : 1</td><td>6.8 : 1</td></tr>
-</tbody></table>''')
+<tr><td>Body text on background</td><td>{cr(INK, PAPER)}</td><td>{cr("#EAF2EE", NEUTRAL[950])}</td></tr>
+<tr><td>Muted text on surface</td><td>{cr(NEUTRAL[600], "#FFFFFF")}</td><td>{cr("#A3B5AE", "#0F231D")}</td></tr>
+<tr><td>Text on primary button</td><td>{cr("#FFFFFF", AMAN_GREEN)}</td><td>{cr(INK, GREEN[400])}</td></tr>
+<tr><td>Link on background</td><td>{cr(AMAN_GREEN, PAPER)}</td><td>{cr(MINT, NEUTRAL[950])}</td></tr>
+<tr><td>Ink text on Amber</td><td>{cr(INK, HIGHLIGHT)}</td><td>{cr(INK, HIGHLIGHT)}</td></tr>
+<tr><td>Danger text on surface</td><td>{cr(SEMANTIC["danger"]["light"], "#FFFFFF")}</td><td>{cr(SEMANTIC["danger"]["dark"], "#0F231D")}</td></tr>
+</tbody></table>
+<p class="note">Aman Green on Ink is only {cr(AMAN_GREEN, INK)}, which fails. That is why the logo turns white on dark backgrounds and dark screens use Green 400 for buttons.</p>''')
 
     type_ = section("type", "05", "Typography",
         "Three open-source families (SIL Open Font License) that cover Latin and Arabic with matching rhythm, so English and Arabic screens feel like the same product.",
@@ -174,7 +182,7 @@ def page():
     <p class="role">Display · headlines, the wordmark</p>
     <p class="spec d">Readex Pro</p>
     <p class="pair d">Safely folded. <span lang="ar" dir="rtl">مطويٌّ بأمان.</span></p>
-    <p class="meta">Weights 500 and 600. One family designed for both scripts, so mixed headlines keep one rhythm.</p>
+    <p class="meta">Weights 500 and 600. The logo's name starts from weight 600. One family designed for both scripts, so mixed headlines keep one rhythm.</p>
   </article>
   <article class="face">
     <p class="role">Text · interface and reading</p>
@@ -186,7 +194,7 @@ def page():
     <p class="role">Secrets · passwords, codes, card numbers</p>
     <p class="spec m">IBM Plex Mono</p>
     <p class="pw" aria-label="Example password">k<span class="n">7</span>Rv<span class="y">#</span>q<span class="n">2</span>Lm<span class="y">!</span>W<span class="n">0</span>o<span class="y">-</span>fs<span class="n">9</span>T</p>
-    <p class="meta">Slashed zero and distinct l, 1 and I. Digits show in Saffron 700, symbols in Oasis 500, so a password can be read aloud without mistakes. Passwords are always left-to-right, even in Arabic.</p>
+    <p class="meta">Slashed zero and distinct l, 1 and I. Digits show in Amber 700, symbols in Green 500, so a password can be read aloud without mistakes. Passwords are always left-to-right, even in Arabic.</p>
   </article>
 </div>
 <div class="scale-t" aria-label="Type scale">
@@ -237,7 +245,7 @@ def page():
     iconog = section("icons", "07", "Icons",
         "Twenty-four interface icons drawn on a 24 unit grid with a 1.75 stroke and round ends. Containers such as cards, notes and identities carry the brand's folded corner.",
         f'''<ul class="icons">{icons_grid}</ul>
-<p class="note">Icons use the text colour by default and Oasis 800 when active. Arrows and directional icons mirror in right-to-left layouts; everything else, including the sync arrows and the clock, stays as drawn. Files: <code>icons/*.svg</code> and <code>icons/sprite.svg</code>.</p>''')
+<p class="note">Icons use the text colour by default and Aman Green when active. Arrows and directional icons mirror in right-to-left layouts; everything else, including the sync arrows and the clock, stays as drawn. Files: <code>icons/*.svg</code> and <code>icons/sprite.svg</code>.</p>''')
 
     ui = section("ui", "08", "Interface basics",
         "Quiet surfaces, generous spacing and one clear action per view. Corners are soft but not round; spacing follows a 4 px grid.",
@@ -245,7 +253,7 @@ def page():
   <div class="ui-card">
     <h4>Buttons</h4>
     <div class="btns"><button class="b primary" type="button">Save login</button><button class="b secondary" type="button">Cancel</button><button class="b quiet" type="button">{icon("copy")} Copy</button></div>
-    <div class="btns"><button class="b seal" type="button">{icon("sealed")} Get Amanfold free</button><span class="cap">Saffron button: marketing pages only, once per page.</span></div>
+    <div class="btns"><button class="b seal" type="button">Get Amanfold free</button><span class="cap">Amber button: marketing pages only, once per page.</span></div>
   </div>
   <div class="ui-card">
     <h4>Fields</h4>
@@ -262,7 +270,7 @@ def page():
   </div>
   <div class="ui-card">
     <h4>Messages</h4>
-    <p class="msg ok">{icon("done")} Saved and sealed on this device.</p>
+    <p class="msg ok">{icon("done")} Saved and encrypted on this device.</p>
     <p class="msg warn">{icon("warning")} This password appeared in a public leak.</p>
     <p class="msg bad">{icon("lookalike")} This site is paypa1.com, not paypal.com.</p>
     <p><span class="beta">Public beta</span></p>
@@ -281,21 +289,21 @@ def page():
         f'''<div class="mock-row">
   <figure class="mock">
     <div class="popup">
-      <div class="pp-h"><span class="pp-logo">{mk()}<b>amanfold</b></span><span class="beta sm">Beta</span><button class="iconbtn" type="button" aria-label="Settings">{icon("settings")}</button></div>
+      <div class="pp-h"><span class="pp-logo">{lockup()}</span><span class="beta sm">Beta</span><button class="iconbtn" type="button" aria-label="Settings">{icon("settings")}</button></div>
       <label class="pp-search" for="ppS">{icon("search")}<input id="ppS" placeholder="Search your vault"></label>
       <p class="pp-site">{icon("website")} Matches for <b>github.com</b></p>
       <ul class="items pp">
         <li><span class="fav g">G</span><span class="it"><b>GitHub</b><small>eslam-dev</small></span><button class="b primary sm" type="button">Fill</button></li>
         <li><span class="fav g">G</span><span class="it"><b>GitHub (work)</b><small>eslam@company.com</small></span><button class="b secondary sm" type="button">Fill</button></li>
       </ul>
-      <div class="pp-foot"><span>{icon("sealed")} Vault sealed · synced 2 min ago</span></div>
+      <div class="pp-foot"><span>{icon("locked")} Vault locked · synced 2 min ago</span></div>
     </div>
     <figcaption>Browser extension popup, 360 px wide.</figcaption>
   </figure>
   <figure class="mock">
     <div class="phone" dir="rtl" lang="ar">
       <div class="ph-status"><span>٩:٤١</span><span>●●●</span></div>
-      <div class="ph-h"><h5>الخزنة</h5><span class="appicon s28">{mk("rev")}</span></div>
+      <div class="ph-h"><h5>الخزنة</h5><span class="appicon s28">{mk(kind="small")}</span></div>
       <label class="pp-search" for="phS">{icon("search")}<input id="phS" placeholder="ابحث في خزنتك"></label>
       <div class="cats"><span class="on">الكل</span><span>الحسابات</span><span>البطاقات</span><span>الملاحظات</span></div>
       <div class="paycard"><span class="pc-fold"></span><span class="pc-brand">VISA</span><span class="pc-num" dir="ltr">•••• •••• •••• 4821</span><span class="pc-name">بطاقة الراتب</span><span class="pc-exp" dir="ltr">08/29</span></div>
@@ -319,22 +327,22 @@ def page():
         <p>Passwords, cards and notes, encrypted on your own devices before they go anywhere. Free on every device you own. Premium is $2.99 a month; Family is $4.99 for up to six people.</p>
         <div class="btns"><button class="b seal" type="button">Get Amanfold free</button><button class="b secondary" type="button">Read how it works</button></div>
       </div>
-      <div class="sh-art">{mk("site-mk")}</div>
+      <div class="sh-art onlight">{mk("site-mk")}</div>
     </div>
   </div>
-  <figcaption>Website hero. The only saffron button on the page is the main call to action.</figcaption>
+  <figcaption>Website hero. The only amber button on the page is the main call to action.</figcaption>
 </figure>''')
 
     files = section("files", "10", "Files",
         "Everything on this page is generated from code in the repository, so the logo, icons and colours can never drift apart.",
         '''<table class="tok files"><tbody>
-<tr><th><code>brand/logo/</code></th><td>Mark and lockups (Latin, Arabic, stacked) in colour, reversed, black and white, as SVG and PNG.</td></tr>
+<tr><th><code>brand/logo/</code></th><td>Symbol (full colour, one colour, small) and logos (Latin, Arabic, stacked) in colour, reversed, black and white, as SVG and PNG.</td></tr>
 <tr><th><code>brand/app-icon/</code></th><td>Store icon, rounded preview, Android adaptive and themed layers, favicon (SVG and ICO), PNG sizes 16 to 1024.</td></tr>
 <tr><th><code>brand/icons/</code></th><td>24 interface icons and a sprite sheet.</td></tr>
 <tr><th><code>brand/tokens/</code></th><td>Colours, type, spacing, radius and motion as CSS variables and JSON, for light and dark themes.</td></tr>
-<tr><th><code>brand/tools/</code></th><td>The scripts that build all of the above. Change <code>palette.py</code> and re-run to update every file.</td></tr>
+<tr><th><code>brand/tools/</code></th><td>The scripts that build all of the above. Colours live in <code>palette.py</code> and the symbol's geometry in <code>mark.py</code>; change them and re-run to update every file.</td></tr>
 </tbody></table>
-<p class="note">Before launch: register the name and mark (trademark classes 9 and 42) and buy amanfold.com. Both are still open.</p>''')
+<p class="note">Before launch: run a trademark similarity search and register the name and symbol (classes 9 and 42), because a keyhole inside a letter is not a new idea; buy amanfold.com; have a native Arabic type designer check the Arabic name; and show the logo to a few real users.</p>''')
 
     nav = "".join(f'<a href="#{i}">{t}</a>' for i, t in [("idea", "Idea"), ("logo", "Logo"), ("icon", "App icon"), ("colour", "Colour"), ("type", "Type"), ("voice", "Voice"), ("icons", "Icons"), ("ui", "Interface"), ("apps", "In use"), ("files", "Files")])
 
