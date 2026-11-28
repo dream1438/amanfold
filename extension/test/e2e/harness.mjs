@@ -47,6 +47,8 @@ export async function start() {
     },
     stdio: ["ignore", "inherit", "inherit"],
   });
+  // Never leave the server running, even if the test crashes.
+  process.on("exit", () => server.kill());
 
   const fixtures = createServer((req, res) => {
     const name = path.basename(new URL(req.url, "http://x").pathname) || "login.html";
@@ -76,7 +78,7 @@ export async function start() {
     stop() {
       server.kill();
       fixtures.close();
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     },
   };
 }

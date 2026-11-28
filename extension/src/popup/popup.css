@@ -144,3 +144,11 @@ button.link { background: none; border: none; padding: 0; color: var(--accent); 
 dialog.generator { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--fg); width: 340px; display: flex; flex-direction: column; gap: 10px; }
 dialog.generator:not([open]) { display: none; }
 dialog output { display: block; padding: 10px; background: var(--card); border-radius: 8px; word-break: break-all; min-height: 2.5em; }
+.tag { display: inline-block; margin-inline-start: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; background: var(--ok-bg); color: var(--accent); border: 1px solid var(--line); vertical-align: middle; }
+.safety { font-size: 15px; letter-spacing: .04em; padding: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; text-align: center; word-spacing: .3em; }
+.members .member, .member { display: flex; flex-direction: column; gap: 6px; padding-block: 8px; border-block-end: 1px solid var(--line); list-style: none; }
+.member-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.member-head select { width: auto; }
+.member-email { overflow: hidden; text-overflow: ellipsis; }
+.member-check { display: flex; flex-direction: column; gap: 6px; }
+.ok { color: var(--accent); }

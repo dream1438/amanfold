@@ -143,8 +143,8 @@ jobs:
           name: e2e-screenshots
           path: extension/test-results/
 
-  # The same end-to-end test in a real Firefox (preinstalled on the runner),
-  # driven over WebDriver BiDi.
+  # The end-to-end test in a real Firefox (preinstalled on the runner, with
+  # geckodriver), driven by selenium-webdriver.
   extension-firefox:
     runs-on: ubuntu-latest
     defaults:
@@ -164,7 +164,7 @@ jobs:
         run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
       - run: npm ci
       - run: npm run wasm
-      - run: firefox --version
+      - run: firefox --version && geckodriver --version
       - run: FIREFOX="$(command -v firefox)" npm run e2e:firefox
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -211,12 +211,15 @@ jobs:
               key https://repo.vivaldi.com/archive/linux_signing_key.pub vivaldi
               echo "deb [signed-by=/usr/share/keyrings/vivaldi.gpg] https://repo.vivaldi.com/archive/deb/ stable main" | sudo tee /etc/apt/sources.list.d/vivaldi.list
               sudo apt-get update -q && sudo apt-get install -yq vivaldi-stable
-              bin=/usr/bin/vivaldi-stable ;;
+              bin=/usr/bin/vivaldi-stable
+              # Started by the test itself and driven over CDP.
+              echo "E2E_CDP=1" >> "$GITHUB_ENV" ;;
             opera)
               key https://deb.opera.com/archive.key opera
               echo "deb [signed-by=/usr/share/keyrings/opera.gpg] https://deb.opera.com/opera-stable/ stable non-free" | sudo tee /etc/apt/sources.list.d/opera.list
               sudo apt-get update -q && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq opera-stable
-              bin=/usr/bin/opera ;;
+              bin=/usr/bin/opera
+              echo "E2E_CDP=1" >> "$GITHUB_ENV" ;;
           esac
           "$bin" --version || true
           echo "E2E_BROWSER=$bin" >> "$GITHUB_ENV"

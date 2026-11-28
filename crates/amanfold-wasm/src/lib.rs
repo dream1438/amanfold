@@ -584,6 +584,13 @@ pub fn fingerprint(public_keys: Vec<u8>) -> JsResult<String> {
     ffi::fingerprint(public_keys).map_err(err)
 }
 
+/// Public keys of whoever signed a vault grant (look them up among checked
+/// people, then pass them to `openVault`, which verifies the signature).
+#[wasm_bindgen(js_name = grantGranter)]
+pub fn grant_granter(grant: Vec<u8>) -> JsResult<Vec<u8>> {
+    ffi::grant_granter(grant).map_err(err)
+}
+
 /// How a saved URL matches a page: `"None"`, `"Site"`, `"Host"` or `"Origin"`.
 #[wasm_bindgen(js_name = siteMatch)]
 pub fn site_match(saved_url: String, page_url: String) -> JsResult<JsValue> {

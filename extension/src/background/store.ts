@@ -1,15 +1,16 @@
 // What the extension keeps in the browser.
 //
 // storage.local (on disk): the account bundle (keys wrapped under the master
-// password + Secret Key), the Secret Key, the vault grant, the encrypted vault
-// cache and records not yet uploaded. None of it opens without the master
+// password + Secret Key), the Secret Key, each vault's grant, the encrypted
+// vault caches, records not yet uploaded, and the public keys of people whose
+// safety numbers were compared. None of it opens without the master
 // password, except with the device key below.
 //
 // storage.session (memory only, cleared when the browser quits, not readable
 // by content scripts): the quick-unlock device key, so the vault survives the
 // service worker being stopped. Locking deletes it.
 
-import type { Settings } from "../shared/types.ts";
+import type { Role, Settings } from "../shared/types.ts";
 
 export interface StoredAccount {
   server: string;
@@ -20,14 +21,43 @@ export interface StoredAccount {
   /** Server OPAQUE public key, pinned at first contact. */
   serverKey: string;
   token: string;
-  vaultId: string;
-  /** Newest grant for the personal vault. */
+  /** The personal vault's id. */
+  personalId: string;
+  /** Every vault this browser has open: personal, family and team. */
+  vaults: Record<string, StoredVault>;
+  /**
+   * People whose safety numbers were compared (by account id). Only they
+   * may give this account a vault key or sign changes to a shared vault.
+   */
+  contacts: Record<string, Contact>;
+  lastSyncMs?: number;
+}
+
+export interface StoredVault {
+  id: string;
+  role: Role;
+  /** Newest grant for this vault, and the public keys of who signed it. */
   grant: string;
+  granter: string;
   cache?: string;
   seq: number;
   /** Encrypted records saved here but not yet accepted by the server. */
   pending: Record<string, string>;
-  lastSyncMs?: number;
+}
+
+export interface Contact {
+  email: string;
+  /** Public keys whose safety number the person compared. */
+  keys: string;
+}
+
+/** The shape before shared vaults (one vault). */
+interface StoredAccountV1 {
+  vaultId: string;
+  grant: string;
+  cache?: string;
+  seq: number;
+  pending: Record<string, string>;
 }
 
 export interface QuickUnlockState {
@@ -60,7 +90,18 @@ export async function setSettings(s: Partial<Settings>): Promise<Settings> {
 
 export async function getAccount(): Promise<StoredAccount | undefined> {
   const { account } = await chrome.storage.local.get("account");
-  return account as StoredAccount | undefined;
+  if (!account) return undefined;
+  const a = account as StoredAccount & Partial<StoredAccountV1>;
+  if (!a.vaults && a.vaultId && a.grant) {
+    // Written by 0.1.0: only the personal vault, signed by the account itself.
+    a.personalId = a.vaultId;
+    a.vaults = {
+      [a.vaultId]: { id: a.vaultId, role: "owner", grant: a.grant, granter: "", cache: a.cache, seq: a.seq ?? 0, pending: a.pending ?? {} },
+    };
+    a.contacts = {};
+    for (const k of ["vaultId", "grant", "cache", "seq", "pending"] as const) delete a[k];
+  }
+  return a;
 }
 
 export async function putAccount(a: StoredAccount): Promise<void> {

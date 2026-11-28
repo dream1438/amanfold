@@ -2,8 +2,8 @@
 // amanfold-server, and test pages on made-up domains (all resolved to
 // 127.0.0.1). Checks sign-up, recovery kit, autofill rules (hidden fields,
 // frames from other sites, look-alike sites), cards, one-time codes, the
-// save prompt, the service worker being stopped, Arabic, and sign-in on a
-// second browser.
+// save prompt, the service worker being stopped, Arabic, sign-in on a
+// second browser, and a family vault shared with a second account.
 //
 //   node test/e2e/run.mjs            (builds server and extension first)
 //   E2E_SKIP_BUILD=1 node test/e2e/run.mjs
@@ -14,6 +14,7 @@
 import { chromium } from "playwright";
 import { build } from "esbuild";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 import { currentStep, ext, log, start } from "./harness.mjs";
 
@@ -24,25 +25,54 @@ const browserPath = process.env.E2E_BROWSER;
 const env = await start();
 const { tmp, url } = env;
 
+const browserArgs = [
+  `--disable-extensions-except=${path.join(ext, "dist/chrome")}`,
+  `--load-extension=${path.join(ext, "dist/chrome")}`,
+  // Every made-up domain goes to the fixture server.
+  "--host-resolver-rules=MAP * 127.0.0.1, EXCLUDE 127.0.0.1",
+  "--lang=en-US",
+  // Branded builds (Chrome 137+, and some others) ignore --load-extension without this.
+  "--disable-features=DisableLoadExtensionCommandLineSwitch",
+];
+
 async function launch(dir) {
-  const ctx = await chromium.launchPersistentContext(dir, {
-    ...(browserPath ? { executablePath: browserPath } : { channel: "chromium" }),
-    headless,
-    args: [
-      `--disable-extensions-except=${path.join(ext, "dist/chrome")}`,
-      `--load-extension=${path.join(ext, "dist/chrome")}`,
-      // Every made-up domain goes to the fixture server.
-      "--host-resolver-rules=MAP * 127.0.0.1, EXCLUDE 127.0.0.1",
-      "--lang=en-US",
-      // Branded builds (Chrome 137+, and some others) ignore --load-extension without this.
-      "--disable-features=DisableLoadExtensionCommandLineSwitch",
-    ],
-    viewport: { width: 1000, height: 800 },
-  });
-  let [sw] = ctx.serviceWorkers();
-  sw ??= await ctx.waitForEvent("serviceworker");
+  let ctx;
+  let proc;
+  if (process.env.E2E_CDP === "1") {
+    // Browsers that Playwright can't start itself (Opera, Vivaldi): start it
+    // here with a debugging port and connect over CDP.
+    proc = spawn(browserPath, [...browserArgs, `--user-data-dir=${dir}`, "--remote-debugging-port=0", "--no-sandbox", "--no-first-run", "--disable-component-extensions-with-background-pages", "--no-default-browser-check", "--window-size=1000,800", ...(headless ? ["--headless=new"] : []), "about:blank"], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    const ws = await new Promise((resolve, reject) => {
+      let buf = "";
+      const timer = setTimeout(() => reject(new Error(`no DevTools address from ${browserPath}:\n${buf.slice(-2000)}`)), 60000);
+      proc.stderr.on("data", (d) => {
+        buf += d;
+        const m = /DevTools listening on (ws:\/\/\S+)/.exec(buf);
+        if (m) {
+          clearTimeout(timer);
+          resolve(m[1]);
+        }
+      });
+      proc.on("exit", (code) => reject(new Error(`${browserPath} exited (${code}):\n${buf.slice(-2000)}`)));
+    });
+    const browser = await chromium.connectOverCDP(ws);
+    ctx = browser.contexts()[0];
+  } else {
+    ctx = await chromium.launchPersistentContext(dir, {
+      ...(browserPath ? { executablePath: browserPath } : { channel: "chromium" }),
+      headless,
+      args: browserArgs,
+      viewport: { width: 1000, height: 800 },
+    });
+  }
+  // Ours is the worker running background.js (browsers ship their own too).
+  const ours = (w) => w.url().endsWith("/background.js");
+  let sw = ctx.serviceWorkers().find(ours);
+  sw ??= await ctx.waitForEvent("serviceworker", { predicate: ours, timeout: 30000 });
   const id = new URL(sw.url()).host;
-  return { ctx, id };
+  return { ctx, id, proc };
 }
 
 /** Open the popup as a tab, aimed at the tab showing `target`. */
@@ -307,6 +337,98 @@ try {
   assert.deepEqual([...titles].sort(), ["Bank", "Visa", "news.com"].sort());
   log("second browser signs in with the Secret Key and receives all three items");
 
+  // --- Family vault: create, invite, compare safety numbers, share -----------
+  const c = await launch(path.join(tmp, "profile-c"));
+  browsers.push(c);
+  let pc = await popup(c);
+  await click(pc, "Create account");
+  await pc.fill("#f-email", "family@example.com");
+  await pc.fill("#f-password", "another long password");
+  await pc.fill("#f-confirm", "another long password");
+  await pc.check("input[name=understand]");
+  await click(pc, "Create account");
+  await pc.waitForSelector("[data-testid=secret-key]", { timeout: 30000 });
+  await pc.check("input[name=saved]");
+  await click(pc, "Continue");
+  await pc.waitForSelector("text=Your vault is empty");
+
+  p = await popup(a);
+  await p.getByRole("button", { name: "Sharing" }).click();
+  const aFingerprint = (await p.textContent("[data-testid=my-fingerprint]")).trim();
+  await p.fill("#f-vname", "Home");
+  await click(p, "Create");
+  await p.waitForSelector("[data-testid=shared-vaults] li");
+  await p.locator("[data-testid=shared-vaults] .row-main").first().click();
+  await p.fill("#f-iemail", "family@example.com");
+  await p.selectOption("#f-irole", "writer");
+  await click(p, "Invite");
+  await p.waitForSelector("text=family@example.com");
+  log("owner creates the Home family vault and invites family@example.com");
+
+  await pc.getByRole("button", { name: "Sharing" }).click();
+  await pc.waitForSelector("[data-testid=invite]");
+  const cFingerprint = (await pc.textContent("[data-testid=my-fingerprint]")).trim();
+  assert.equal((await pc.textContent("[data-testid=invite-fingerprint]")).trim(), aFingerprint);
+  await click(pc, "Numbers match, join");
+  await pc.waitForSelector("[data-testid=invite]", { state: "detached" });
+  log("invitee sees the owner's safety number (matches) and joins");
+
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.locator("[data-testid=shared-vaults] .row-main").first().click();
+  await p.waitForSelector("[data-testid=member-fingerprint]");
+  assert.equal((await p.textContent("[data-testid=member-fingerprint]")).trim(), cFingerprint);
+  await click(p, "Numbers match, share");
+  await p.waitForSelector("text=Safety number checked");
+  log("owner compares the member's safety number and shares the vault key");
+
+  // The member's browser opens the vault and adds a login to it.
+  await pc.close();
+  pc = await popup(c);
+  await click(pc, "Sync now").catch(() => {});
+  await pc.getByRole("button", { name: "Settings" }).click();
+  await click(pc, "Sync now");
+  await pc.waitForSelector("text=Last synced");
+  await pc.getByRole("button", { name: "Back" }).click();
+  await click(pc, "+ Add");
+  await pc.getByRole("menuitem", { name: "Login" }).click();
+  await pc.waitForSelector("#f-vault");
+  await pc.selectOption("#f-vault", { label: "Home" });
+  await pc.fill("#f-title", "Wi-Fi router");
+  await pc.fill("#f-username", "admin");
+  await pc.fill("#f-password", "family-secret-1");
+  await click(pc, "Save");
+  await pc.waitForSelector("[data-testid=vault-tag]");
+  await pc.getByRole("button", { name: "Settings" }).click();
+  await click(pc, "Sync now");
+  await pc.waitForSelector("text=Last synced");
+  log("member opens the shared vault and adds a login to it");
+
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.getByRole("button", { name: "Settings" }).click();
+  await click(p, "Sync now");
+  await p.waitForSelector("text=Last synced");
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.waitForSelector("text=Wi-Fi router");
+  assert.equal(await p.locator("[data-testid=all-items] li", { hasText: "Wi-Fi router" }).locator("[data-testid=vault-tag]").textContent(), "Home");
+  log("owner receives the member's login, marked as in Home");
+
+  // Removing the member moves the vault to a new key; their copy goes away.
+  await p.getByRole("button", { name: "Sharing" }).click();
+  await p.locator("[data-testid=shared-vaults] .row-main").first().click();
+  await click(p, "Remove");
+  await p.waitForFunction(() => !document.body.textContent.includes("family@example.com"));
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.getByRole("button", { name: "Back" }).click();
+  await p.waitForSelector("text=Wi-Fi router");
+  await click(pc, "Sync now");
+  await pc.waitForSelector("text=Last synced");
+  await pc.getByRole("button", { name: "Back" }).click();
+  await pc.waitForSelector("text=Your vault is empty");
+  log("owner removes the member: new vault key, the member's copy disappears");
+  await pc.close();
+  await p.close();
+
   console.log("e2e: all passed");
 } catch (e) {
   failed = true;
@@ -317,7 +439,14 @@ try {
     }
   }
 } finally {
-  for (const b of browsers) await b.ctx.close().catch(() => {});
+  for (const b of browsers) {
+    await b.ctx.close().catch(() => {});
+    if (b.proc && b.proc.exitCode === null) {
+      const gone = new Promise((r) => b.proc.once("exit", r));
+      b.proc.kill();
+      await gone;
+    }
+  }
   env.stop();
 }
 process.exit(failed ? 1 : 0);

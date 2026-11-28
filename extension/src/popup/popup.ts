@@ -8,12 +8,16 @@ import type {
   FillResult,
   ItemKind,
   ItemView,
+  MembersView,
   PasswordRules,
   Reply,
   Req,
+  Role,
+  SharingView,
   Status,
   TabInfo,
   TotpCode,
+  VaultView,
 } from "../shared/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -71,6 +75,9 @@ function errorText(e: unknown): string {
     Locked: "errLocked",
     Lookalike: "errLookalike",
     NotThisSite: "notThisSite",
+    ReadOnly: "errReadOnly",
+    Fingerprint: "errFingerprint",
+    Unverified: "errUnverified",
   };
   if (map[name]) return t(map[name]);
   if (name === "Local") return err.message;
@@ -188,8 +195,12 @@ async function refresh() {
 }
 
 async function main() {
-  const param = new URLSearchParams(location.search).get("tab");
-  if (param) tabId = Number(param);
+  // Opened as a tab (tests, keyboard users): ?tab=<id> or ?tabUrl=<address>
+  // names the page to work on; from the toolbar it is the active tab.
+  const q = new URLSearchParams(location.search);
+  const byUrl = q.get("tabUrl");
+  if (q.get("tab")) tabId = Number(q.get("tab"));
+  else if (byUrl) tabId = (await chrome.tabs.query({})).find((t) => t.url === byUrl)?.id;
   else tabId = (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id;
   await refresh();
 }
@@ -422,7 +433,12 @@ function itemRow(i: ItemView, opts: { fill?: boolean } = {}) {
       "button",
       { class: "row-main", onclick: () => showItem(i.id) },
       h("span", { class: `kind kind-${i.kind}`, "aria-hidden": "true" }, i.kind === "Card" ? "▭" : i.kind === "SecureNote" ? "✎" : "●"),
-      h("span", { class: "row-text" }, h("span", { class: "row-title" }, itemTitle(i)), sub && h("span", { class: "row-sub", dir: "ltr" }, sub)),
+      h(
+        "span",
+        { class: "row-text" },
+        h("span", { class: "row-title" }, itemTitle(i), i.vault?.shared && h("span", { class: "tag", "data-testid": "vault-tag" }, i.vault.name || t("sharedVault"))),
+        sub && h("span", { class: "row-sub", dir: "ltr" }, sub),
+      ),
     ),
     opts.fill && h("button", { class: "primary small", onclick: () => fill(i) }, t("fill")),
   );
@@ -444,7 +460,7 @@ async function fill(i: ItemView, extra: { confirmFrames?: number[]; anySite?: bo
     if (r.skippedHidden > 0) notes.push(t("hiddenSkipped"));
     if (r.filled > 0 && notes.length === 0) {
       toast(t("filledN"));
-      if (!new URLSearchParams(location.search).has("tab")) setTimeout(() => window.close(), 400);
+      if (!/[?&]tab(Url)?=/.test(location.search)) setTimeout(() => window.close(), 400);
     } else if (r.filled > 0) {
       toast(`${t("filledN")} ${notes.join(" ")}`);
     } else {
@@ -561,6 +577,7 @@ async function showHome(query = "") {
   screen(
     header(t("appName"), {
       actions: [
+        h("button", { class: "icon", "aria-label": t("sharing"), title: t("sharing"), onclick: () => void showSharing() }, "👥"),
         h("button", { class: "icon", "aria-label": t("settings"), title: t("settings"), onclick: showSettings }, "⚙"),
         h("button", { class: "icon", "aria-label": t("lock"), title: t("lock"), onclick: async () => {
           await call({ type: "lock" });
@@ -587,7 +604,7 @@ function addMenu(anchor: HTMLElement) {
   document.querySelector(".menu")?.remove();
   const pick = (k: ItemKind) => () => {
     menu.remove();
-    showEdit(undefined, k);
+    void showEdit(undefined, k);
   };
   const menu = h(
     "div",
@@ -678,6 +695,10 @@ async function showItem(id: string) {
     );
   }
   const canFill = (i.kind === "Login" || i.kind === "Card") && tabId !== undefined;
+  const readOnly = !!i.vault?.readOnly;
+  if (i.vault?.shared) {
+    rows.unshift(h("p", { class: "muted small" }, t("inVault", i.vault.name || t("sharedVault")), readOnly ? ` · ${t("readOnly")}` : ""));
+  }
   screen(
     header(itemTitle(i), {
       back: () => {
@@ -693,11 +714,11 @@ async function showItem(id: string) {
         "div",
         { class: "actions" },
         canFill && h("button", { class: "primary", onclick: () => fill(i) }, t("fill")),
-        h("button", { onclick: () => {
+        !readOnly && h("button", { onclick: () => {
           clearInterval(totpTimer);
-          showEdit(i, i.kind);
+          void showEdit(i, i.kind);
         } }, t("edit")),
-        h("button", { class: "danger", onclick: async () => {
+        !readOnly && h("button", { class: "danger", onclick: async () => {
           if (!confirm(t("deleteConfirm"))) return;
           clearInterval(totpTimer);
           await call({ type: "trash", id: i.id, trashed: true });
@@ -708,7 +729,16 @@ async function showItem(id: string) {
   );
 }
 
-function showEdit(existing: ItemView | undefined, kind: ItemKind) {
+async function showEdit(existing: ItemView | undefined, kind: ItemKind) {
+  // New items can go into any vault the person may write to.
+  let vaults: VaultView[] = [];
+  if (!existing) {
+    try {
+      vaults = (await call<SharingView>({ type: "sharing" })).vaults.filter((v) => v.role !== "reader");
+    } catch {
+      vaults = [];
+    }
+  }
   const val = (n: string) => (existing ? field(existing, n) : "");
   const names = ["title", ...ORDER[kind]];
   const defaults: Record<string, string> = {};
@@ -780,10 +810,16 @@ function showEdit(existing: ItemView | undefined, kind: ItemKind) {
         await call({ type: "update", id: existing.id, set, remove });
         await showItem(existing.id);
       } else {
-        await call({ type: "create", kind, fields: set });
+        const vaultId = String(d.get("vault") ?? "") || undefined;
+        await call({ type: "create", kind, fields: set, vaultId });
         await showHome();
       }
     },
+    vaults.length > 0 &&
+      h("label", { for: "f-vault" }, h("span", {}, t("vault")),
+        h("select", { id: "f-vault", name: "vault" },
+          h("option", { value: "" }, t("personalVault")),
+          ...vaults.map((v) => h("option", { value: v.id }, v.name || t("sharedVault"))))),
     ...inputs,
     h("div", { class: "actions" },
       h("button", { type: "submit", class: "primary" }, t("save")),
@@ -843,6 +879,199 @@ function showGenerator(use: (pw: string) => void) {
   document.body.append(dlg);
   dlg.showModal();
   void regen();
+}
+
+// ---------------------------------------------------------------------------
+// Sharing: family and team vaults
+// ---------------------------------------------------------------------------
+
+const ROLE_LABEL: Record<Role, MessageKey> = {
+  owner: "roleOwner",
+  manager: "roleManager",
+  writer: "roleWriter",
+  reader: "roleReader",
+};
+
+/** A safety number, grouped for reading aloud and always left to right. */
+function safety(fp: string, testid?: string) {
+  return h("p", { class: "mono safety", dir: "ltr", "data-testid": testid }, fp);
+}
+
+async function showSharing() {
+  let v: SharingView;
+  try {
+    v = await call<SharingView>({ type: "sharing" });
+  } catch (e) {
+    toast(errorText(e), "err");
+    return;
+  }
+  const parts: Child[] = [];
+  for (const inv of v.invites) {
+    parts.push(
+      h("div", { class: "banner save", "data-testid": "invite" },
+        h("p", {}, t("inviteFrom", inv.fromEmail, t(ROLE_LABEL[inv.role]))),
+        h("p", { class: "muted small" }, t("compareTheirs", inv.fromEmail)),
+        safety(inv.fromFingerprint, "invite-fingerprint"),
+        h("div", { class: "actions" },
+          h("button", { class: "primary small", onclick: async () => {
+            try {
+              await call({ type: "acceptInvite", inviteId: inv.inviteId, fingerprint: inv.fromFingerprint });
+              toast(t("joinedWaiting"));
+            } catch (e) {
+              toast(errorText(e), "err");
+            }
+            await showSharing();
+          } }, t("numbersMatchJoin")),
+          h("button", { class: "small", onclick: async () => {
+            await call({ type: "declineInvite", inviteId: inv.inviteId });
+            await showSharing();
+          } }, t("decline")),
+        ),
+      ),
+    );
+  }
+  for (const w of v.waiting) {
+    parts.push(
+      h("div", { class: "banner", "data-testid": "waiting" },
+        h("p", {}, t("waitingFrom", w.email)),
+        h("p", { class: "muted small" }, t("compareTheirs", w.email)),
+        safety(w.fingerprint),
+        h("div", { class: "actions" },
+          h("button", { class: "primary small", onclick: async () => {
+            try {
+              await call({ type: "verify", vaultId: w.vaultId, accountId: w.accountId, fingerprint: w.fingerprint });
+              await call({ type: "sync" });
+            } catch (e) {
+              toast(errorText(e), "err");
+            }
+            await showSharing();
+          } }, t("numbersMatch")),
+        ),
+      ),
+    );
+  }
+  parts.push(h("h2", {}, t("sharedVaults")));
+  parts.push(
+    v.vaults.length
+      ? h("ul", { class: "list", "data-testid": "shared-vaults" }, ...v.vaults.map((x) =>
+          h("li", { class: "row" },
+            h("button", { class: "row-main", onclick: () => void showVault(x) },
+              h("span", { class: "kind", "aria-hidden": "true" }, x.kind === "team" ? "▦" : "⌂"),
+              h("span", { class: "row-text" },
+                h("span", { class: "row-title" }, x.name || t("sharedVault")),
+                h("span", { class: "row-sub" }, `${t(x.kind === "team" ? "team" : "family")} · ${t(ROLE_LABEL[x.role])} · ${t("itemsN", x.items)}`),
+              ),
+            ),
+          )))
+      : h("p", { class: "muted small" }, t("noSharedVaults")),
+  );
+  parts.push(
+    h("h2", {}, t("newSharedVault")),
+    form(
+      async (d) => {
+        await call({ type: "createVault", name: String(d.get("vname") ?? ""), kind: d.get("vkind") === "team" ? "team" : "family" });
+        await showSharing();
+      },
+      input("vname", "vaultName", { required: true, maxlength: 80 }),
+      h("label", { for: "f-vkind" }, h("span", {}, t("vaultKind")),
+        h("select", { id: "f-vkind", name: "vkind" },
+          h("option", { value: "family" }, t("family")),
+          h("option", { value: "team" }, t("team")))),
+      h("button", { type: "submit", class: "primary" }, t("create")),
+    ),
+    h("h2", {}, t("yourSafetyNumber")),
+    h("p", { class: "muted small" }, t("safetyExplain")),
+    safety(v.myFingerprint, "my-fingerprint"),
+  );
+  screen(header(t("sharing"), { back: () => void showHome() }), h("main", {}, ...parts));
+}
+
+async function showVault(v: VaultView) {
+  let m: MembersView;
+  try {
+    m = await call<MembersView>({ type: "members", vaultId: v.id });
+  } catch (e) {
+    toast(errorText(e), "err");
+    return;
+  }
+  const manage = v.role === "owner" || v.role === "manager";
+  const run = async (req: Req, done?: string) => {
+    try {
+      await call(req);
+      if (done) toast(done);
+    } catch (e) {
+      toast(errorText(e), "err");
+    }
+    await showVault(v);
+  };
+  const rows = m.members.map((x) =>
+    h("li", { class: "member", "data-testid": "member" },
+      h("div", { class: "member-head" },
+        h("span", { dir: "ltr", class: "member-email" }, x.email, x.me ? ` (${t("you")})` : ""),
+        v.role === "owner" && !x.me && x.role !== "owner"
+          ? h("select", { "aria-label": t("role"), onchange: (e: Event) => void run({ type: "setRole", vaultId: v.id, accountId: x.accountId, role: (e.target as HTMLSelectElement).value as Role }) },
+              ...(["manager", "writer", "reader"] as Role[]).map((r) => h("option", { value: r, selected: r === x.role }, t(ROLE_LABEL[r]))))
+          : h("span", { class: "muted small" }, t(ROLE_LABEL[x.role])),
+      ),
+      !x.me && !x.verified && h("div", { class: "member-check" },
+        h("p", { class: "muted small" }, x.active ? t("compareTheirs", x.email) : t("waitingForYou", x.email)),
+        safety(x.fingerprint, "member-fingerprint"),
+        (x.active || manage) && h("button", { class: "primary small", onclick: () => void run({ type: "verify", vaultId: v.id, accountId: x.accountId, fingerprint: x.fingerprint }, x.active ? undefined : t("sharedWith", x.email)) },
+          x.active ? t("numbersMatch") : t("numbersMatchShare")),
+      ),
+      !x.me && x.verified && h("p", { class: "ok small" }, x.active ? `✓ ${t("verified")}` : t("pendingKey")),
+      manage && !x.me && x.role !== "owner" && (v.role === "owner" || x.role !== "manager") &&
+        h("button", { class: "small danger", onclick: () => {
+          if (confirm(t("removeConfirm", x.email))) void run({ type: "removeMember", vaultId: v.id, accountId: x.accountId });
+        } }, t("remove")),
+    ));
+  const parts: Child[] = [
+    h("p", { class: "muted small" }, `${t(v.kind === "team" ? "team" : "family")} · ${t(ROLE_LABEL[v.role])}`),
+    h("h2", {}, t("members")),
+    h("ul", { class: "list members" }, ...rows),
+  ];
+  if (m.invites.length) {
+    parts.push(h("h2", {}, t("invited")));
+    parts.push(h("ul", { class: "list" }, ...m.invites.map((i) =>
+      h("li", { class: "member" },
+        h("div", { class: "member-head" }, h("span", { dir: "ltr" }, i.email), h("span", { class: "muted small" }, t(ROLE_LABEL[i.role]))),
+        h("button", { class: "small", onclick: () => void run({ type: "cancelInvite", inviteId: i.inviteId }) }, t("cancel")),
+      ))));
+  }
+  if (manage) {
+    parts.push(
+      h("h2", {}, t("inviteSomeone")),
+      form(
+        async (d) => {
+          await call({ type: "invite", vaultId: v.id, email: String(d.get("iemail")), role: String(d.get("irole")) as Role });
+          toast(t("inviteSent"));
+          await showVault(v);
+        },
+        input("iemail", "email", { type: "email", required: true, dir: "ltr", autocomplete: "off" }),
+        h("label", { for: "f-irole" }, h("span", {}, t("role")),
+          h("select", { id: "f-irole", name: "irole" },
+            ...(v.role === "owner" ? ["writer", "reader", "manager"] : ["writer", "reader"]).map((r) => h("option", { value: r }, t(ROLE_LABEL[r as Role]))))),
+        h("p", { class: "muted small" }, t("inviteExplain")),
+        h("button", { type: "submit", class: "primary" }, t("invite")),
+      ),
+    );
+  }
+  parts.push(
+    h("div", { class: "actions" },
+      v.role === "owner"
+        ? h("button", { class: "danger", onclick: async () => {
+            if (!confirm(t("deleteVaultConfirm", v.name || t("sharedVault")))) return;
+            await call({ type: "deleteVault", vaultId: v.id }).catch((e) => toast(errorText(e), "err"));
+            await showSharing();
+          } }, t("deleteVault"))
+        : h("button", { class: "danger", onclick: async () => {
+            if (!confirm(t("leaveConfirm", v.name || t("sharedVault")))) return;
+            await call({ type: "leaveVault", vaultId: v.id }).catch((e) => toast(errorText(e), "err"));
+            await showSharing();
+          } }, t("leaveVault")),
+    ),
+  );
+  screen(header(v.name || t("sharedVault"), { back: () => void showSharing() }), h("main", {}, ...parts));
 }
 
 // ---------------------------------------------------------------------------

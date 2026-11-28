@@ -56,7 +56,7 @@ async function onSubmitted(ev: ContentEvent, sender: chrome.runtime.MessageSende
   const open = await s.unlocked();
   let updateId: string | undefined;
   if (open) {
-    const matches = open.vault.loginsForUrl(url) as { item: ItemView }[];
+    const matches = s.loginsFor(open, url).filter((m) => !m.item.vault?.readOnly);
     const same = matches.find(
       (m) => (m.item.fields.find((f) => f.name === "username")?.value ?? "") === ev.username,
     );
@@ -88,8 +88,8 @@ async function badge(tabId: number) {
     let text = "";
     let color = "#0b6e4f";
     if (open && tab.url) {
-      const n = (open.vault.loginsForUrl(tab.url) as unknown[]).length;
-      if (open.vault.lookalikeSites(tab.url).length > 0) {
+      const n = s.loginsFor(open, tab.url).length;
+      if (s.lookalikesFor(open, tab.url).length > 0) {
         text = "!";
         color = "#b3261e";
       } else if (pendingFor(tabId)) {
@@ -136,10 +136,10 @@ chrome.commands.onCommand.addListener((command, tab) => {
     const t = tab?.id !== undefined ? tab : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
     if (t?.id === undefined || !t.url) return;
     const open = await s.unlocked();
-    const matches = open ? (open.vault.loginsForUrl(t.url) as { item: ItemView; strength: string }[]) : [];
+    const matches = open ? s.loginsFor(open, t.url) : [];
     const best = matches.filter((m) => m.strength === matches[0]?.strength);
     if (open && best.length === 1 && best[0]) {
-      await fillTab(t.id, best[0].item, { lookalikes: (u) => open.vault.lookalikeSites(u) });
+      await fillTab(t.id, best[0].item, { lookalikes: (u) => s.lookalikesFor(open, u) });
     } else {
       await chrome.action.openPopup?.().catch(() => undefined);
     }
@@ -174,8 +174,8 @@ async function tabInfo(tabId: number): Promise<TabInfo> {
   return {
     url,
     site: core.pageSite(url),
-    matches: open.vault.loginsForUrl(url),
-    lookalikes: open.vault.lookalikeSites(url),
+    matches: s.loginsFor(open, url),
+    lookalikes: s.lookalikesFor(open, url),
     pendingSave: p && { site: p.site, displayHost: p.displayHost, username: p.username, updateId: p.updateId },
   };
 }
@@ -208,23 +208,23 @@ async function handle(req: Req): Promise<unknown> {
     case "items":
       return s.items(req.trashed);
     case "item":
-      return (await s.need()).vault.item(req.id);
+      return (await s.item(req.id)) ?? null;
     case "tabInfo":
       return tabInfo(req.tabId);
     case "create":
-      return s.create(req.kind, req.fields);
+      return s.create(req.kind, req.fields, req.vaultId);
     case "update":
       return s.update(req.id, req.set, req.remove);
     case "trash":
       return s.trash(req.id, req.trashed);
     case "fill": {
       const open = await s.need();
-      const item = (open.vault.item(req.itemId) as ItemView | undefined) ?? fail("NotFound");
+      const item = (await s.item(req.itemId)) ?? fail("NotFound");
       if (item.trashed) fail("NotFound");
       const r = await fillTab(req.tabId, item, {
         confirmFrames: req.confirmFrames,
         anySite: req.anySite,
-        lookalikes: (u) => open.vault.lookalikeSites(u),
+        lookalikes: (u) => s.lookalikesFor(open, u),
       });
       return r;
     }
@@ -258,6 +258,30 @@ async function handle(req: Req): Promise<unknown> {
       return (await loadCore()).cardInfo(req.number);
     case "settings":
       return setSettings(req.set);
+    case "sharing":
+      return s.sharing();
+    case "createVault":
+      return s.createVault(req.name, req.kind);
+    case "members":
+      return s.members(req.vaultId);
+    case "invite":
+      return s.invite(req.vaultId, req.email, req.role);
+    case "cancelInvite":
+      return s.cancelInvite(req.inviteId);
+    case "acceptInvite":
+      return s.acceptInvite(req.inviteId, req.fingerprint);
+    case "declineInvite":
+      return s.declineInvite(req.inviteId);
+    case "verify":
+      return s.verify(req.vaultId, req.accountId, req.fingerprint);
+    case "setRole":
+      return s.setRole(req.vaultId, req.accountId, req.role);
+    case "removeMember":
+      return s.removeMember(req.vaultId, req.accountId);
+    case "leaveVault":
+      return s.leaveVault(req.vaultId);
+    case "deleteVault":
+      return s.deleteVault(req.vaultId);
   }
 }
 
