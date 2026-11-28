@@ -153,7 +153,6 @@ private fun CompareDialog(
 fun SharingScreen(onBack: () -> Unit, onOpenVault: (String) -> Unit) {
     val app = LocalContext.current.amanfold
     val scope = rememberCoroutineScope()
-    val revision by app.vault.revision.collectAsState()
     var reload by remember { mutableIntStateOf(0) }
     var view by remember { mutableStateOf<SharingView?>(null) }
     var failure by remember { mutableStateOf<Throwable?>(null) }
@@ -164,7 +163,7 @@ fun SharingScreen(onBack: () -> Unit, onOpenVault: (String) -> Unit) {
     var creating by remember { mutableStateOf(false) }
     val acceptedNote = stringResource(R.string.invite_accepted)
 
-    LaunchedEffect(reload, revision) {
+    LaunchedEffect(reload) {
         failure = null
         try {
             runCatching { app.vault.sync() }
@@ -358,7 +357,7 @@ fun MembersScreen(vaultId: String, onBack: () -> Unit) {
     }
     val needsVerification = remember { mutableStateOf(false) }
 
-    LaunchedEffect(reload, revision) {
+    LaunchedEffect(reload) {
         failure = null
         try {
             view = app.vault.members(vaultId)

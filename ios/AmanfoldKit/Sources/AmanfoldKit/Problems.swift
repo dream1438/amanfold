@@ -4,6 +4,7 @@ import Foundation
 public enum Problem: Equatable {
     case wrongPassword, secretKey, recoveryWords, offline, exists, badServer, serverKey
     case rollback, signedOut, verification, code, rateLimited, locked
+    case readOnly, safetyNumber, unverified, notFound
     case server(String), other(String)
 
     /// The sentence to show.
@@ -22,6 +23,10 @@ public enum Problem: Equatable {
         case .code: return L("err_code")
         case .rateLimited: return L("err_rate_limited")
         case .locked: return L("err_locked")
+        case .readOnly: return L("err_read_only")
+        case .safetyNumber: return L("err_safety_number")
+        case .unverified: return L("err_unverified")
+        case .notFound: return L("err_not_found")
         case .server(let m): return L("err_server", m)
         case .other(let m): return L("err_generic", m)
         }
@@ -36,11 +41,15 @@ public func problem(of e: Error, hadCode: Bool = false) -> Problem {
     case is ServerKeyError: return .serverKey
     case is SecretKeyError: return .secretKey
     case is BadServerError: return .badServer
+    case is ReadOnlyError: return .readOnly
+    case is FingerprintChangedError: return .safetyNumber
+    case is UnverifiedMembersError: return .unverified
     case let a as AmanfoldError:
         switch a {
         case .Decrypt: return .wrongPassword
         case .InvalidCode(let reason): return reason.lowercased().contains("secret") ? .secretKey : .recoveryWords
         case .Rollback, .BadSignature: return .rollback
+        case .NotFound: return .notFound
         default: return .other(String(describing: a))
         }
     case let a as ApiError:
@@ -49,6 +58,7 @@ public func problem(of e: Error, hadCode: Bool = false) -> Problem {
         if a.kind == "rate_limited" { return .rateLimited }
         if a.kind == "verification_failed" { return hadCode ? .code : .verification }
         if a.status == 401 { return .signedOut }
+        if a.status == 404 { return .notFound }
         return .server(a.description)
     default:
         return .other(String(describing: e))

@@ -167,6 +167,7 @@
     <string name="read_only">يمكنك عرض هذا دون تغييره.</string>
     <string name="move_to">نقل إلى خزنة أخرى</string>
     <string name="save_in">الحفظ في: %1$s</string>
+    <string name="vault_label">الخزنة</string>
     <string name="role_owner">المالك</string>
     <string name="role_manager">مدير</string>
     <string name="role_writer">يمكنه التعديل</string>

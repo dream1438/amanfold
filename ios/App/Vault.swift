@@ -30,6 +30,9 @@ struct VaultView: View {
     @State private var filter = Filter.all
     @State private var adding: ItemKind?
     @State private var settings = false
+    @State private var sharing = false
+    /// Invitations and vaults waiting for a safety-number check.
+    @State private var asks = 0
 
     private var shown: [ItemView] {
         _ = session.revision
@@ -46,6 +49,9 @@ struct VaultView: View {
                 if let p = session.syncProblem {
                     Section { Banner(syncText(p), danger: p != .offline) }
                 }
+                if asks > 0 {
+                    Section { Button(L("sharing_asks", asks)) { sharing = true } }
+                }
                 Section {
                     Picker(L("all_items"), selection: $filter) {
                         ForEach(Filter.allCases) { Text($0.label).tag($0) }
@@ -58,8 +64,9 @@ struct VaultView: View {
                     Text(query.isEmpty ? (filter == .trash ? L("trash_empty") : L("empty")) : L("no_results"))
                         .foregroundStyle(Brand.muted)
                 } else {
+                    let anyShared = session.vaults().contains { $0.shared }
                     ForEach(items, id: \.id) { item in
-                        NavigationLink(value: item.id) { ItemRow(item) }
+                        NavigationLink(value: item.id) { ItemRow(item, vault: anyShared ? session.vaultOf(item.id) : nil) }
                     }
                 }
             }
@@ -73,6 +80,8 @@ struct VaultView: View {
                         .accessibilityLabel(L("settings"))
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { sharing = true } label: { Image(systemName: "person.2") }
+                        .accessibilityLabel(L("sharing"))
                     Button { session.lock() } label: { Image(systemName: "lock") }
                         .accessibilityLabel(L("lock"))
                     Menu {
@@ -87,8 +96,18 @@ struct VaultView: View {
                 NavigationStack { EditItemView(kind: kind, existing: nil) }
             }
             .sheet(isPresented: $settings) { SettingsView() }
-            .task { try? await session.sync() }
+            .sheet(isPresented: $sharing, onDismiss: { Task { await countAsks() } }) {
+                NavigationStack { SharingScreen() }
+            }
+            .task {
+                try? await session.sync()
+                await countAsks()
+            }
         }
+    }
+
+    private func countAsks() async {
+        if let v = try? await session.sharing() { asks = v.invites.count + v.waiting.count }
     }
 
     private func syncText(_ p: SyncProblem) -> String {
@@ -114,17 +133,28 @@ struct ItemDetailView: View {
     @State private var editing = false
     @State private var confirmTrash = false
     @State private var toast: String?
+    @State private var error: String?
 
     var body: some View {
         let _ = session.revision
         if let item = session.item(id) {
+            let vault = session.vaultOf(id)
+            let writable = vault?.readOnly != true
+            let targets = session.vaults().filter { $0.id != vault?.id && !$0.readOnly }
             List {
                 Section {
                     HStack(spacing: 14) {
                         Image(systemName: item.symbol).font(.title2).foregroundStyle(Brand.primary)
                         Text(item.titleText).font(.title3.weight(.semibold))
                     }
+                    if let vault, vault.shared {
+                        HStack {
+                            VaultChip(vault)
+                            if vault.readOnly { Text(L("read_only")).font(.footnote).foregroundStyle(Brand.muted) }
+                        }
+                    }
                 }
+                if let error { Section { Banner(error, danger: true) } }
                 Section {
                     ForEach(rows(item), id: \.name) { f in
                         if f.name == "totp" {
@@ -136,18 +166,27 @@ struct ItemDetailView: View {
                     }
                 }
                 if let toast { Section { Text(toast).font(.footnote).foregroundStyle(Brand.muted) } }
-                Section {
-                    if item.trashed {
-                        Button(L("restore")) { Task { try? await session.trash(id, false); dismiss() } }
-                    } else {
-                        Button(L("delete"), role: .destructive) { confirmTrash = true }
+                if writable {
+                    Section {
+                        if !item.trashed && !targets.isEmpty {
+                            Menu(L("move_to")) {
+                                ForEach(targets) { t in
+                                    Button(t.shared ? vaultName(t.name) : L("personal_vault")) { move(to: t.id) }
+                                }
+                            }
+                        }
+                        if item.trashed {
+                            Button(L("restore")) { Task { try? await session.trash(id, false); dismiss() } }
+                        } else {
+                            Button(L("delete"), role: .destructive) { confirmTrash = true }
+                        }
                     }
                 }
             }
             .navigationTitle(item.titleText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !item.trashed { Button(L("edit")) { editing = true } }
+                if !item.trashed && writable { Button(L("edit")) { editing = true } }
             }
             .sheet(isPresented: $editing) {
                 NavigationStack { EditItemView(kind: item.kind, existing: item) }
@@ -157,6 +196,17 @@ struct ItemDetailView: View {
             }
         } else {
             Text(L("no_results")).foregroundStyle(Brand.muted)
+        }
+    }
+
+    private func move(to vaultId: String) {
+        Task {
+            do {
+                try await session.move(id, to: vaultId)
+                dismiss()
+            } catch {
+                self.error = problem(of: error).text
+            }
         }
     }
 
@@ -264,6 +314,8 @@ struct EditItemView: View {
     @State private var generator = false
     @State private var busy = false
     @State private var error: String?
+    /// Where a new item goes; the personal vault unless changed.
+    @State private var target: String?
 
     private var names: [String] {
         switch kind {
@@ -279,6 +331,16 @@ struct EditItemView: View {
 
     var body: some View {
         Form {
+            let choices = existing == nil ? session.vaults().filter { !$0.readOnly } : []
+            if choices.count > 1 {
+                Section {
+                    Picker(L("vault_label"), selection: $target) {
+                        ForEach(choices) { c in
+                            Text(c.shared ? vaultName(c.name) : L("personal_vault")).tag(Optional(c.id))
+                        }
+                    }
+                }
+            }
             Section {
                 TextField(L("title"), text: binding("title"))
             }
@@ -331,6 +393,7 @@ struct EditItemView: View {
             guard !loaded else { return }
             loaded = true
             for f in existing?.fields ?? [] { values[f.name] = f.value }
+            target = session.vaults().first { !$0.shared }?.id
         }
     }
 
@@ -375,7 +438,7 @@ struct EditItemView: View {
                 if let existing {
                     try await session.update(existing.id, set: set, remove: remove)
                 } else {
-                    try await session.create(kind, set)
+                    try await session.create(kind, set, in: target)
                 }
                 dismiss()
             } catch {

@@ -56,10 +56,22 @@ func background<T>(_ body: @escaping () throws -> T) async throws -> T {
 /// interleaves with an edit or a lock.
 @MainActor
 public final class AmanfoldSession: ObservableObject {
-    private struct Open {
+    private final class Open {
         let account: Account
-        let vault: LocalVault
         let me: Data
+        let meB64: String
+        let personalId: String
+        var vaults: [String: LocalVault] = [:]
+
+        init(account: Account, personalId: String) {
+            self.account = account
+            me = account.publicKeys()
+            meB64 = B64.encode(me)
+            self.personalId = personalId
+        }
+
+        /// Personal first, then shared vaults by id.
+        var ids: [String] { [personalId] + vaults.keys.filter { $0 != personalId }.sorted() }
     }
 
     private let store: AccountStore
@@ -109,7 +121,7 @@ public final class AmanfoldSession: ObservableObject {
             let s = try self.stored()
             let bundle = try B64.decode(s.bundle)
             let account = try await background { try unlockAccount(bundle: bundle, password: password, secretKey: s.secretKey) }
-            self.replaceOpen(try self.openVault(account, s))
+            self.replaceOpen(try self.openAll(account, s))
         }
     }
 
@@ -119,7 +131,7 @@ public final class AmanfoldSession: ObservableObject {
             let s = try self.stored()
             guard let wrapped = s.quickWrapped else { throw LockedError() }
             let account = try coreQuickUnlock(bundle: try B64.decode(s.bundle), deviceKey: deviceKey, wrappedKeys: try B64.decode(wrapped))
-            self.replaceOpen(try self.openVault(account, s))
+            self.replaceOpen(try self.openAll(account, s))
         }
     }
 
@@ -152,11 +164,36 @@ public final class AmanfoldSession: ObservableObject {
         publish()
     }
 
-    private func openVault(_ account: Account, _ s: StoredAccount) throws -> Open {
-        let me = account.publicKeys()
-        let cache = try s.cache.map { try B64.decode($0) }
-        let vault = try account.openVault(grant: try B64.decode(s.grant), granterPublicKeys: me, cache: cache)
-        return Open(account: account, vault: vault, me: me)
+    private func granterOf(_ o: Open, _ v: StoredVault) throws -> Data {
+        v.granter.isEmpty ? o.me : try B64.decode(v.granter)
+    }
+
+    private func reopen(_ o: Open, _ v: StoredVault) throws -> LocalVault {
+        let cache = try v.cache.map { try B64.decode($0) }
+        return try o.account.openVault(grant: try B64.decode(v.grant), granterPublicKeys: try granterOf(o, v), cache: cache)
+    }
+
+    /// Open every vault this device has. The personal vault must open; a
+    /// shared one that fails is dropped and opened again from the server on
+    /// the next sync.
+    private func openAll(_ account: Account, _ s: StoredAccount) throws -> Open {
+        let o = Open(account: account, personalId: s.personalId)
+        var dropped: [String] = []
+        for v in s.vaults.values {
+            do {
+                o.vaults[v.id] = try reopen(o, v)
+            } catch {
+                if v.id == s.personalId { throw error }
+                dropped.append(v.id)
+            }
+        }
+        guard o.vaults[s.personalId] != nil else { throw LockedError() }
+        if !dropped.isEmpty {
+            var n = s
+            for d in dropped { n.vaults[d] = nil }
+            try? store.save(n)
+        }
+        return o
     }
 
     // MARK: Sign-up, sign-in, recovery
@@ -204,15 +241,19 @@ public final class AmanfoldSession: ObservableObject {
             api.token = try fin.need("api_token")
             let nv = try account.createVault()
             _ = try await api.post("/v1/vaults", ["grant": B64.encode(nv.grant)])
+            let id = nv.vault.id()
             let s = StoredAccount(
                 server: api.base, email: email, accountId: try fin.need("account_id"),
                 bundle: B64.encode(created.bundle), secretKey: created.secretKey, serverKey: serverKey,
-                token: api.token!, vaultId: nv.vault.id(), grant: B64.encode(nv.grant),
-                cache: B64.encode(nv.vault.exportCache()), lastSyncMs: Self.nowMs()
+                token: api.token!, personalId: id,
+                vaults: [id: StoredVault(id: id, role: "owner", grant: B64.encode(nv.grant), cache: B64.encode(nv.vault.exportCache()))],
+                lastSyncMs: Self.nowMs()
             )
             try self.store.save(s)
             self.lastSyncMs = s.lastSyncMs
-            self.replaceOpen(Open(account: account, vault: nv.vault, me: account.publicKeys()))
+            let o = Open(account: account, personalId: id)
+            o.vaults[id] = nv.vault
+            self.replaceOpen(o)
             return RecoveryKit(email: email, secretKey: created.secretKey, recoveryWords: created.recoveryWords)
         }
     }
@@ -239,6 +280,8 @@ public final class AmanfoldSession: ObservableObject {
             let bundle = try fin.need("bundle")
             let account = try session.unlock(bundle: try B64.decode(bundle))
             api.token = B64.encode(out.apiToken)
+            // The personal vault: the first one this account owns. Shared
+            // vaults are picked up by the sync below.
             let vaults = (try await api.get("/v1/vaults")["vaults"] as? [JSON]) ?? []
             guard let mine = vaults.first(where: { $0["role"] as? String == "owner" }) else {
                 throw ApiError(status: 200, kind: "no_vault", message: "this account has no vault yet")
@@ -246,11 +289,11 @@ public final class AmanfoldSession: ObservableObject {
             let vaultId = try mine.need("vault_id")
             var s = StoredAccount(
                 server: api.base, email: email, accountId: try fin.need("account_id"), bundle: bundle,
-                secretKey: secretKey, serverKey: serverKey, token: api.token!, vaultId: vaultId,
-                grant: try await self.newestGrant(api, vaultId)
+                secretKey: secretKey, serverKey: serverKey, token: api.token!, personalId: vaultId,
+                vaults: [vaultId: StoredVault(id: vaultId, role: "owner", grant: try await self.newestGrant(api, vaultId))]
             )
-            let o = try self.openVault(account, s)
-            s.cache = B64.encode(o.vault.exportCache())
+            let o = try self.openAll(account, s)
+            s.vaults[vaultId]?.cache = B64.encode(o.vaults[vaultId]!.exportCache())
             try self.store.save(s)
             self.replaceOpen(o)
         }
@@ -313,26 +356,95 @@ public final class AmanfoldSession: ObservableObject {
         }
     }
 
-    // MARK: Items
+    // MARK: Items, across the personal vault and every shared vault
+
+    private func info(_ v: LocalVault) -> (name: String, kind: VaultKind) {
+        let note = v.items(includeTrashed: false).first(where: isVaultInfo)
+        let kind: VaultKind = note?.fields.first { $0.name == vaultInfoField }?.value == "team" ? .team : .family
+        return (note?.fields.first { $0.name == "title" }?.value ?? "", kind)
+    }
+
+    private func tag(_ o: Open, _ s: StoredAccount, _ id: String) -> VaultTag {
+        let role = Role.of(s.vaults[id]?.role)
+        if id == o.personalId { return VaultTag(id: id, name: "", kind: .personal, role: role) }
+        let i: (name: String, kind: VaultKind) = o.vaults[id].map { info($0) } ?? (name: "", kind: .family)
+        return VaultTag(id: id, name: i.name, kind: i.kind, role: role)
+    }
+
+    /// The vaults items can be shown from, personal first.
+    public func vaults() -> [VaultTag] {
+        guard let o = open, let s = store.load() else { return [] }
+        return o.ids.map { tag(o, s, $0) }
+    }
 
     public func items(trashed: Bool = false) -> [ItemView] {
         guard let o = open else { return [] }
-        return o.vault.items(includeTrashed: trashed).filter { $0.trashed == trashed }
+        return o.ids.compactMap { o.vaults[$0] }.flatMap { v in
+            v.items(includeTrashed: trashed).filter { $0.trashed == trashed && !isVaultInfo($0) }
+        }
     }
 
-    public func item(_ id: String) -> ItemView? { try? open?.vault.item(id: id) }
+    private func locate(_ id: String) -> (vault: String, item: ItemView)? {
+        guard let o = open else { return nil }
+        for vid in o.ids {
+            if let i = try? o.vaults[vid]?.item(id: id), !isVaultInfo(i) { return (vid, i) }
+        }
+        return nil
+    }
 
-    /// The only logins AutoFill may offer on this page, best match first.
-    public func logins(forPage url: String) -> [LoginMatch] { open?.vault.loginsForUrl(pageUrl: url) ?? [] }
+    public func item(_ id: String) -> ItemView? { locate(id)?.item }
+
+    /// The vault an item is in.
+    public func vaultOf(_ itemId: String) -> VaultTag? {
+        guard let o = open, let s = store.load(), let l = locate(itemId) else { return nil }
+        return tag(o, s, l.vault)
+    }
+
+    private static func rank(_ m: SiteMatch) -> Int {
+        switch m {
+        case .none: return 0
+        case .site: return 1
+        case .host: return 2
+        case .origin: return 3
+        }
+    }
+
+    /// The only logins AutoFill may offer on this page, from every vault, best match first.
+    public func logins(forPage url: String) -> [LoginMatch] {
+        guard let o = open else { return [] }
+        let all = o.ids.compactMap { o.vaults[$0] }.flatMap { $0.loginsForUrl(pageUrl: url) }.filter { !isVaultInfo($0.item) }
+        // A stable sort: vault order is kept within the same strength.
+        return all.enumerated().sorted { a, b in
+            let ra = Self.rank(a.element.strength), rb = Self.rank(b.element.strength)
+            return ra != rb ? ra > rb : a.offset < b.offset
+        }.map(\.element)
+    }
 
     /// Saved sites this page imitates, for a warning.
-    public func lookalikes(forPage url: String) -> [String] { open?.vault.lookalikeSites(pageUrl: url) ?? [] }
+    public func lookalikes(forPage url: String) -> [String] {
+        guard let o = open else { return [] }
+        var seen = Set<String>()
+        return o.ids.compactMap { o.vaults[$0] }.flatMap { $0.lookalikeSites(pageUrl: url) }.filter { seen.insert($0).inserted }
+    }
 
+    private func writable(_ vaultId: String) throws {
+        guard let sv = try stored().vaults[vaultId] else { throw AmanfoldError.NotFound }
+        if !Role.of(sv.role).canWrite { throw ReadOnlyError() }
+    }
+
+    private func vault(_ id: String) throws -> LocalVault {
+        guard let v = try need().vaults[id] else { throw AmanfoldError.NotFound }
+        return v
+    }
+
+    /// A new item, in the personal vault unless `vaultId` names a shared one.
     @discardableResult
-    public func create(_ kind: ItemKind, _ fields: [FieldInput]) async throws -> String {
+    public func create(_ kind: ItemKind, _ fields: [FieldInput], in vaultId: String? = nil) async throws -> String {
         let id = try await queue.run { @MainActor in
-            let saved = try self.need().vault.createItem(kind: kind, fields: fields)
-            try self.saveLocal(saved)
+            let target = try vaultId ?? self.need().personalId
+            try self.writable(target)
+            let saved = try self.vault(target).createItem(kind: kind, fields: fields)
+            try self.saveLocal(target, saved)
             return saved.id
         }
         try? await sync()
@@ -341,94 +453,479 @@ public final class AmanfoldSession: ObservableObject {
 
     public func update(_ id: String, set: [FieldInput], remove: [String] = []) async throws {
         try await queue.run { @MainActor in
-            try self.saveLocal(try self.need().vault.updateItem(id: id, set: set, remove: remove))
+            guard let l = self.locate(id) else { throw AmanfoldError.NotFound }
+            try self.writable(l.vault)
+            try self.saveLocal(l.vault, try self.vault(l.vault).updateItem(id: id, set: set, remove: remove))
         }
         try? await sync()
     }
 
     public func trash(_ id: String, _ trashed: Bool) async throws {
         try await queue.run { @MainActor in
-            try self.saveLocal(try self.need().vault.setTrashed(id: id, trashed: trashed))
+            guard let l = self.locate(id) else { throw AmanfoldError.NotFound }
+            try self.writable(l.vault)
+            try self.saveLocal(l.vault, try self.vault(l.vault).setTrashed(id: id, trashed: trashed))
         }
         try? await sync()
     }
 
-    private func saveLocal(_ saved: SavedItem) throws {
-        let o = try need()
+    /// Copy an item into another vault and move the original to the trash.
+    @discardableResult
+    public func move(_ id: String, to vaultId: String) async throws -> String {
+        let newId = try await queue.run { @MainActor in
+            guard let l = self.locate(id) else { throw AmanfoldError.NotFound }
+            if l.vault == vaultId { return id }
+            try self.writable(l.vault)
+            try self.writable(vaultId)
+            let fields = l.item.fields.map { FieldInput(name: $0.name, value: $0.value) }
+            let copy = try self.vault(vaultId).createItem(kind: l.item.kind, fields: fields)
+            try self.saveLocal(vaultId, copy)
+            try self.saveLocal(l.vault, try self.vault(l.vault).setTrashed(id: id, trashed: true))
+            return copy.id
+        }
+        try? await sync()
+        return newId
+    }
+
+    private func saveLocal(_ vaultId: String, _ saved: SavedItem) throws {
+        let v = try vault(vaultId)
         var s = try stored()
-        s.pending[saved.id] = B64.encode(saved.record)
-        s.cache = B64.encode(o.vault.exportCache())
+        guard var sv = s.vaults[vaultId] else { throw AmanfoldError.NotFound }
+        sv.pending[saved.id] = B64.encode(saved.record)
+        sv.cache = B64.encode(v.exportCache())
+        s.vaults[vaultId] = sv
+        try store.save(s)
+        revision += 1
+    }
+
+    private func putVault(_ v: StoredVault) throws {
+        var s = try stored()
+        s.vaults[v.id] = v
+        try store.save(s)
+    }
+
+    private func dropVault(_ o: Open, _ id: String) throws {
+        o.vaults[id] = nil
+        var s = try stored()
+        s.vaults[id] = nil
         try store.save(s)
         revision += 1
     }
 
     // MARK: Sync
 
-    /// One round of the sync loop in docs/SERVER.md, retried on a conflict.
+    /// Vaults shared with this account by someone not verified on this device.
+    private var waiting: [WaitingView] = []
+
+    /// Shared vaults whose last sync carried changes or a new key signed by
+    /// someone not verified on this device. They stay as they were until the
+    /// person compares that member's safety number.
+    private var unverifiedChanges: Set<String> = []
+
+    /// One round of the sync loop in docs/SERVER.md for every vault: pick up
+    /// vaults shared with this account, sync each (retrying on a conflict),
+    /// and rotate the key of a vault someone was removed from. A shared vault
+    /// that fails does not stop the others; the first failure is reported.
     public func sync() async throws {
         try await queue.run { @MainActor in
-            guard self.open != nil else { return }
-            for _ in 0..<4 {
-                do {
-                    try await self.syncOnce()
-                    self.syncProblem = nil
-                    self.lastSyncMs = self.store.load()?.lastSyncMs
-                    self.revision += 1
-                    return
-                } catch let e as ApiError {
-                    if e.status == 409 { continue }
-                    self.syncProblem = e.status == 401 ? .signedOut : (e.status == 0 ? .offline : .other)
-                    throw e
-                } catch let e as AmanfoldError {
-                    switch e {
-                    case .Rollback, .BadSignature: self.syncProblem = .rollback
-                    default: self.syncProblem = .other
+            guard let o = self.open else { return }
+            do {
+                let s = try self.stored()
+                let api = Api(base: s.server, token: s.token)
+                let rows = try await self.discover(o, api)
+                var first: Error?
+                var blocked = Set<String>()
+                for id in o.ids {
+                    do {
+                        try await self.syncVault(o, id, api)
+                        let row = rows.first { $0.str("vault_id") == id }
+                        if row?.bool("needs_rotation") == true, Role.of(try self.stored().vaults[id]?.role).canManage {
+                            try await self.rotate(o, id, api)
+                        }
+                    } catch AmanfoldError.BadSignature where id != o.personalId {
+                        blocked.insert(id)
+                    } catch {
+                        if id == o.personalId { throw error }
+                        if first == nil { first = error }
                     }
-                    throw e
                 }
+                self.unverifiedChanges = blocked
+                if let first { throw first }
+                var done = try self.stored()
+                done.lastSyncMs = Self.nowMs()
+                try self.store.save(done)
+                self.syncProblem = nil
+                self.lastSyncMs = done.lastSyncMs
+                self.revision += 1
+            } catch let e as ApiError {
+                switch e.status {
+                case 409: self.syncProblem = .conflict
+                case 401: self.syncProblem = .signedOut
+                case 0: self.syncProblem = .offline
+                default: self.syncProblem = .other
+                }
+                self.revision += 1
+                throw e
+            } catch let e as AmanfoldError {
+                switch e {
+                case .Rollback, .BadSignature: self.syncProblem = .rollback
+                default: self.syncProblem = .other
+                }
+                self.revision += 1
+                throw e
             }
-            self.syncProblem = .conflict
         }
     }
 
-    private func syncOnce() async throws {
-        let o = try need()
-        var s = try stored()
-        let api = Api(base: s.server, token: s.token)
-        let r = try await api.get("/v1/vaults/\(s.vaultId)/sync?since=\(s.seq)")
-        if (r.int64("epoch") ?? 0) > Int64(o.vault.epoch()) {
-            let grant = try await newestGrant(api, s.vaultId)
-            try o.account.acceptRotation(vault: o.vault, grant: try B64.decode(grant), granterPublicKeys: o.me)
-            s.grant = grant
+    /// Is this public key this account, or someone whose safety number was compared?
+    private func trusted(_ o: Open, _ s: StoredAccount, _ keys: String) -> Bool {
+        keys == o.meB64 || s.contacts.values.contains { $0.keys == keys }
+    }
+
+    private func writers(_ o: Open, _ s: StoredAccount) throws -> [Data] {
+        [o.me] + (try s.contacts.values.map { try B64.decode($0.keys) })
+    }
+
+    private func memberRows(_ api: Api, _ vaultId: String) async throws -> [JSON] {
+        (try await api.get("/v1/vaults/\(vaultId)/members")["members"] as? [JSON]) ?? []
+    }
+
+    /// Open vaults newly shared with this account; drop ones it left.
+    private func discover(_ o: Open, _ api: Api) async throws -> [JSON] {
+        let rows = (try await api.get("/v1/vaults")["vaults"] as? [JSON]) ?? []
+        var nextWaiting: [WaitingView] = []
+        for row in rows {
+            let id = try row.need("vault_id")
+            if var have = try stored().vaults[id] {
+                let role = try row.need("role")
+                if role != have.role {
+                    have.role = role
+                    try putVault(have)
+                }
+                continue
+            }
+            if !row.bool("active") { continue }
+            let grant = try await newestGrant(api, id)
+            let granterKeys = try grantGranter(grant: try B64.decode(grant))
+            let granter = B64.encode(granterKeys)
+            if !trusted(o, try stored(), granter) {
+                // Opened only after the person compares the sharer's safety number.
+                if let m = try await memberRows(api, id).first(where: { $0.str("public_keys") == granter }) {
+                    nextWaiting.append(WaitingView(
+                        vaultId: id, accountId: try m.need("account_id"), email: try m.need("email"),
+                        fingerprint: try safetyNumber(granterKeys)
+                    ))
+                }
+                continue
+            }
+            let v = try o.account.openVault(grant: try B64.decode(grant), granterPublicKeys: granterKeys, cache: nil)
+            o.vaults[id] = v
+            try putVault(StoredVault(
+                id: id, role: try row.need("role"), grant: grant,
+                granter: granter == o.meB64 ? "" : granter, cache: B64.encode(v.exportCache())
+            ))
         }
-        if let manifest = r["manifest"] as? String {
-            let records = try ((r["records"] as? [String]) ?? []).map { try B64.decode($0) }
-            for up in try o.vault.sync(manifest: try B64.decode(manifest), changed: records, trustedWriters: [o.me]) {
-                s.pending[up.id] = B64.encode(up.record)
+        for id in try stored().vaults.keys where id != o.personalId && !rows.contains(where: { $0.str("vault_id") == id }) {
+            // Removed from it, or it was deleted.
+            try dropVault(o, id)
+        }
+        waiting = nextWaiting
+        return rows
+    }
+
+    private func syncVault(_ o: Open, _ id: String, _ api: Api) async throws {
+        for _ in 0..<4 {
+            do {
+                try await syncOnce(o, id, api)
+                return
+            } catch let e as ApiError where e.status == 409 {
+                continue
             }
         }
-        s.cache = B64.encode(o.vault.exportCache())
-        if s.pending.isEmpty {
-            s.seq = r.int64("seq") ?? s.seq
-            s.lastSyncMs = Self.nowMs()
-            try store.save(s)
+        throw ApiError(status: 409, kind: "conflict", message: "another device keeps writing; try again")
+    }
+
+    private func syncOnce(_ o: Open, _ id: String, _ api: Api) async throws {
+        let s = try stored()
+        guard var sv = s.vaults[id], let v = o.vaults[id] else { return }
+        let r = try await api.get("/v1/vaults/\(id)/sync?since=\(sv.seq)")
+        if (r.int64("epoch") ?? 0) > Int64(v.epoch()) {
+            // Someone removed a member and moved the vault to a new key.
+            let grant = try await newestGrant(api, id)
+            let granterKeys = try grantGranter(grant: try B64.decode(grant))
+            let granter = B64.encode(granterKeys)
+            if !trusted(o, s, granter) { throw AmanfoldError.BadSignature }
+            try o.account.acceptRotation(vault: v, grant: try B64.decode(grant), granterPublicKeys: granterKeys)
+            sv.grant = grant
+            sv.granter = granter == o.meB64 ? "" : granter
+        }
+        let canWrite = Role.of(sv.role).canWrite
+        var pending = sv.pending
+        if let manifest = r["manifest"] as? String {
+            let records = try ((r["records"] as? [String]) ?? []).map { try B64.decode($0) }
+            for up in try v.sync(manifest: try B64.decode(manifest), changed: records, trustedWriters: try writers(o, s)) where canWrite {
+                pending[up.id] = B64.encode(up.record)
+            }
+        }
+        sv.cache = B64.encode(v.exportCache())
+        if pending.isEmpty || !canWrite {
+            // A reader's edits would be refused; they never leave this device.
+            sv.pending = [:]
+            sv.seq = r.int64("seq") ?? sv.seq
+            try putVault(sv)
             return
         }
-        try store.save(s)
-        let signed = o.vault.signManifest(author: o.account)
-        let done = try await api.post("/v1/vaults/\(s.vaultId)/commit", [
+        sv.pending = pending
+        try putVault(sv)
+        let signed = v.signManifest(author: o.account)
+        let done = try await api.post("/v1/vaults/\(id)/commit", [
             "manifest": B64.encode(signed),
-            "records": Array(s.pending.values),
+            "records": Array(pending.values),
         ])
-        try o.vault.commitAccepted()
-        s.seq = done.int64("seq") ?? s.seq
-        s.pending = [:]
-        s.cache = B64.encode(o.vault.exportCache())
-        s.lastSyncMs = Self.nowMs()
+        try v.commitAccepted()
+        sv.seq = done.int64("seq") ?? sv.seq
+        sv.pending = [:]
+        sv.cache = B64.encode(v.exportCache())
+        try putVault(sv)
+    }
+
+    /// New vault key after a member left or was removed, so they cannot read
+    /// anything written from now on. Every remaining member must have been
+    /// verified on this device, since each gets the new key.
+    private func rotate(_ o: Open, _ id: String, _ api: Api) async throws {
+        let s = try stored()
+        guard var sv = s.vaults[id], let v = o.vaults[id] else { throw AmanfoldError.NotFound }
+        var keys: [String] = []
+        for m in try await memberRows(api, id) where m.bool("active") {
+            if m.str("account_id") == s.accountId {
+                keys.append(o.meB64)
+            } else if let k = m.str("public_keys"), let acct = m.str("account_id"), s.contacts[acct]?.keys == k {
+                keys.append(k)
+            } else {
+                throw UnverifiedMembersError()
+            }
+        }
+        let records = try v.rotateKey()
+        do {
+            let grants = try keys.map { B64.encode(try o.account.grantVault(vault: v, recipientPublicKeys: try B64.decode($0))) }
+            let manifest = v.signManifest(author: o.account)
+            let r = try await api.post("/v1/vaults/\(id)/rotate", [
+                "manifest": B64.encode(manifest),
+                "records": records.map { B64.encode($0.record) },
+                "grants": grants,
+            ])
+            try v.commitAccepted()
+            sv.grant = grants[keys.firstIndex(of: o.meB64)!]
+            sv.granter = ""
+            sv.seq = r.int64("seq") ?? sv.seq
+            sv.pending = [:]
+            sv.cache = B64.encode(v.exportCache())
+            try putVault(sv)
+        } catch {
+            // Not accepted: go back to the old key, which the server still has.
+            o.vaults[id] = nil
+            if let back = try? reopen(o, sv) {
+                o.vaults[id] = back
+            } else {
+                // Opened again from the server on the next sync.
+                var now = try stored()
+                now.vaults[id] = nil
+                try store.save(now)
+            }
+            throw error
+        }
+    }
+
+    // MARK: Sharing
+
+    private func apiNow() throws -> Api {
+        let s = try stored()
+        return Api(base: s.server, token: s.token)
+    }
+
+    /// Shared vaults, invitations, vaults waiting for a safety-number check,
+    /// and this account's safety number.
+    public func sharing() async throws -> SharingView {
+        try await queue.run { @MainActor in
+            let o = try self.need()
+            let invites = (try await self.apiNow().get("/v1/invites")["invites"] as? [JSON]) ?? []
+            let s = try self.stored()
+            return SharingView(
+                vaults: o.ids.filter { $0 != o.personalId }.compactMap { id in
+                    guard let v = o.vaults[id] else { return nil }
+                    let i = self.info(v)
+                    return SharedVaultView(
+                        id: id, name: i.name, kind: i.kind, role: Role.of(s.vaults[id]?.role),
+                        items: v.items(includeTrashed: false).filter { !isVaultInfo($0) }.count,
+                        needsVerification: self.unverifiedChanges.contains(id)
+                    )
+                },
+                invites: try invites.map { i in
+                    let from = i["from"] as? JSON ?? [:]
+                    return InviteView(
+                        inviteId: try i.need("invite_id"), vaultId: try i.need("vault_id"), role: Role.of(i.str("role")),
+                        fromEmail: try from.need("email"), fromFingerprint: try safetyNumber(try B64.decode(try from.need("public_keys")))
+                    )
+                },
+                waiting: self.waiting,
+                myFingerprint: o.account.fingerprint()
+            )
+        }
+    }
+
+    /// A new family or team vault, owned by this account.
+    @discardableResult
+    public func createVault(name: String, kind: VaultKind) async throws -> String {
+        let id = try await queue.run { @MainActor in
+            let o = try self.need()
+            let nv = try o.account.createVault()
+            let grant = B64.encode(nv.grant)
+            _ = try await self.apiNow().post("/v1/vaults", ["grant": grant])
+            let v = nv.vault
+            let id = v.id()
+            o.vaults[id] = v
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = trimmed.isEmpty ? (kind == .team ? "Team" : "Family") : trimmed
+            let note = try v.createItem(kind: .secureNote, fields: [
+                FieldInput(name: "title", value: title),
+                FieldInput(name: vaultInfoField, value: kind == .team ? "team" : "family"),
+            ])
+            try self.putVault(StoredVault(
+                id: id, role: "owner", grant: grant, cache: B64.encode(v.exportCache()),
+                pending: [note.id: B64.encode(note.record)]
+            ))
+            self.revision += 1
+            return id
+        }
+        try? await sync()
+        return id
+    }
+
+    public func members(_ vaultId: String) async throws -> MembersView {
+        try await queue.run { @MainActor in
+            let o = try self.need()
+            let s = try self.stored()
+            guard let sv = s.vaults[vaultId] else { throw AmanfoldError.NotFound }
+            let api = try self.apiNow()
+            var sent: [SentInvite] = []
+            if Role.of(sv.role).canManage {
+                for i in (try await api.get("/v1/vaults/\(vaultId)/invites")["invites"] as? [JSON]) ?? [] {
+                    sent.append(SentInvite(inviteId: try i.need("invite_id"), email: try i.need("email"), role: Role.of(i.str("role"))))
+                }
+            }
+            var members: [MemberView] = []
+            for m in try await self.memberRows(api, vaultId) {
+                let keys = try m.need("public_keys")
+                members.append(MemberView(
+                    accountId: try m.need("account_id"), email: try m.need("email"), role: Role.of(m.str("role")),
+                    active: m.bool("active"), fingerprint: try safetyNumber(try B64.decode(keys)),
+                    verified: self.trusted(o, s, keys), me: m.str("account_id") == s.accountId
+                ))
+            }
+            return MembersView(members: members, invites: sent)
+        }
+    }
+
+    public func invite(_ vaultId: String, email: String, role: Role) async throws {
+        guard role != .owner else { throw AmanfoldError.InvalidArgument(reason: "invite as manager, writer or reader") }
+        _ = try await apiNow().post("/v1/vaults/\(vaultId)/invites", [
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines), "role": role.rawValue,
+        ])
+    }
+
+    /// Cancel an invitation (managers), or decline one (the invitee).
+    public func cancelInvite(_ inviteId: String) async throws {
+        _ = try await apiNow().delete("/v1/invites/\(inviteId)")
+    }
+
+    /// Join a shared vault. `fingerprint` is the safety number the person saw
+    /// and compared; the inviter is trusted only if it still matches.
+    public func acceptInvite(_ inviteId: String, fingerprint: String) async throws {
+        try await queue.run { @MainActor in
+            let api = try self.apiNow()
+            let invites = (try await api.get("/v1/invites")["invites"] as? [JSON]) ?? []
+            guard let inv = invites.first(where: { $0.str("invite_id") == inviteId }) else {
+                throw ApiError(status: 404, kind: "not_found", message: "invitation not found")
+            }
+            let from = inv["from"] as? JSON ?? [:]
+            let keys = try from.need("public_keys")
+            guard try safetyNumber(try B64.decode(keys)) == fingerprint else { throw FingerprintChangedError() }
+            try self.addContact(try from.need("account_id"), try from.need("email"), keys)
+            _ = try await api.post("/v1/invites/\(inviteId)/accept")
+        }
+    }
+
+    private func addContact(_ accountId: String, _ email: String, _ keys: String) throws {
+        var s = try stored()
+        s.contacts[accountId] = Contact(email: email, keys: keys)
         try store.save(s)
+    }
+
+    /// Mark someone as verified after comparing safety numbers, and give them
+    /// the vault key if they are waiting for it (owners and managers). A vault
+    /// waiting for this person's key opens on the sync that follows.
+    public func verify(_ vaultId: String, accountId: String, fingerprint: String) async throws {
+        try await queue.run { @MainActor in
+            let o = try self.need()
+            let api = try self.apiNow()
+            guard let m = try await self.memberRows(api, vaultId).first(where: { $0.str("account_id") == accountId }) else {
+                throw ApiError(status: 404, kind: "not_found", message: "member not found")
+            }
+            let keys = try m.need("public_keys")
+            guard try safetyNumber(try B64.decode(keys)) == fingerprint else { throw FingerprintChangedError() }
+            try self.addContact(accountId, try m.need("email"), keys)
+            if let sv = try self.stored().vaults[vaultId], let v = o.vaults[vaultId], !m.bool("active"), Role.of(sv.role).canManage {
+                let grant = try o.account.grantVault(vault: v, recipientPublicKeys: try B64.decode(keys))
+                _ = try await api.put("/v1/vaults/\(vaultId)/members/\(accountId)/grant", ["grant": B64.encode(grant)])
+            }
+        }
+        try? await sync()
+    }
+
+    public func setRole(_ vaultId: String, accountId: String, role: Role) async throws {
+        _ = try await apiNow().put("/v1/vaults/\(vaultId)/members/\(accountId)/role", ["role": role.rawValue])
+    }
+
+    /// Remove someone, then move the vault to a new key at once.
+    public func removeMember(_ vaultId: String, accountId: String) async throws {
+        try await queue.run { @MainActor in
+            let o = try self.need()
+            let api = try self.apiNow()
+            _ = try await api.delete("/v1/vaults/\(vaultId)/members/\(accountId)")
+            try await self.syncVault(o, vaultId, api)
+            try await self.rotate(o, vaultId, api)
+            self.revision += 1
+        }
+    }
+
+    public func leaveVault(_ vaultId: String) async throws {
+        try await queue.run { @MainActor in
+            let o = try self.need()
+            guard vaultId != o.personalId else { throw AmanfoldError.InvalidArgument(reason: "the personal vault cannot be left") }
+            _ = try await self.apiNow().delete("/v1/vaults/\(vaultId)/members/\(try self.stored().accountId)")
+            try self.dropVault(o, vaultId)
+        }
+    }
+
+    /// Delete a shared vault and everything in it, for every member (owner only).
+    public func deleteVault(_ vaultId: String) async throws {
+        try await queue.run { @MainActor in
+            let o = try self.need()
+            guard vaultId != o.personalId else { throw AmanfoldError.InvalidArgument(reason: "the personal vault cannot be deleted here") }
+            _ = try await self.apiNow().delete("/v1/vaults/\(vaultId)")
+            try self.dropVault(o, vaultId)
+        }
     }
 
     static func nowMs() -> Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
+}
+
+/// The hidden note that names a shared vault.
+func isVaultInfo(_ i: ItemView) -> Bool { i.fields.contains { $0.name == vaultInfoField } }
+
+/// A public key's safety number, outside the class so nothing shadows the core's function.
+func safetyNumber(_ keys: Data) throws -> String {
+    try fingerprint(publicKeysBytes: keys)
 }
 
 /// The core's quick unlock, outside the class so its method does not shadow it.

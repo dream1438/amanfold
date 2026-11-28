@@ -48,7 +48,11 @@ public enum Clipboard {
 
 public struct ItemRow: View {
     let item: ItemView
-    public init(_ item: ItemView) { self.item = item }
+    let vault: VaultTag?
+    public init(_ item: ItemView, vault: VaultTag? = nil) {
+        self.item = item
+        self.vault = vault
+    }
     public var body: some View {
         HStack(spacing: 14) {
             Image(systemName: item.symbol)
@@ -61,8 +65,35 @@ public struct ItemRow: View {
                     Text(item.subtitle).font(.footnote).foregroundStyle(Brand.muted).lineLimit(1)
                 }
             }
+            if let vault, vault.shared {
+                Spacer(minLength: 8)
+                VaultChip(vault)
+            }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// A shared vault's name; members never label it.
+public func vaultName(_ name: String) -> String { name.isEmpty ? L("shared_vault") : name }
+
+public extension VaultKind {
+    var symbol: String { self == .team ? "person.3.fill" : "house.fill" }
+}
+
+/// Which shared vault an item is in.
+public struct VaultChip: View {
+    let vault: VaultTag
+    public init(_ vault: VaultTag) { self.vault = vault }
+    public var body: some View {
+        Label(vaultName(vault.name), systemImage: vault.kind.symbol)
+            .font(.caption2.weight(.medium))
+            .lineLimit(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .foregroundStyle(Brand.primary)
+            .background(Brand.infoBg, in: Capsule())
+            .frame(maxWidth: 130, alignment: .trailing)
     }
 }
 

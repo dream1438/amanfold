@@ -185,4 +185,148 @@ final class SessionTests: XCTestCase {
         XCTAssertNil(pageURL(serviceIdentifier: "javascript:alert(1)", isURL: true))
         XCTAssertNil(pageURL(serviceIdentifier: "", isURL: false))
     }
+
+    // MARK: Sharing (same rules as the Android client and the extension)
+
+    private func person(_ email: String) async throws -> AmanfoldSession {
+        let c = client()
+        _ = try await c.signup(server: url, email: email, password: "long master password for \(email)", code: nil)
+        return c
+    }
+
+    private func titles(_ c: AmanfoldSession) -> [String] {
+        c.items().map { i in i.fields.first { $0.name == "title" }?.value ?? "" }.sorted()
+    }
+
+    private func join(_ owner: AmanfoldSession, _ vault: String, _ who: AmanfoldSession, _ email: String, _ role: Role) async throws {
+        try await owner.invite(vault, email: email, role: role)
+        let invites = try await who.sharing().invites
+        XCTAssertEqual(invites.count, 1)
+        let inv = invites[0]
+        let ownerNumber = try await owner.sharing().myFingerprint
+        XCTAssertEqual(inv.fromFingerprint, ownerNumber)
+        XCTAssertEqual(inv.role, role)
+        // The app refuses if the safety number is not the one the person compared.
+        do {
+            try await who.acceptInvite(inv.inviteId, fingerprint: "00000 00000")
+            XCTFail("accepted with the wrong safety number")
+        } catch {
+            XCTAssertEqual(problem(of: error), .safetyNumber)
+        }
+        try await who.acceptInvite(inv.inviteId, fingerprint: inv.fromFingerprint)
+        let pending = try await owner.members(vault).members.first { $0.email == email }!
+        XCTAssertFalse(pending.active)
+        XCTAssertFalse(pending.verified)
+        let whoNumber = try await who.sharing().myFingerprint
+        XCTAssertEqual(pending.fingerprint, whoNumber)
+        try await owner.verify(vault, accountId: pending.accountId, fingerprint: pending.fingerprint)
+        let after = try await owner.members(vault).members.first { $0.email == email }!
+        XCTAssertTrue(after.active && after.verified)
+        try await who.sync()
+    }
+
+    /// Compare safety numbers with every other member (done in person or on a call).
+    private func verifyAll(_ c: AmanfoldSession, _ vault: String) async throws {
+        for m in try await c.members(vault).members where !m.me && !m.verified {
+            try await c.verify(vault, accountId: m.accountId, fingerprint: m.fingerprint)
+        }
+    }
+
+    func testFamilySharing() async throws {
+        let mum = try await person("mum@example.com")
+        let dad = try await person("dad@example.com")
+        let kid = try await person("kid@example.com")
+
+        let fam = try await mum.createVault(name: "Family", kind: .family)
+        try await mum.create(.login, [f("title", "Netflix"), f("password", "p1")], in: fam)
+        try await mum.create(.login, [f("title", "Mum's bank")])
+        // The vault's name note is hidden from the item list.
+        XCTAssertEqual(titles(mum), ["Mum's bank", "Netflix"])
+        XCTAssertEqual(mum.vaults().first { $0.shared }?.name, "Family")
+
+        try await join(mum, fam, dad, "dad@example.com", .writer)
+        try await join(mum, fam, kid, "kid@example.com", .reader)
+        try await verifyAll(dad, fam)
+
+        XCTAssertEqual(titles(dad), ["Netflix"])
+        let netflix = kid.items().first!.id
+        XCTAssertEqual(kid.vaultOf(netflix), VaultTag(id: fam, name: "Family", kind: .family, role: .reader))
+        XCTAssertTrue(kid.vaultOf(netflix)!.readOnly)
+
+        // A writer's change reaches everyone who verified the writer.
+        try await dad.create(.login, [f("title", "Electricity")], in: fam)
+        try await mum.sync()
+        try await kid.sync()
+        XCTAssertEqual(titles(kid), ["Netflix"])
+        let waitingKid = try await kid.sharing().vaults.first!.needsVerification
+        XCTAssertTrue(waitingKid)
+        try await verifyAll(kid, fam)
+        try await kid.sync()
+        let doneKid = try await kid.sharing().vaults.first!.needsVerification
+        XCTAssertFalse(doneKid)
+        XCTAssertEqual(titles(mum), ["Electricity", "Mum's bank", "Netflix"])
+        XCTAssertEqual(titles(kid), ["Electricity", "Netflix"])
+        do {
+            try await kid.create(.login, [f("title", "Game")], in: fam)
+            XCTFail("a reader added an item")
+        } catch {
+            XCTAssertEqual(problem(of: error), .readOnly)
+        }
+        do {
+            try await kid.update(netflix, set: [f("password", "mine")])
+            XCTFail("a reader changed an item")
+        } catch {
+            XCTAssertEqual(problem(of: error), .readOnly)
+        }
+
+        // Moving an item into the shared vault.
+        let bank = mum.items().first { $0.fields.contains { $0.value == "Mum's bank" } }!.id
+        let moved = try await mum.move(bank, to: fam)
+        try await dad.sync()
+        XCTAssertEqual(titles(dad), ["Electricity", "Mum's bank", "Netflix"])
+        XCTAssertEqual(mum.vaultOf(moved)?.id, fam)
+
+        // Removing dad rotates the key: he loses the vault, the kid keeps it.
+        let dadId = try await mum.members(fam).members.first { $0.email == "dad@example.com" }!.accountId
+        try await mum.removeMember(fam, accountId: dadId)
+        try await dad.sync()
+        XCTAssertTrue(dad.items().isEmpty)
+        XCTAssertFalse(dad.vaults().contains { $0.shared })
+        try await mum.create(.login, [f("title", "After")], in: fam)
+        try await kid.sync()
+        XCTAssertEqual(titles(kid), ["After", "Electricity", "Mum's bank", "Netflix"])
+
+        // The kid leaves.
+        try await kid.leaveVault(fam)
+        XCTAssertTrue(kid.items().isEmpty)
+        try await kid.sync()
+        XCTAssertFalse(kid.vaults().contains { $0.shared })
+        let left = try await mum.members(fam).members.count
+        XCTAssertEqual(left, 1)
+    }
+
+    func testVaultFromSomeoneUnverifiedWaits() async throws {
+        let mum = try await person("mum@example.com")
+        let dad = try await person("dad@example.com")
+        let pat = try await person("pat@example.com")
+        let fam = try await mum.createVault(name: "Family", kind: .family)
+        try await join(mum, fam, dad, "dad@example.com", .manager)
+
+        // Pat compared mum's number only; dad, a manager, grants access.
+        try await mum.invite(fam, email: "pat@example.com", role: .reader)
+        let inv = try await pat.sharing().invites.first!
+        try await pat.acceptInvite(inv.inviteId, fingerprint: inv.fromFingerprint)
+        let p = try await dad.members(fam).members.first { $0.email == "pat@example.com" }!
+        try await dad.verify(fam, accountId: p.accountId, fingerprint: p.fingerprint)
+        try await pat.sync()
+        let waiting = try await pat.sharing().waiting
+        XCTAssertEqual(waiting.map(\.email), ["dad@example.com"])
+        let dadNumber = try await dad.sharing().myFingerprint
+        XCTAssertEqual(waiting.first?.fingerprint, dadNumber)
+        XCTAssertFalse(pat.vaults().contains { $0.id == fam })
+        try await pat.verify(fam, accountId: waiting[0].accountId, fingerprint: waiting[0].fingerprint)
+        XCTAssertTrue(pat.vaults().contains { $0.id == fam })
+        let none = try await pat.sharing().waiting
+        XCTAssertTrue(none.isEmpty)
+    }
 }

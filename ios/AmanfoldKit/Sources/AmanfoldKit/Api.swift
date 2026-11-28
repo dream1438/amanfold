@@ -108,6 +108,7 @@ public final class Api {
 
     public func get(_ path: String) async throws -> JSON { try await call("GET", path) }
     public func post(_ path: String, _ body: JSON = [:]) async throws -> JSON { try await call("POST", path, body) }
+    public func put(_ path: String, _ body: JSON = [:]) async throws -> JSON { try await call("PUT", path, body) }
     public func delete(_ path: String) async throws -> JSON { try await call("DELETE", path) }
 }
 
@@ -118,4 +119,8 @@ extension Dictionary where Key == String, Value == Any {
     }
 
     func int64(_ k: String) -> Int64? { (self[k] as? NSNumber)?.int64Value }
+
+    func bool(_ k: String) -> Bool { self[k] as? Bool ?? false }
+
+    func str(_ k: String) -> String? { self[k] as? String }
 }

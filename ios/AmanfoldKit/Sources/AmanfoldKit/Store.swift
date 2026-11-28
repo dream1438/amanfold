@@ -15,15 +15,35 @@ public struct StoredAccount: Codable, Equatable {
     public var secretKey: String
     public var serverKey: String
     public var token: String
-    public var vaultId: String
+    /// The account's own vault; the others in `vaults` are shared.
+    public var personalId: String
+    public var vaults: [String: StoredVault] = [:]
+    /// People whose safety numbers were compared on this device, by account id.
+    public var contacts: [String: Contact] = [:]
+    public var lastSyncMs: Int64?
+    /// Quick unlock: the account keys wrapped under the device key.
+    public var quickWrapped: String?
+}
+
+/// One vault on this device.
+public struct StoredVault: Codable, Equatable {
+    public var id: String
+    /// `owner`, `manager`, `writer` or `reader`.
+    public var role: String
+    /// The newest grant this device opened the vault with.
     public var grant: String
+    /// Public keys of whoever signed `grant`; empty for this account.
+    public var granter: String = ""
     public var cache: String?
     public var seq: Int64 = 0
     /// Encrypted records not yet accepted by the server, by item id.
     public var pending: [String: String] = [:]
-    public var lastSyncMs: Int64?
-    /// Quick unlock: the account keys wrapped under the device key.
-    public var quickWrapped: String?
+}
+
+/// Someone whose safety number was compared: their email and public keys.
+public struct Contact: Codable, Equatable {
+    public var email: String
+    public var keys: String
 }
 
 public protocol AccountStore: AnyObject {
