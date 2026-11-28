@@ -18,6 +18,76 @@ export interface ItemView {
   trashed: boolean;
   createdMs: number;
   modifiedMs: number;
+  /** Set by the background: which vault holds it. */
+  vault?: VaultTag;
+}
+
+/** Where an item lives, shown next to items from shared vaults. */
+export interface VaultTag {
+  id: string;
+  name: string;
+  shared: boolean;
+  /** The person may only read this vault. */
+  readOnly: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Shared family and team vaults
+// ---------------------------------------------------------------------------
+
+export type Role = "owner" | "manager" | "writer" | "reader";
+export type VaultKind = "personal" | "family" | "team";
+
+export interface VaultView {
+  id: string;
+  name: string;
+  kind: VaultKind;
+  role: Role;
+  items: number;
+}
+
+/** An invitation to join someone's shared vault. */
+export interface InviteView {
+  inviteId: string;
+  vaultId: string;
+  role: Role;
+  fromEmail: string;
+  /** Safety number of the person who invited: compare before joining. */
+  fromFingerprint: string;
+}
+
+/** A vault someone shared, waiting until their safety number is checked. */
+export interface WaitingView {
+  vaultId: string;
+  accountId: string;
+  email: string;
+  fingerprint: string;
+}
+
+export interface SharingView {
+  vaults: VaultView[];
+  invites: InviteView[];
+  waiting: WaitingView[];
+  /** This account's own safety number. */
+  myFingerprint: string;
+}
+
+export interface MemberView {
+  accountId: string;
+  email: string;
+  role: Role;
+  /** Has the vault key (a manager confirmed their safety number). */
+  active: boolean;
+  fingerprint: string;
+  /** Safety number checked on this device (always true for yourself). */
+  verified: boolean;
+  me: boolean;
+}
+
+export interface MembersView {
+  members: MemberView[];
+  /** Invitations not yet accepted (owners and managers only). */
+  invites: { inviteId: string; email: string; role: Role }[];
 }
 
 export interface LoginMatch {
@@ -81,6 +151,8 @@ export interface PendingSave {
   username: string;
   /** Existing login to update, when only the password changed. */
   updateId?: string;
+  /** Names this capture; a save is refused if the page replaced it since. */
+  nonce: string;
 }
 
 export interface TabInfo {
@@ -115,15 +187,27 @@ export type Req =
   | { type: "items"; trashed?: boolean }
   | { type: "item"; id: string }
   | { type: "tabInfo"; tabId: number }
-  | { type: "create"; kind: ItemKind; fields: FieldInput[] }
+  | { type: "create"; kind: ItemKind; fields: FieldInput[]; vaultId?: string }
   | { type: "update"; id: string; set: FieldInput[]; remove: string[] }
   | { type: "trash"; id: string; trashed: boolean }
   | { type: "fill"; tabId: number; itemId: string; confirmFrames?: number[]; anySite?: boolean }
-  | { type: "pendingSave"; tabId: number; action: "save" | "dismiss" }
+  | { type: "pendingSave"; tabId: number; action: "save" | "dismiss"; nonce: string }
   | { type: "totp"; secret: string }
   | { type: "generate"; rules?: PasswordRules; words?: number }
   | { type: "cardInfo"; number: string }
-  | { type: "settings"; set: Partial<Settings> };
+  | { type: "settings"; set: Partial<Settings> }
+  | { type: "sharing" }
+  | { type: "createVault"; name: string; kind: "family" | "team" }
+  | { type: "members"; vaultId: string }
+  | { type: "invite"; vaultId: string; email: string; role: Role }
+  | { type: "cancelInvite"; inviteId: string }
+  | { type: "acceptInvite"; inviteId: string; fingerprint: string }
+  | { type: "declineInvite"; inviteId: string }
+  | { type: "verify"; vaultId: string; accountId: string; fingerprint: string }
+  | { type: "setRole"; vaultId: string; accountId: string; role: Role }
+  | { type: "removeMember"; vaultId: string; accountId: string }
+  | { type: "leaveVault"; vaultId: string }
+  | { type: "deleteVault"; vaultId: string };
 
 export type Reply<T = unknown> = { ok: true; value: T } | { ok: false; error: { name: string; message: string } };
 

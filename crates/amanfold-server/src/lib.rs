@@ -384,15 +384,32 @@ impl FromRequestParts<Arc<AppState>> for ClientIp {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
             {
-                return Ok(ClientIp(ip));
+                return Ok(ClientIp(rate_key(&ip)));
             }
         }
         let ip = parts
             .extensions
             .get::<ConnectInfo<SocketAddr>>()
-            .map(|c| c.0.ip().to_string())
+            .map(|c| rate_key(&c.0.ip().to_string()))
             .unwrap_or_else(|| "unknown".into());
         Ok(ClientIp(ip))
+    }
+}
+
+/// The rate-limit key for an address. One IPv6 customer usually holds a
+/// whole /64 (2^64 addresses), so IPv6 clients are counted per /64; counting
+/// per address would let one client get unlimited budgets.
+fn rate_key(ip: &str) -> String {
+    match ip.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V6(v6)) => match v6.to_ipv4_mapped() {
+            Some(v4) => v4.to_string(),
+            None => {
+                let s = v6.segments();
+                format!("{:x}:{:x}:{:x}:{:x}::/64", s[0], s[1], s[2], s[3])
+            }
+        },
+        Ok(std::net::IpAddr::V4(v4)) => v4.to_string(),
+        Err(_) => ip.to_string(),
     }
 }
 
@@ -427,11 +444,27 @@ pub(crate) fn random_uuid() -> Uuid {
 /// Normalise an email address for lookups: trimmed, NFKC, lower-case.
 pub fn normalize_email(raw: &str) -> ApiResult<String> {
     let e: String = raw.trim().nfkc().collect::<String>().to_lowercase();
+    // A plain addr-spec only: no display names, quotes, comments or lists, so
+    // the stored string is exactly the address mail is delivered to (a
+    // quoted `"victim@corp.com"<me@evil.com>` would otherwise be stored as
+    // one address and delivered to another).
+    let local_ok = |c: char| c.is_alphanumeric() || "!#$%&'*+-/=?^_`{|}~.".contains(c);
+    let domain_ok = |c: char| c.is_alphanumeric() || c == '-' || c == '.';
     let ok = e.len() <= 254
         && e.split_once('@').is_some_and(|(l, d)| {
-            !l.is_empty() && d.contains('.') && !d.starts_with('.') && !d.ends_with('.')
-        })
-        && !e.chars().any(|c| c.is_whitespace() || c.is_control());
+            !l.is_empty()
+                && l.len() <= 64
+                && l.chars().all(local_ok)
+                && !l.starts_with('.')
+                && !l.ends_with('.')
+                && !l.contains("..")
+                && d.chars().all(domain_ok)
+                && d.contains('.')
+                && !d.starts_with('.')
+                && !d.ends_with('.')
+                && !d.contains("..")
+                && !d.starts_with('-')
+        });
     if ok {
         Ok(e)
     } else {
@@ -458,9 +491,25 @@ mod tests {
             "a@b",
             "a b@example.com",
             "a@.com",
+            "\"victim@corp.com\"<attacker@evil.com>",
+            "a,b@example.com",
+            "a@example.com,b@example.com",
+            "(x)a@example.com",
+            "a..b@example.com",
         ] {
             assert!(normalize_email(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn ipv6_clients_share_a_64() {
+        assert_eq!(
+            rate_key("2001:db8:1:2:aaaa::1"),
+            rate_key("2001:db8:1:2:ffff::9")
+        );
+        assert_ne!(rate_key("2001:db8:1:2::1"), rate_key("2001:db8:1:3::1"));
+        assert_eq!(rate_key("::ffff:192.0.2.1"), "192.0.2.1");
+        assert_eq!(rate_key("192.0.2.1"), "192.0.2.1");
     }
 
     #[test]
