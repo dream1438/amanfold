@@ -21,6 +21,8 @@ import com.amanfold.app.ui.CreateAccountScreen
 import com.amanfold.app.ui.GeneratorScreen
 import com.amanfold.app.ui.ItemDetailScreen
 import com.amanfold.app.ui.ItemEditScreen
+import com.amanfold.app.ui.MembersScreen
+import com.amanfold.app.ui.SharingScreen
 import com.amanfold.app.ui.QuickUnlockOffer
 import com.amanfold.app.ui.RecoverScreen
 import com.amanfold.app.ui.RecoveryKitScreen
@@ -44,6 +46,8 @@ sealed interface Screen {
     data class Edit(val id: String?, val kind: ItemKind) : Screen
     data class Generator(val forEdit: Boolean) : Screen
     data object Settings : Screen
+    data object Sharing : Screen
+    data class Members(val vaultId: String) : Screen
 }
 
 class MainActivity : AppCompatActivity() {
@@ -142,11 +146,14 @@ private fun Vault() {
             } else null,
         )
         Screen.Settings -> SettingsScreen(onBack = { back() })
+        Screen.Sharing -> SharingScreen(onBack = { back() }, onOpenVault = { stack.add(Screen.Members(it)) })
+        is Screen.Members -> MembersScreen(top.vaultId, onBack = { back() })
         else -> VaultListScreen(
             onOpen = { stack.add(Screen.Detail(it)) },
             onAdd = { stack.add(Screen.Edit(null, it)) },
             onSettings = { stack.add(Screen.Settings) },
             onGenerator = { stack.add(Screen.Generator(forEdit = false)) },
+            onSharing = { stack.add(Screen.Sharing) },
         )
     }
 }

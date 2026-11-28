@@ -74,6 +74,10 @@ fun errorText(e: Throwable, hadCode: Boolean = false): String = when (problemOf(
     Problem.Code -> stringResource(R.string.err_code)
     Problem.RateLimited -> stringResource(R.string.err_rate_limited)
     Problem.Locked -> stringResource(R.string.err_locked)
+    Problem.ReadOnly -> stringResource(R.string.err_read_only)
+    Problem.SafetyNumber -> stringResource(R.string.err_safety_number)
+    Problem.Unverified -> stringResource(R.string.err_unverified)
+    Problem.NotFound -> stringResource(R.string.err_not_found)
     Problem.Server -> stringResource(R.string.err_server, e.message ?: "")
     Problem.Other -> stringResource(R.string.err_generic, e.message ?: e.javaClass.simpleName)
 }

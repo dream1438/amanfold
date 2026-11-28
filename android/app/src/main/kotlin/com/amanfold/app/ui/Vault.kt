@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -65,6 +67,7 @@ import com.amanfold.app.Clipboard
 import com.amanfold.app.R
 import com.amanfold.app.amanfold
 import com.amanfold.client.SyncProblem
+import com.amanfold.client.VaultTag
 import com.amanfold.core.FieldInput
 import com.amanfold.core.ItemKind
 import com.amanfold.core.ItemView
@@ -109,7 +112,7 @@ private enum class Filter { All, Logins, Cards, Notes, Trash }
 // ---------------------------------------------------------------------------
 
 @Composable
-fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSettings: () -> Unit, onGenerator: () -> Unit) {
+fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSettings: () -> Unit, onGenerator: () -> Unit, onSharing: () -> Unit) {
     val app = LocalContext.current.amanfold
     val revision by app.vault.revision.collectAsState()
     val sync by app.vault.syncStatus.collectAsState()
@@ -117,8 +120,14 @@ fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSetti
     var filter by rememberSaveable { mutableStateOf(Filter.All) }
     var addMenu by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { runCatching { app.vault.sync() } }
+    // Invitations and vaults waiting for a safety-number check.
+    var asks by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        runCatching { app.vault.sync() }
+        asks = runCatching { app.vault.sharing().let { it.invites.size + it.waiting.size } }.getOrDefault(0)
+    }
 
+    val tags = remember(revision) { if (app.vault.isUnlocked) app.vault.vaults().filter { it.shared }.size else 0 }
     val items = remember(revision, query, filter) {
         if (!app.vault.isUnlocked) return@remember emptyList()
         val base = if (filter == Filter.Trash) app.vault.items(trashed = true) else app.vault.items()
@@ -140,6 +149,7 @@ fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSetti
         title = stringResource(R.string.app_name),
         scroll = false,
         actions = {
+            IconButton(onClick = onSharing) { Icon(Icons.Default.Groups, stringResource(R.string.sharing)) }
             IconButton(onClick = onGenerator) { Icon(Icons.Default.Password, stringResource(R.string.generator)) }
             IconButton(onClick = { app.vault.lock() }) { Icon(Icons.Default.Lock, stringResource(R.string.lock)) }
             IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
@@ -165,6 +175,9 @@ fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSetti
                 SyncProblem.SignedOut -> Banner(stringResource(R.string.err_signed_out), danger = true)
                 SyncProblem.Offline -> Banner(stringResource(R.string.sync_offline))
                 else -> Unit
+            }
+            if (asks > 0) {
+                OutlinedButton(onClick = onSharing, Modifier.fillMaxWidth()) { Text(stringResource(R.string.sharing_asks, asks)) }
             }
             OutlinedTextField(
                 value = query,
@@ -194,7 +207,8 @@ fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSetti
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
             items(items, key = { it.id }) { item ->
-                ItemRow(item) { onOpen(item.id) }
+                val vault = if (tags > 0) remember(revision, item.id) { app.vault.vaultOf(item.id) } else null
+                ItemRow(item, vault) { onOpen(item.id) }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
@@ -202,7 +216,7 @@ fun VaultListScreen(onOpen: (String) -> Unit, onAdd: (ItemKind) -> Unit, onSetti
 }
 
 @Composable
-private fun ItemRow(item: ItemView, onClick: () -> Unit) {
+private fun ItemRow(item: ItemView, vault: VaultTag?, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -221,6 +235,28 @@ private fun ItemRow(item: ItemView, onClick: () -> Unit) {
                 Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
+        if (vault != null && vault.shared) {
+            Spacer(Modifier.width(8.dp))
+            VaultChip(vault)
+        }
+    }
+}
+
+@Composable
+fun VaultChip(vault: VaultTag) {
+    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.secondaryContainer) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(vault.kind.icon(), null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            Spacer(Modifier.width(4.dp))
+            Text(
+                vaultName(vault.name),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 110.dp),
+            )
+        }
     }
 }
 
@@ -235,7 +271,14 @@ fun ItemDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
     val scope = rememberCoroutineScope()
     val revision by app.vault.revision.collectAsState()
     val item = remember(revision, id) { if (app.vault.isUnlocked) app.vault.item(id) else null }
+    val vault = remember(revision, id) { if (app.vault.isUnlocked) app.vault.vaultOf(id) else null }
+    val writable = vault?.readOnly != true
+    val targets = remember(revision, id) {
+        if (app.vault.isUnlocked) app.vault.vaults().filter { it.id != vault?.id && !it.readOnly } else emptyList()
+    }
     var confirmTrash by remember { mutableStateOf(false) }
+    var moveMenu by remember { mutableStateOf(false) }
+    var failure by remember { mutableStateOf<Throwable?>(null) }
     if (item == null) {
         LaunchedEffect(Unit) { onBack() }
         return
@@ -243,8 +286,18 @@ fun ItemDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
     Page(
         title = item.titleText(),
         onBack = onBack,
-        actions = { if (!item.trashed) TextButton(onClick = onEdit) { Text(stringResource(R.string.edit)) } },
+        actions = { if (!item.trashed && writable) TextButton(onClick = onEdit) { Text(stringResource(R.string.edit)) } },
     ) {
+        failure?.let { Banner(errorText(it), danger = true) }
+        if (vault != null && vault.shared) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                VaultChip(vault)
+                Spacer(Modifier.width(8.dp))
+                if (vault.readOnly) {
+                    Text(stringResource(R.string.read_only), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         val order = listOf(
             "username", "password", "url", "totp", "cardholder", "card_number", "exp_month", "exp_year", "cvv", "pin", "notes",
         )
@@ -259,11 +312,36 @@ fun ItemDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
             }
         }
         Spacer(Modifier.size(8.dp))
-        if (item.trashed) {
+        if (!item.trashed && writable && targets.isNotEmpty()) {
+            Column {
+                OutlinedButton(onClick = { moveMenu = true }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.move_to)) }
+                DropdownMenu(moveMenu, { moveMenu = false }) {
+                    for (t in targets) {
+                        DropdownMenuItem(
+                            text = { Text(if (t.shared) vaultName(t.name) else stringResource(R.string.personal_vault)) },
+                            onClick = {
+                                moveMenu = false
+                                scope.launch {
+                                    failure = null
+                                    try {
+                                        app.vault.move(id, t.id)
+                                        onBack()
+                                    } catch (e: Throwable) {
+                                        failure = e
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        // Readers can't delete or restore.
+        if (writable && item.trashed) {
             OutlinedButton(onClick = { scope.launch { app.vault.trash(id, false) } }, Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.restore))
             }
-        } else {
+        } else if (writable) {
             OutlinedButton(onClick = { confirmTrash = true }, Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
             }
@@ -387,6 +465,9 @@ fun ItemEditScreen(id: String?, kind: ItemKind, onBack: () -> Unit, onSaved: (St
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<Throwable?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    val choices = remember { if (existing == null) app.vault.vaults().filter { !it.readOnly } else emptyList() }
+    var target by remember { mutableStateOf(choices.firstOrNull { !it.shared }) }
+    var vaultMenu by remember { mutableStateOf(false) }
     val badCard = stringResource(R.string.card_invalid)
     val badTotp = stringResource(R.string.totp_invalid)
 
@@ -398,6 +479,22 @@ fun ItemEditScreen(id: String?, kind: ItemKind, onBack: () -> Unit, onSaved: (St
         else -> R.string.new_note
     }
     Page(stringResource(if (existing != null) R.string.edit else title), onBack = onBack) {
+        if (choices.size > 1) {
+            Column {
+                val t = target
+                OutlinedButton(onClick = { vaultMenu = true }, Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.save_in, if (t == null || !t.shared) stringResource(R.string.personal_vault) else vaultName(t.name)))
+                }
+                DropdownMenu(vaultMenu, { vaultMenu = false }) {
+                    for (c in choices) {
+                        DropdownMenuItem(
+                            text = { Text(if (c.shared) vaultName(c.name) else stringResource(R.string.personal_vault)) },
+                            onClick = { target = c; vaultMenu = false },
+                        )
+                    }
+                }
+            }
+        }
         for (n in names) {
             val v = values[n] ?: ""
             when (n) {
@@ -431,7 +528,7 @@ fun ItemEditScreen(id: String?, kind: ItemKind, onBack: () -> Unit, onSaved: (St
                 try {
                     val set = values.filter { (n, v) -> v.isNotEmpty() && v != (initial[n] ?: "") }.map { (n, v) -> FieldInput(n, v) }
                     val remove = values.filter { (n, v) -> v.isEmpty() && (initial[n] ?: "").isNotEmpty() }.keys.toList()
-                    val saved = if (existing == null) app.vault.create(k, set) else {
+                    val saved = if (existing == null) app.vault.create(k, set, target?.id) else {
                         app.vault.update(existing.id, set, remove)
                         existing.id
                     }

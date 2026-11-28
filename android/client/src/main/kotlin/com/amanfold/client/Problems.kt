@@ -17,6 +17,10 @@ enum class Problem {
     Code,
     RateLimited,
     Locked,
+    ReadOnly,
+    SafetyNumber,
+    Unverified,
+    NotFound,
     Server,
     Other,
 }
@@ -28,6 +32,9 @@ enum class Problem {
  */
 fun problemOf(e: Throwable, hadCode: Boolean = false): Problem = when (e) {
     is LockedException -> Problem.Locked
+    is ReadOnlyException -> Problem.ReadOnly
+    is FingerprintChangedException -> Problem.SafetyNumber
+    is UnverifiedMembersException -> Problem.Unverified
     is ServerKeyException -> Problem.ServerKey
     is SecretKeyException -> Problem.SecretKey
     is BadServerException -> Problem.BadServer
@@ -42,6 +49,7 @@ fun problemOf(e: Throwable, hadCode: Boolean = false): Problem = when (e) {
         hadCode && e.kind == "verification_failed" -> Problem.Code
         e.kind == "verification_failed" -> Problem.Verification
         e.status == 401 -> Problem.SignedOut
+        e.status == 404 -> Problem.NotFound
         else -> Problem.Server
     }
     else -> Problem.Other
