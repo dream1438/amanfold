@@ -1,8 +1,3 @@
-// Plugin versions are in settings.gradle.kts. The Kotlin plugin is loaded
-// once here so :client and :app share it.
-plugins {
-    kotlin("jvm") apply false
-    kotlin("android") apply false
-    kotlin("plugin.serialization") apply false
-    kotlin("plugin.compose") apply false
-}
+// Plugin versions are in settings.gradle.kts and applied per module. The
+// Android plugin is not declared here: it comes from Google's repository,
+// which is only used when an Android SDK is present.
