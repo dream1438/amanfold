@@ -74,13 +74,13 @@ async function connect() {
     if (msg.error) w.reject(new Error(`${w.method}: ${msg.error.message}`));
     else w.resolve(msg.result);
   };
-  return (method, params = {}, sessionId) =>
+  return (method, params = {}, sessionId, ms = T) =>
     new Promise((resolve, reject) => {
       const id = next++;
       const timer = setTimeout(() => {
         waiting.delete(id);
-        reject(new Error(`${method}: no answer in ${T / 1000} s`));
-      }, T);
+        reject(new Error(`${method}: no answer in ${ms / 1000} s`));
+      }, ms);
       waiting.set(id, {
         resolve: (v) => (clearTimeout(timer), resolve(v)),
         reject: (e) => (clearTimeout(timer), reject(e)),
@@ -116,10 +116,13 @@ try {
   async function open(address) {
     const { targetId } = await cdp("Target.createTarget", { url: address });
     const { sessionId } = await cdp("Target.attachToTarget", { targetId, flatten: true });
+    // Some browsers (Vivaldi) hold new tabs until a debugger lets them run.
+    await cdp("Runtime.runIfWaitingForDebugger", {}, sessionId).catch(() => {});
+    await cdp("Page.bringToFront", {}, sessionId).catch(() => {});
     const page = {
       targetId,
       async ev(expr) {
-        const r = await cdp("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, sessionId);
+        const r = await cdp("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, sessionId, 5000);
         if (r.exceptionDetails) throw new Error(`${expr}: ${r.exceptionDetails.exception?.description ?? r.exceptionDetails.text}`);
         return r.result.value;
       },
@@ -192,6 +195,10 @@ try {
 } catch (e) {
   failed = true;
   console.error(`e2e smoke FAILED at step ${currentStep()}`, e);
+  try {
+    const list = await (await fetch(said.match(/DevTools listening on ws:\/\/([^/]+)/)[1].replace(/^/, "http://") + "/json/list")).json();
+    console.error("targets:\n" + list.map((t) => `  ${t.type} ${t.url}`).join("\n"));
+  } catch {}
   console.error(`${browserPath} said:\n${said.slice(-3000)}`);
 } finally {
   proc.kill();
