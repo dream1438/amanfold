@@ -27,6 +27,15 @@ pub enum Mail {
         /// Who invited (their account email).
         from: String,
     },
+    /// Confirm a beta waitlist sign-up from the website.
+    WaitlistConfirm {
+        /// Link that confirms the sign-up.
+        confirm: String,
+        /// Link that removes the address from the list.
+        leave: String,
+        /// Write the email in Arabic.
+        arabic: bool,
+    },
 }
 
 impl Mail {
@@ -61,6 +70,34 @@ impl Mail {
                     "{from} invited you to a shared vault on Amanfold. Open the Amanfold app \
                      to accept. Before the vault opens, compare safety numbers with {from} \
                      in person or on a call."
+                ),
+            ),
+            Mail::WaitlistConfirm {
+                confirm,
+                leave,
+                arabic: false,
+            } => (
+                "Confirm your place in the Amanfold beta".into(),
+                format!(
+                    "Thanks for your interest in Amanfold.\n\n\
+                     To join the beta waitlist, open this link:\n{confirm}\n\n\
+                     If you did not ask for this, ignore this email and we will forget \
+                     your address within 7 days.\n\n\
+                     We will only email you about the beta. To leave the list at any \
+                     time:\n{leave}"
+                ),
+            ),
+            Mail::WaitlistConfirm {
+                confirm,
+                leave,
+                arabic: true,
+            } => (
+                "أكّد انضمامك إلى النسخة التجريبية من أمان فولد".into(),
+                format!(
+                    "شكرًا لاهتمامك بأمان فولد.\n\n\
+                     للانضمام إلى قائمة انتظار النسخة التجريبية، افتح هذا الرابط:\n{confirm}\n\n\
+                     إن لم تطلب ذلك، تجاهل هذه الرسالة وسنحذف عنوانك خلال 7 أيام.\n\n\
+                     لن نراسلك إلا بشأن النسخة التجريبية. لمغادرة القائمة في أي وقت:\n{leave}"
                 ),
             ),
         }

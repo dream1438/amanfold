@@ -17,6 +17,7 @@ built on the same security core as the apps and sees **ciphertext only**.
 | `records` | one encrypted, size-padded record per item | No. |
 | `members`, `grants` | who belongs to which vault with which role; each member's vault key sealed to their public key and signed by the granter | No: grants open only with the member's private key. |
 | `invites` | email invited, role, inviter | Email and role. |
+| `waitlist` | website beta sign-ups: email, language, plan of interest, confirmed or not, SHA-256 of the emailed link token, time | Yes (it is a mailing list). No IP address or browser details. Unconfirmed entries are deleted after 7 days; leaving deletes the row. |
 
 No master password, Secret Key, recovery code, vault key, item key, item
 title, URL, username, password or card number ever reaches the server.
@@ -161,6 +162,21 @@ call `account.acceptRotation(vault, newestGrant, granterKeys)` first.
 | `PUT /v1/vaults/{id}/members/{account}/role {role}` | Owner only. |
 | `DELETE /v1/vaults/{id}/members/{account}` | Remove a member, or leave. Returns `needs_rotation`; an owner or manager device should then rotate. |
 
+### Beta waitlist (website)
+
+Double opt-in, called by the static site on amanfold.com. These three routes
+are the only ones that answer CORS preflights, and only for the origins in
+`AMANFOLD_ALLOWED_ORIGINS`. Bodies are limited to 4 KiB.
+
+| Call | |
+| --- | --- |
+| `POST /v1/waitlist {email, lang?, plan?}` | `202 {}`. `lang` is `en` or `ar`; `plan` is `free`, `premium`, `family` or `teams` (anything else falls back to `en` / `free`). Mails a link to `{site}/[ar/]beta/confirm/#t=<token>` unless the address is already confirmed; the answer is the same either way. The token sits in the URL fragment, so it never reaches the web server's logs. Rate limited per address and per client. |
+| `POST /v1/waitlist/confirm {token}` | `{}`, or `verification_failed` for an unknown or expired (7 days) link. |
+| `POST /v1/waitlist/leave {token}` | `{}`. Deletes the entry. |
+
+`amanfold-server waitlist > waitlist.csv` prints the confirmed sign-ups
+(email, language, plan, time) for whoever sends the beta invitations.
+
 ### Server info
 
 `GET /v1/server` → `{server_identity, opaque_public_key, format, version,
@@ -190,6 +206,8 @@ target/release/amanfold-server serve
 | `AMANFOLD_TRUST_PROXY` | `0` | `1` only behind a proxy that sets `X-Forwarded-For`; the rightmost address is used. |
 | `AMANFOLD_DEV` | `0` | `1` writes emails (with codes) to the log instead of sending. Never in production. |
 | `AMANFOLD_NO_EMAIL_VERIFICATION` | `0` | `1` for a private self-hosted server: sign-up and recovery skip the email code (recovery still needs the recovery kit). |
+| `AMANFOLD_SITE_URL` | `https://amanfold.com` | Website, used in waitlist email links. |
+| `AMANFOLD_ALLOWED_ORIGINS` | | Comma-separated origins allowed to call the waitlist from a browser, e.g. `https://amanfold.com,https://www.amanfold.com`. Empty: no CORS. |
 | `RUST_LOG` | `info` | Logs never contain request bodies, codes (outside dev mode) or tokens. |
 
 ## Limits of this version

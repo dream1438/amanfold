@@ -35,12 +35,16 @@ use amanfold_core::{auth::ServerKeys, secret::SecretBytes};
 use axum::{
     Router,
     extract::{ConnectInfo, DefaultBodyLimit, FromRequestParts},
-    http::{HeaderValue, header, request::Parts},
+    http::{HeaderValue, Method, header, request::Parts},
     routing::{delete, get, post, put},
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
-use tower_http::{set_header::SetResponseHeaderLayer, trace::TraceLayer};
+use tower_http::{
+    cors::{AllowOrigin, CorsLayer},
+    set_header::SetResponseHeaderLayer,
+    trace::TraceLayer,
+};
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -52,6 +56,7 @@ pub mod mail;
 pub mod sharing;
 pub mod store;
 pub mod vaults;
+pub mod waitlist;
 pub mod wire;
 
 use error::{ApiError, ApiResult};
@@ -77,6 +82,11 @@ pub struct Config {
     pub max_body_bytes: usize,
     /// Rate limits.
     pub limits: Limits,
+    /// The public website, for links in waitlist emails.
+    pub site_url: String,
+    /// Web origins allowed to call the waitlist endpoints from a browser
+    /// (CORS). Empty: none. The rest of the API never sends CORS headers.
+    pub allowed_origins: Vec<String>,
 }
 
 impl Default for Config {
@@ -89,6 +99,8 @@ impl Default for Config {
             max_vault_bytes: 512 * 1024 * 1024,
             max_body_bytes: 64 * 1024 * 1024,
             limits: Limits::default(),
+            site_url: "https://amanfold.com".into(),
+            allowed_origins: Vec::new(),
         }
     }
 }
@@ -207,7 +219,25 @@ impl AppState {
 /// The HTTP API.
 pub fn app(state: Arc<AppState>) -> Router {
     let big = DefaultBodyLimit::max(state.cfg.max_body_bytes);
+    let origins: Vec<HeaderValue> = state
+        .cfg
+        .allowed_origins
+        .iter()
+        .filter_map(|o| HeaderValue::from_str(o.trim()).ok())
+        .collect();
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_methods([Method::POST])
+        .allow_headers([header::CONTENT_TYPE])
+        .max_age(std::time::Duration::from_secs(86_400));
+    let waitlist = Router::new()
+        .route("/v1/waitlist", post(waitlist::join))
+        .route("/v1/waitlist/confirm", post(waitlist::confirm))
+        .route("/v1/waitlist/leave", post(waitlist::leave))
+        .layer(DefaultBodyLimit::max(4 * 1024))
+        .layer(cors);
     Router::new()
+        .merge(waitlist)
         .route("/v1/server", get(accounts::server_info))
         // Sign-up
         .route("/v1/signup/email", post(accounts::signup_email))
