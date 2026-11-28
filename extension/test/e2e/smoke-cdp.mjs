@@ -114,11 +114,14 @@ try {
 
   /** Open `address` in a new tab and return a page handle. */
   async function open(address) {
-    const { targetId } = await cdp("Target.createTarget", { url: address });
+    // A blank page in its own window, then navigated: Vivaldi ignores the
+    // address given to Target.createTarget, and its tabs live in its own UI.
+    const { targetId } = await cdp("Target.createTarget", { url: "about:blank", newWindow: true });
     const { sessionId } = await cdp("Target.attachToTarget", { targetId, flatten: true });
-    // Some browsers (Vivaldi) hold new tabs until a debugger lets them run.
     await cdp("Runtime.runIfWaitingForDebugger", {}, sessionId).catch(() => {});
     await cdp("Page.bringToFront", {}, sessionId).catch(() => {});
+    const nav = await cdp("Page.navigate", { url: address }, sessionId);
+    if (nav.errorText) throw new Error(`open ${address}: ${nav.errorText}`);
     const page = {
       targetId,
       async ev(expr) {
